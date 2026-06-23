@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests;
 
 use Illuminate\Foundation\Application;
+use Laravel\Sanctum\Sanctum;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Spdotdev\Inventory\InventoryServiceProvider;
@@ -31,7 +32,7 @@ abstract class TestCase extends BaseTestCase
      */
     protected function defineDatabaseMigrations(): void
     {
-        $sanctumMigrations = dirname((new \ReflectionClass(\Laravel\Sanctum\Sanctum::class))->getFileName(), 2).'/database/migrations';
+        $sanctumMigrations = dirname((new \ReflectionClass(Sanctum::class))->getFileName(), 2).'/database/migrations';
 
         $this->loadMigrationsFrom($sanctumMigrations);
     }
