@@ -2,9 +2,11 @@
 
 namespace Spdotdev\Inventory;
 
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
+use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
 
 class InventoryServiceProvider extends ServiceProvider
 {
@@ -24,6 +26,11 @@ class InventoryServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Tenancy gate for /households/{household}/* routes.
+        /** @var Router $router */
+        $router = $this->app['router'];
+        $router->aliasMiddleware('household.member', EnsureHouseholdMember::class);
+
         // Landing page (web) + headless API (api/v1), both host-based routed
         // on config('inventory.domain').
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');

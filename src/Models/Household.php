@@ -22,6 +22,26 @@ class Household extends Model
     ];
 
     /**
+     * Generate a unique, human-friendly join code (e.g. ABCD-2345). Uses an
+     * unambiguous alphabet (no 0/O/1/I/L) and a CSPRNG, retrying on collision.
+     */
+    public static function generateUniqueJoinCode(): string
+    {
+        $alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        $max = strlen($alphabet) - 1;
+
+        do {
+            $raw = '';
+            for ($i = 0; $i < 8; $i++) {
+                $raw .= $alphabet[random_int(0, $max)];
+            }
+            $code = substr($raw, 0, 4).'-'.substr($raw, 4, 4);
+        } while (static::query()->where('join_code', $code)->exists());
+
+        return $code;
+    }
+
+    /**
      * Members of this household.
      *
      * @return BelongsToMany<User, $this>

@@ -33,10 +33,10 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 > Foundation skeleton + initial landing page shipped 2026-06-23 — see
 > [`BACKLOG.md`](BACKLOG.md) → Done. Next up: the `inventory_*` schema + models, then auth.
 
-### HOUSEHOLDS (next)
-- [ ] **Households + membership + search** — `/api/v1/households` (list/create), `/invite`
-  (code + link), `/join` (by code), `/leave`, and `/search?q=` across the household. Tenancy
-  middleware `household.member` guards `/households/{household}/*` per `specs/api-contract.md`.
+### RESOURCES (next)
+- [ ] **Locations / shelves / products CRUD + stock actions** — nested CRUD under
+  `/households/{household}` plus `add`/`remove`/`move` per `specs/api-contract.md`,
+  all behind `household.member`.
 
 ### LANDING PAGE
 - [ ] **Redesign the landing page** — once the product has something to show, replace the

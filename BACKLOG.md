@@ -77,6 +77,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-06-23` — **Households + membership + search** — `EnsureHouseholdMember`
+  (`household.member`) tenancy middleware (404, not 403, for non-members/out-of-tenant).
+  `GET/POST /households`, `POST /households/join` (idempotent join-by-code, 404 on bad code),
+  `GET /households/{household}/invite` (code + share link), `DELETE .../leave`, and
+  `GET .../search?q=` (products with `location › shelf` path), per `specs/api-contract.md`.
+  CSPRNG join codes (unambiguous alphabet) on `Household`. `HouseholdResource`/
+  `SearchResultResource`, Store/Join form requests. `HouseholdTest` (8) + `SearchTest` (3)
+  incl. tenancy isolation and auth-required. Pint/Larastan green locally; DB tests on CI.
 - ✅ `2026-06-23` — **Auth security hardening** (from a commit security review): (1) the
   Google verifier now **fails closed** — with no configured client IDs it rejects all tokens
   instead of skipping the `aud` check (was: any Google token from any app would authenticate);
