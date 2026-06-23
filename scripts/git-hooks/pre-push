@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Pre-push hook — runs style check + tests before a push leaves the machine.
+# Installed via `make install-hooks`. CI is the binding gate; this is the early
+# warning. Bypass in an emergency with `git push --no-verify`.
+#
+# Guarded: if the package toolchain isn't installed yet (planning/pre-skeleton
+# repo, or a fresh clone without `composer install`), it skips cleanly instead
+# of blocking the push.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+if [ ! -f vendor/bin/phpunit ]; then
+  echo "[pre-push] vendor/ not installed — skipping (run 'composer install' to enable)."
+  exit 0
+fi
+
+echo "[pre-push] Pint (style)…"
+./vendor/bin/pint --test
+
+echo "[pre-push] PHPUnit…"
+./vendor/bin/phpunit

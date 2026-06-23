@@ -1,0 +1,65 @@
+name: Security audit
+
+# Scans dependencies for known CVEs and enforces composer lockfile sync.
+# Runs on dependency-manifest changes + a daily schedule to catch newly
+# disclosed advisories in unchanged deps. Mirrors leadai's audit.yml.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'composer.json'
+      - 'composer.lock'
+  pull_request:
+    paths:
+      - 'composer.json'
+      - 'composer.lock'
+  schedule:
+    # 04:30 UTC daily — catches new CVEs without a manifest change.
+    - cron: '30 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  composer-audit:
+    name: composer audit
+    runs-on: ubuntu-latest
+    # Guard: skip cleanly until the package manifest exists (planning-only repo).
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2
+          coverage: none
+
+      - name: Skip if no composer.json yet
+        id: guard
+        run: |
+          if [ -f composer.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      # --strict turns a lockfile-drift warning into a non-zero exit;
+      # --no-check-publish skips publish-only metadata rules.
+      - name: Verify composer.lock is in sync
+        if: steps.guard.outputs.present == 'true'
+        run: composer validate --strict --no-check-publish
+
+      # --locked audits the lock directly (no install needed);
+      # --abandoned=ignore avoids failing on long-deprecated packages.
+      - name: composer audit
+        if: steps.guard.outputs.present == 'true'
+        run: composer audit --no-interaction --abandoned=ignore --locked
+
+  dependency-review:
+    name: dependency review
+    runs-on: ubuntu-latest
+    # Needs a base ref to diff — only meaningful on pull_request.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

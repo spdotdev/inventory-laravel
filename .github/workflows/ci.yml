@@ -1,0 +1,68 @@
+name: CI
+
+# Quality + tests for the spdotdev/inventory package: Pint (style),
+# Larastan (static analysis), PHPUnit (tests via orchestra/testbench).
+# Mirrors the spdotdev/scuttle-dev CI.
+#
+# DORMANT UNTIL CODE LANDS: triggers are scoped to the package's source paths
+# (not this workflow file), so an empty/planning-only repo never runs a red
+# build. The first skeleton commit (composer.json + src/) activates it.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'config/**'
+      - 'routes/**'
+      - 'database/**'
+      - 'tests/**'
+      - 'resources/**'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'phpunit.xml'
+      - 'phpstan.neon'
+      - 'pint.json'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'config/**'
+      - 'routes/**'
+      - 'database/**'
+      - 'tests/**'
+      - 'resources/**'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'phpunit.xml'
+      - 'phpstan.neon'
+      - 'pint.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, xml, pdo, sqlite3, pdo_sqlite, bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Pint (style check)
+        run: ./vendor/bin/pint --test
+
+      - name: Larastan (static analysis)
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+      - name: Tests
+        # Package tests run on testbench's in-memory SQLite; no external services.
+        run: ./vendor/bin/phpunit
