@@ -27,5 +27,15 @@ abstract class TestCase extends BaseTestCase
         // host-based routes resolve predictably in tests.
         $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
         $app['config']->set('inventory.domain', 'inventory.test');
+
+        // In-memory SQLite with foreign keys enforced, so cascade-delete
+        // behaviour is exercised in tests the way MySQL enforces it in prod.
+        $app['config']->set('database.default', 'sqlite');
+        $app['config']->set('database.connections.sqlite', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => true,
+        ]);
     }
 }

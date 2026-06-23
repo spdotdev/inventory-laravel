@@ -77,6 +77,13 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-06-23` — **Schema + models** — six `inventory_*` migrations (users, households,
+  household_user pivot, storage_locations, shelves, products) per `specs/data-model.md`:
+  prefixed tables, FK `cascadeOnDelete`, composite pivot PK, `enum` storage type, quantity
+  default 0. Eloquent models (`User`, `Household`, `StorageLocation`, `Shelf`, `Product`) +
+  `StorageType` enum + relationships + casts. `SchemaTest` covers tree build, membership,
+  enum cast, quantity default, and cascade deletes (location→shelves→products, household→
+  locations). Larastan/Pint green locally; DB tests run on CI (local PHP lacks pdo_sqlite).
 - ✅ `2026-06-23` — **Package skeleton scaffolded** (`spdotdev/inventory`, mirrors
   scuttle-dev): auto-discovered `InventoryServiceProvider` (merges config, loads web +
   `api/v1` route groups, `inventory::` views, migrations dir; publishes config + assets),
