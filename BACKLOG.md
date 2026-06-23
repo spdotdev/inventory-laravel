@@ -77,6 +77,12 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-06-23` — **Auth security hardening** (from a commit security review): (1) the
+  Google verifier now **fails closed** — with no configured client IDs it rejects all tokens
+  instead of skipping the `aud` check (was: any Google token from any app would authenticate);
+  (2) requires Google `email_verified`, closing the account-takeover-by-email-linking vector;
+  (3) `google_id`/`avatar_url` removed from `$fillable` (set only from verified claims).
+  Added `GoogleTokenInfoVerifierTest` (6 cases, `Http::fake`, runs locally).
 - ✅ `2026-06-23` — **Auth (Sanctum + Google)** — `laravel/sanctum` added; `User` is now
   authenticatable with `HasApiTokens`. Endpoints `POST /api/v1/auth/register|login|google|
   logout` per `specs/api-contract.md`, with `RegisterRequest`/`LoginRequest` validation and

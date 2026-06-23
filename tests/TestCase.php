@@ -3,7 +3,6 @@
 namespace Spdotdev\Inventory\Tests;
 
 use Illuminate\Foundation\Application;
-use Laravel\Sanctum\Sanctum;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Spdotdev\Inventory\InventoryServiceProvider;
@@ -16,25 +15,14 @@ abstract class TestCase extends BaseTestCase
      */
     protected function getPackageProviders($app): array
     {
-        // Sanctum provides the personal_access_tokens migration + the
-        // `sanctum` guard the auth endpoints rely on.
+        // SanctumServiceProvider: the `sanctum` guard the auth endpoints use.
+        // SanctumMigrationsProvider: registers Sanctum's migration path (it
+        //   isn't auto-loaded in testbench) so RefreshDatabase migrates it.
         return [
             SanctumServiceProvider::class,
+            SanctumMigrationsProvider::class,
             InventoryServiceProvider::class,
         ];
-    }
-
-    /**
-     * Sanctum 4 doesn't auto-load its migration in the testbench context, so
-     * load the personal_access_tokens migration explicitly (resolved from the
-     * installed package, not a hardcoded path). Package migrations are loaded
-     * by the service provider.
-     */
-    protected function defineDatabaseMigrations(): void
-    {
-        $sanctumMigrations = dirname((new \ReflectionClass(Sanctum::class))->getFileName(), 2).'/database/migrations';
-
-        $this->loadMigrationsFrom($sanctumMigrations);
     }
 
     /**

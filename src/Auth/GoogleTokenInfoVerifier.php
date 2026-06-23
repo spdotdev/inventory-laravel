@@ -22,6 +22,14 @@ class GoogleTokenInfoVerifier implements GoogleIdTokenVerifier
 
     public function verify(string $idToken): ?array
     {
+        // Fail CLOSED: without configured client IDs we cannot validate the
+        // token's audience. Accepting anyway would let any valid Google ID
+        // token — including ones minted for a completely different app — sign
+        // in here. Refuse rather than trust an unbounded audience.
+        if ($this->allowedClientIds === []) {
+            return null;
+        }
+
         $response = Http::get(self::TOKENINFO_URL, ['id_token' => $idToken]);
 
         if ($response->failed()) {
@@ -38,7 +46,15 @@ class GoogleTokenInfoVerifier implements GoogleIdTokenVerifier
             return null;
         }
 
-        if ($this->allowedClientIds !== [] && ! in_array($claims['aud'] ?? '', $this->allowedClientIds, true)) {
+        if (! in_array($claims['aud'] ?? '', $this->allowedClientIds, true)) {
+            return null;
+        }
+
+        // Require Google to have verified the email. Without this, identity
+        // linking by email (in the controller) would be an account-takeover
+        // vector — an attacker could present a token carrying someone else's
+        // unverified email. tokeninfo returns this as the string "true".
+        if (! filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             return null;
         }
 

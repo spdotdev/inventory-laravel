@@ -20,13 +20,13 @@ class User extends Authenticatable
 
     protected $table = 'inventory_users';
 
+    // google_id and avatar_url are deliberately NOT mass-assignable — they are
+    // set explicitly from verified Google claims, never from request input.
     /** @var list<string> */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'google_id',
-        'avatar_url',
     ];
 
     /** @var list<string> */

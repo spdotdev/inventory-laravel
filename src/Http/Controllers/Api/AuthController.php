@@ -48,6 +48,10 @@ class AuthController
             return response()->json(['message' => 'Invalid Google token.'], 401);
         }
 
+        // Match by google_id, then fall back to email. The email-match links a
+        // Google identity to a pre-existing (e.g. password) account — safe only
+        // because the verifier guarantees a Google-verified email bound to our
+        // own client ID, so the caller provably controls that address.
         $user = User::query()->where('google_id', $claims['sub'])->first()
             ?? User::query()->where('email', $claims['email'])->first()
             ?? new User(['name' => $claims['name'] ?? $claims['email'], 'email' => $claims['email']]);
