@@ -29,7 +29,7 @@ src/Http/Controllers/                 LandingController (web), Api/* (api/v1)
 src/Http/Middleware/                  EnsureHouseholdMember
 src/Models/                           User, Household, StorageLocation, Shelf, Product
 src/Console/Commands/                 household create, etc.
-config/inventory.php                  'domain' => env('INVENTORY_DOMAIN', ...)
+config/inventory.php                  'domain' => env('INVENTORY_DOMAIN', <APP_URL host>)
 routes/web.php                        Route::domain(config('inventory.domain'))->middleware('web')  -> landing
 routes/api.php                        same domain ->prefix('api/v1')->middleware('api')             -> API
 database/migrations/                  inventory_* tables
@@ -40,8 +40,9 @@ public/                               landing assets (publishable)
 ## Hard rules — LOCKED, do not relitigate or "improve"
 - **Package, not an app.** No standalone `laravel new` skeleton; depend on the host app.
 - **Server-authoritative, always-online.** NO offline store, NO sync, NO conflict resolution.
-- **Host-based routing on `config('inventory.domain')`.** `/` = landing page,
-  `/api/v1/*` = API. Never hardcode the domain.
+- **Host-based routing on `config('inventory.domain')`**, which **defaults to the host
+  app's own domain** (`APP_URL` host) and is overridable via `INVENTORY_DOMAIN`. `/` =
+  landing page, `/api/v1/*` = API. Never hardcode the domain.
 - **All package tables prefixed `inventory_`** to avoid colliding with host tables.
 - **Own auth** (`inventory_users`) — email/password + Google; issues Sanctum tokens.
   Independent of the host app's users.

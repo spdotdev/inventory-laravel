@@ -23,7 +23,17 @@ Route::domain(config('inventory.domain'))->prefix('api/v1')->middleware('api')->
     // auth, households, locations, shelves, products — see specs/api-contract.md
 });
 ```
-`config/inventory.php`: `'domain' => env('INVENTORY_DOMAIN', 'inventory.scuttle.dev')` (Q-6: confirm parent domain).
+`config/inventory.php` (Q-6 resolved — default to the host app's own domain, override via env):
+```php
+return [
+    // Defaults to the host app's own domain; set INVENTORY_DOMAIN to serve on a
+    // dedicated subdomain (e.g. inventory.scuttle.dev).
+    'domain' => env('INVENTORY_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+];
+```
+In the service provider, apply `Route::domain(config('inventory.domain'))` for both route
+groups. Since the default resolves to the app's own host, no dedicated subdomain is required
+to run — it just works on the host app's domain until `INVENTORY_DOMAIN` is set.
 
 ## Dependencies to add
 - `laravel/sanctum` — bearer tokens for the Android client
@@ -59,5 +69,6 @@ cascade deletes, join-by-code, domain routing resolves landing vs api.
 See `CLAUDE.md` → "Build order". Start: skeleton + migrations + tenancy middleware.
 
 ## Deploy
-No standalone deploy. Ships with sd-admin (DigitalOcean d051). Set `INVENTORY_DOMAIN`
-and DNS for `inventory.{domain}` at infra step.
+No standalone deploy. Ships with sd-admin (DigitalOcean d051). By default it serves on
+sd-admin's own domain; **optionally** set `INVENTORY_DOMAIN` (+ DNS) at the infra step to
+move it onto a dedicated subdomain like `inventory.scuttle.dev`.
