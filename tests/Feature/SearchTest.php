@@ -18,7 +18,7 @@ class SearchTest extends TestCase
         $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
         $household->users()->attach($member->getKey(), ['joined_at' => now()]);
 
-        $location = $household->storageLocations()->create(['name' => 'Garage Chest', 'type' => StorageType::Freezer]);
+        $location = $household->locations()->create(['name' => 'Garage Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Middle shelf', 'position' => 1]);
         $shelf->products()->create(['name' => 'Vanilla ice cream', 'quantity' => 1]);
 

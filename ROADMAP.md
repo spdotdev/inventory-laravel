@@ -33,10 +33,12 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 > Foundation skeleton + initial landing page shipped 2026-06-23 — see
 > [`BACKLOG.md`](BACKLOG.md) → Done. Next up: the `inventory_*` schema + models, then auth.
 
-### RESOURCES (next)
-- [ ] **Locations / shelves / products CRUD + stock actions** — nested CRUD under
-  `/households/{household}` plus `add`/`remove`/`move` per `specs/api-contract.md`,
-  all behind `household.member`.
+### CLI (next)
+- [ ] **Artisan commands** (D-032) — e.g. `inventory:household:create {name}` (prints the
+  join code), for admin/seeding without the API. Room to grow: add member, regenerate code.
+
+> The MVP API surface (auth, households, search, locations/shelves/products CRUD + stock
+> actions) is complete — see [`BACKLOG.md`](BACKLOG.md) → Done.
 
 ### LANDING PAGE
 - [ ] **Redesign the landing page** — once the product has something to show, replace the

@@ -19,7 +19,7 @@ class SchemaTest extends TestCase
         $household = Household::create(['name' => 'Garage', 'join_code' => 'FROST-7K2Q']);
         $household->users()->attach($user->id, ['joined_at' => now()]);
 
-        $location = $household->storageLocations()->create([
+        $location = $household->locations()->create([
             'name' => 'Garage Chest',
             'type' => StorageType::Freezer,
         ]);
@@ -68,7 +68,7 @@ class SchemaTest extends TestCase
     private function makeShelf(): Shelf
     {
         $household = Household::create(['name' => 'Garage', 'join_code' => 'CODE-'.uniqid()]);
-        $location = $household->storageLocations()->create([
+        $location = $household->locations()->create([
             'name' => 'Chest',
             'type' => StorageType::Freezer,
         ]);

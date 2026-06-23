@@ -4,7 +4,10 @@ use Illuminate\Support\Facades\Route;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
+use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
+use Spdotdev\Inventory\Http\Controllers\Api\ProductController;
 use Spdotdev\Inventory\Http\Controllers\Api\SearchController;
+use Spdotdev\Inventory\Http\Controllers\Api\ShelfController;
 
 // Headless API for the Android client. Versioned from day one; host-based
 // routed on the configured inventory domain. Locations/shelves/products CRUD
@@ -30,10 +33,24 @@ Route::domain(config('inventory.domain'))
             // Defined before the {household} routes so "join" isn't captured as an id.
             Route::post('households/join', [HouseholdController::class, 'join'])->name('inventory.api.households.join');
 
-            Route::middleware('household.member')->group(function () {
+            // Tenancy: household.member verifies the caller is a member;
+            // scopeBindings verifies each nested resource belongs to its parent
+            // (location ⊂ household, shelf ⊂ location/household, product ⊂ shelf).
+            Route::middleware('household.member')->scopeBindings()->group(function () {
                 Route::get('households/{household}/invite', [HouseholdController::class, 'invite'])->name('inventory.api.households.invite');
                 Route::delete('households/{household}/leave', [HouseholdController::class, 'leave'])->name('inventory.api.households.leave');
                 Route::get('households/{household}/search', SearchController::class)->name('inventory.api.households.search');
+
+                // Stock actions (defined before the resource so the /add|remove|move
+                // suffixes aren't shadowed by the {product} show route).
+                Route::post('households/{household}/shelves/{shelf}/products/{product}/add', [ProductController::class, 'add'])->name('inventory.api.products.add');
+                Route::post('households/{household}/shelves/{shelf}/products/{product}/remove', [ProductController::class, 'remove'])->name('inventory.api.products.remove');
+                Route::post('households/{household}/shelves/{shelf}/products/{product}/move', [ProductController::class, 'move'])->name('inventory.api.products.move');
+
+                // Nested resource CRUD (apiResource = index/store/show/update/destroy).
+                Route::apiResource('households.locations', LocationController::class)->shallow(false);
+                Route::apiResource('households.locations.shelves', ShelfController::class)->shallow(false);
+                Route::apiResource('households.shelves.products', ProductController::class)->shallow(false);
             });
         });
     });

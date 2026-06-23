@@ -77,6 +77,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-06-23` — **Locations / shelves / products CRUD + stock actions** — nested
+  apiResource routes under `/households/{household}` with **scoped route-model bindings**
+  (each child verified ⊂ its parent) layered on `household.member`, so cross-household id
+  manipulation 404s. `add`/`remove` (quantity floors at 0, row retained) + `move` (rejects a
+  target shelf outside the household, 422). `Location`/`Shelf`/`Product` controllers, resources,
+  and method-aware Form Requests; `Household::locations()` + `shelves()` (hasManyThrough) back
+  the scoping. `ResourceCrudTest` (8) covers CRUD, stock floor, in-household move, cross-
+  household move rejection, scoped-binding 404, and non-member 404. **MVP API surface complete.**
 - ✅ `2026-06-23` — **Households + membership + search** — `EnsureHouseholdMember`
   (`household.member`) tenancy middleware (404, not 403, for non-members/out-of-tenant).
   `GET/POST /households`, `POST /households/join` (idempotent join-by-code, 404 on bad code),

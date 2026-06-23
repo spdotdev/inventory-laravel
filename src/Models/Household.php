@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 /**
  * @property int $id
@@ -59,8 +60,26 @@ class Household extends Model
     /**
      * @return HasMany<StorageLocation, $this>
      */
-    public function storageLocations(): HasMany
+    public function locations(): HasMany
     {
         return $this->hasMany(StorageLocation::class, 'household_id');
+    }
+
+    /**
+     * Shelves across all of the household's locations. Backs scoped binding for
+     * the /households/{household}/shelves/{shelf}/... routes.
+     *
+     * @return HasManyThrough<Shelf, StorageLocation, $this>
+     */
+    public function shelves(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Shelf::class,
+            StorageLocation::class,
+            'household_id', // FK on storage_locations
+            'location_id',  // FK on shelves
+            'id',
+            'id',
+        );
     }
 }
