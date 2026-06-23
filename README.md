@@ -1,20 +1,56 @@
 # inventory-laravel
 
-Laravel backend and API for the **Inventory** product.
+Laravel backend for the **Inventory** product — shipped as the Composer package
+`spdotdev/inventory`: a **headless API + marketing landing page** mounted into a host
+Laravel app (sd-admin) via host-based routing. Android is the sole API client.
 
-> ⚠️ Project scaffolding has not been generated yet. This repo currently holds
-> planning only; the Laravel application will be added once the shared planning
-> is split.
+> Status: **skeleton**. Service provider, host-based route groups, landing page, and the
+> `/api/v1/health` probe are in place. Auth (Sanctum + Google), the `inventory_*` schema,
+> and the resource CRUD land in the next steps — see [`ROADMAP.md`](ROADMAP.md).
 
-## Documentation
+## Install (into a host Laravel app)
 
-- Backend-specific planning: [`docs/`](./docs)
-- Shared specs (product vision, data model, API contract): [`inventory-docs`](https://github.com/spdotdev/inventory-docs)
+```bash
+composer require spdotdev/inventory
+```
 
-## Related repositories
+The `InventoryServiceProvider` is auto-discovered. Optionally publish the config:
 
-- [`inventory-android`](https://github.com/spdotdev/inventory-android) — Android client
-- [`inventory-docs`](https://github.com/spdotdev/inventory-docs) — shared planning & specs
+```bash
+php artisan vendor:publish --tag=inventory-config
+```
+
+## Configuration
+
+| Env | Default | Purpose |
+| --- | --- | --- |
+| `INVENTORY_DOMAIN` | the host app's own domain (`APP_URL` host) | Domain the landing page (`/`) and API (`/api/v1`) answer on. Set to a dedicated subdomain (e.g. `inventory.scuttle.dev`) to split it out. |
+
+## What's mounted
+
+- `GET /` — Frost-styled "coming soon" landing page (`inventory.landing`).
+- `GET /api/v1/health` — JSON liveness/version probe (`inventory.api.health`).
+
+Both are host-based routed on `config('inventory.domain')`.
+
+## Development
+
+```bash
+composer install
+make install-hooks   # optional: pre-push runs style + tests locally
+composer test        # PHPUnit (orchestra/testbench, in-memory)
+composer style       # Pint --test
+composer stan        # Larastan (level 5)
+```
+
+CI runs the same three gates on push/PR (`.github/workflows/ci.yml`), plus a security
+audit and secret scan.
+
+## Spec
+
+Authoritative product spec lives in
+[`inventory-docs`](https://github.com/spdotdev/inventory-docs); package-specific notes in
+[`CLAUDE.md`](CLAUDE.md) and [`docs/backend-plan.md`](docs/backend-plan.md).
 
 ## License
 

@@ -1,0 +1,31 @@
+<?php
+
+namespace Spdotdev\Inventory\Tests;
+
+use Illuminate\Foundation\Application;
+use Orchestra\Testbench\TestCase as BaseTestCase;
+use Spdotdev\Inventory\InventoryServiceProvider;
+
+abstract class TestCase extends BaseTestCase
+{
+    /**
+     * @param  Application  $app
+     * @return array<int, class-string>
+     */
+    protected function getPackageProviders($app): array
+    {
+        return [InventoryServiceProvider::class];
+    }
+
+    /**
+     * @param  Application  $app
+     */
+    protected function defineEnvironment($app): void
+    {
+        // The web routes run in the `web` group, whose cookie encryption needs
+        // an app key. Pin a deterministic one + a known inventory host so the
+        // host-based routes resolve predictably in tests.
+        $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
+        $app['config']->set('inventory.domain', 'inventory.test');
+    }
+}

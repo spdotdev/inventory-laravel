@@ -1,0 +1,46 @@
+{
+    "name": "spdotdev/inventory",
+    "description": "Headless inventory API + landing page, packaged for a host Laravel app (sd-admin).",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.3",
+        "illuminate/support": "^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.27",
+        "orchestra/testbench": "^11.1",
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Spdotdev\\Inventory\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Spdotdev\\Inventory\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "@php vendor/bin/phpunit",
+        "style": "@php vendor/bin/pint --test",
+        "stan": "@php vendor/bin/phpstan analyse --no-progress --memory-limit=512M"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Spdotdev\\Inventory\\InventoryServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "php-http/discovery": true
+        }
+    }
+}
