@@ -77,6 +77,10 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-06-23` — **Artisan CLI** (D-032) — `inventory:household:create {name} {--member=*}`
+  creates a household with a fresh join code, optionally attaches existing users by email
+  (warns + continues on unknown email), and prints the join code. Registered console-only.
+  `CreateHouseholdCommandTest` (3). **Backend MVP complete.**
 - ✅ `2026-06-23` — **Locations / shelves / products CRUD + stock actions** — nested
   apiResource routes under `/households/{household}` with **scoped route-model bindings**
   (each child verified ⊂ its parent) layered on `household.member`, so cross-household id

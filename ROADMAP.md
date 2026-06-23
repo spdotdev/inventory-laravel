@@ -33,12 +33,15 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 > Foundation skeleton + initial landing page shipped 2026-06-23 — see
 > [`BACKLOG.md`](BACKLOG.md) → Done. Next up: the `inventory_*` schema + models, then auth.
 
-### CLI (next)
-- [ ] **Artisan commands** (D-032) — e.g. `inventory:household:create {name}` (prints the
-  join code), for admin/seeding without the API. Room to grow: add member, regenerate code.
+> **Backend MVP complete** — auth (Sanctum + Google), households/membership/invite/join/
+> leave, search, full locations/shelves/products CRUD + stock actions, and the
+> `inventory:household:create` CLI are all shipped and CI-green. See [`BACKLOG.md`](BACKLOG.md) → Done.
 
-> The MVP API surface (auth, households, search, locations/shelves/products CRUD + stock
-> actions) is complete — see [`BACKLOG.md`](BACKLOG.md) → Done.
+### REMAINING (need a decision or external dependency — not autonomous)
+- [ ] **Redesign the landing page** — blocked on the app having something to show / Play Store
+  presence; also wants the web account/household brainstorm first ([`BACKLOG.md`](BACKLOG.md) → Ideas).
+- [ ] **Phase 2** — Filament admin UI, product attributes (unit/category/barcode), backup/export.
+  Not committed; needs scoping.
 
 ### LANDING PAGE
 - [ ] **Redesign the landing page** — once the product has something to show, replace the

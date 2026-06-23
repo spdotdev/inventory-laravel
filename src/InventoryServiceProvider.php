@@ -6,6 +6,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
+use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
 
 class InventoryServiceProvider extends ServiceProvider
@@ -49,5 +50,11 @@ class InventoryServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../public' => public_path('vendor/inventory'),
         ], 'inventory-assets');
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                CreateHouseholdCommand::class,
+            ]);
+        }
     }
 }
