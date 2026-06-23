@@ -30,13 +30,13 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 
 ## Active TODOs
 
-### FOUNDATION
-- [ ] **Scaffold the package skeleton** — `composer.json` (`type: library`, `Spdotdev\Inventory\`),
-  auto-discovered `InventoryServiceProvider`, `config/inventory.php` (domain defaults to
-  `APP_URL` host), web + `api/v1` route groups under `Route::domain(config('inventory.domain'))`.
-  Mirror `spdotdev/scuttle-dev`.
-- [ ] **Initial landing page** — Frost-styled "coming soon" at `/` (hints an Android
-  inventory app; no feature detail). Blade view + publishable assets.
+> Foundation skeleton + initial landing page shipped 2026-06-23 — see
+> [`BACKLOG.md`](BACKLOG.md) → Done. Next up: the `inventory_*` schema + models, then auth.
+
+### SCHEMA & AUTH (next)
+- [ ] **Migrations + models** — `inventory_*` tables per `inventory-docs/specs/data-model.md`
+  (prefixed, MySQL host connection, FK cascade).
+- [ ] **Auth** — add `laravel/sanctum` + `laravel/socialite`; register/login/logout + Google.
 
 ### LANDING PAGE
 - [ ] **Redesign the landing page** — once the product has something to show, replace the
@@ -46,6 +46,6 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   (see [`BACKLOG.md`](BACKLOG.md) → Ideas).
 
 ### QUALITY
-- [ ] **Stand up CI against real code** — the dormant workflows in `.github/workflows/`
-  (ci, audit, secret-scan) activate when the skeleton lands; confirm they go green and
-  wire the pre-push hook (`make install-hooks`).
+- [x] **CI live and green** — ci (Pint/Larastan/PHPUnit), audit, secret-scan all pass on
+  the skeleton commit. `composer.lock` pinned to PHP 8.3 (`config.platform`) so it installs
+  on the CI runner. Pre-push hook available via `make install-hooks`.

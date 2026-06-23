@@ -77,4 +77,10 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
-_Nothing shipped yet — repo is at planning/scaffolding stage._
+- ✅ `2026-06-23` — **Package skeleton scaffolded** (`spdotdev/inventory`, mirrors
+  scuttle-dev): auto-discovered `InventoryServiceProvider` (merges config, loads web +
+  `api/v1` route groups, `inventory::` views, migrations dir; publishes config + assets),
+  `config/inventory.php` (domain defaults to host `APP_URL`), `GET /` Frost "coming soon"
+  landing page + `GET /api/v1/health` probe, testbench harness + 4 tests. Pint/Larastan/
+  PHPUnit green locally and on CI. `composer.lock` pinned to PHP 8.3 (`config.platform`)
+  so it installs on the 8.3 CI runner (local was 8.5 → had locked Symfony 8.1).
