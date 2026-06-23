@@ -24,6 +24,19 @@ abstract class TestCase extends BaseTestCase
     }
 
     /**
+     * Sanctum 4 doesn't auto-load its migration in the testbench context, so
+     * load the personal_access_tokens migration explicitly (resolved from the
+     * installed package, not a hardcoded path). Package migrations are loaded
+     * by the service provider.
+     */
+    protected function defineDatabaseMigrations(): void
+    {
+        $sanctumMigrations = dirname((new \ReflectionClass(\Laravel\Sanctum\Sanctum::class))->getFileName(), 2).'/database/migrations';
+
+        $this->loadMigrationsFrom($sanctumMigrations);
+    }
+
+    /**
      * @param  Application  $app
      */
     protected function defineEnvironment($app): void
