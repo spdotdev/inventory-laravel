@@ -16,4 +16,21 @@ return [
 
     'domain' => env('INVENTORY_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Google Sign-In
+    |--------------------------------------------------------------------------
+    |
+    | OAuth client ID(s) the Android app authenticates with. Google ID tokens
+    | posted to /api/v1/auth/google are accepted only if their `aud` claim
+    | matches one of these. Comma-separated env supports multiple clients.
+    |
+    */
+
+    'google' => [
+        'client_ids' => array_values(array_filter(
+            explode(',', (string) env('INVENTORY_GOOGLE_CLIENT_IDS', '')),
+        )),
+    ],
+
 ];

@@ -77,6 +77,16 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-06-23` — **Auth (Sanctum + Google)** — `laravel/sanctum` added; `User` is now
+  authenticatable with `HasApiTokens`. Endpoints `POST /api/v1/auth/register|login|google|
+  logout` per `specs/api-contract.md`, with `RegisterRequest`/`LoginRequest` validation and
+  a `UserResource`. Google sign-in verifies the Android **ID token** via a swappable
+  `GoogleIdTokenVerifier` (default impl: Google `tokeninfo` endpoint, with issuer + optional
+  `aud` checks) — chosen over Socialite, whose `userFromToken()` expects an OAuth *access*
+  token, not the *ID* token Android Sign-In yields. Find-or-create matches on `google_id`
+  then `email`. `AuthTest` (8 cases incl. duplicate-email, wrong-password, logout revocation,
+  Google create-then-reuse, invalid-token) with a mocked verifier. Pint/Larastan green
+  locally; DB tests on CI.
 - ✅ `2026-06-23` — **Schema + models** — six `inventory_*` migrations (users, households,
   household_user pivot, storage_locations, shelves, products) per `specs/data-model.md`:
   prefixed tables, FK `cascadeOnDelete`, composite pivot PK, `enum` storage type, quantity

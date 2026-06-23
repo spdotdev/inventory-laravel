@@ -3,12 +3,23 @@
 namespace Spdotdev\Inventory;
 
 use Illuminate\Support\ServiceProvider;
+use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
+use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
 
 class InventoryServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/inventory.php', 'inventory');
+
+        // Default Google ID-token verifier (tokeninfo endpoint). Swap the
+        // binding to a local JWT-cert verifier if call volume warrants it.
+        $this->app->bind(GoogleIdTokenVerifier::class, function ($app) {
+            /** @var list<string> $clientIds */
+            $clientIds = (array) $app['config']->get('inventory.google.client_ids', []);
+
+            return new GoogleTokenInfoVerifier($clientIds);
+        });
     }
 
     public function boot(): void

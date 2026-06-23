@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests;
 
 use Illuminate\Foundation\Application;
+use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Spdotdev\Inventory\InventoryServiceProvider;
 
@@ -14,7 +15,12 @@ abstract class TestCase extends BaseTestCase
      */
     protected function getPackageProviders($app): array
     {
-        return [InventoryServiceProvider::class];
+        // Sanctum provides the personal_access_tokens migration + the
+        // `sanctum` guard the auth endpoints rely on.
+        return [
+            SanctumServiceProvider::class,
+            InventoryServiceProvider::class,
+        ];
     }
 
     /**

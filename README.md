@@ -25,6 +25,7 @@ php artisan vendor:publish --tag=inventory-config
 | Env | Default | Purpose |
 | --- | --- | --- |
 | `INVENTORY_DOMAIN` | the host app's own domain (`APP_URL` host) | Domain the landing page (`/`) and API (`/api/v1`) answer on. Set to a dedicated subdomain (e.g. `inventory.scuttle.dev`) to split it out. |
+| `INVENTORY_GOOGLE_CLIENT_IDS` | _(empty)_ | Comma-separated Google OAuth client IDs. Google ID tokens posted to `/api/v1/auth/google` are accepted only if their `aud` matches one. Empty skips the audience check (set it in production). |
 
 ## What's mounted
 

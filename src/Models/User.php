@@ -2,8 +2,9 @@
 
 namespace Spdotdev\Inventory\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * @property int $id
@@ -13,8 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  * @property string|null $google_id
  * @property string|null $avatar_url
  */
-class User extends Model
+class User extends Authenticatable
 {
+    use HasApiTokens;
+
     protected $table = 'inventory_users';
 
     /** @var list<string> */

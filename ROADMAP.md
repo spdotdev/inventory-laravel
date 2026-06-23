@@ -33,10 +33,10 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 > Foundation skeleton + initial landing page shipped 2026-06-23 — see
 > [`BACKLOG.md`](BACKLOG.md) → Done. Next up: the `inventory_*` schema + models, then auth.
 
-### AUTH (next)
-- [ ] **Auth** — add `laravel/sanctum` + `laravel/socialite`; register/login/logout + Google
-  (verify the Android-supplied Google ID token); issue Sanctum tokens. `inventory_users` is
-  already migrated; this adds `HasApiTokens` + the auth endpoints per `specs/api-contract.md`.
+### HOUSEHOLDS (next)
+- [ ] **Households + membership + search** — `/api/v1/households` (list/create), `/invite`
+  (code + link), `/join` (by code), `/leave`, and `/search?q=` across the household. Tenancy
+  middleware `household.member` guards `/households/{household}/*` per `specs/api-contract.md`.
 
 ### LANDING PAGE
 - [ ] **Redesign the landing page** — once the product has something to show, replace the
