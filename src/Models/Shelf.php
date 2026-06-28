@@ -23,6 +23,11 @@ class Shelf extends Model
         'position',
     ];
 
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'position' => 0,
+    ];
+
     /**
      * @return array<string, string>
      */
