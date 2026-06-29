@@ -19,11 +19,11 @@ class ProductRequest extends FormRequest
         $required = $this->isMethod('POST') ? 'required' : 'sometimes';
 
         return [
-            'name'         => [$required, 'string', 'max:255'],
-            'description'  => ['sometimes', 'nullable', 'string'],
-            'code'         => ['sometimes', 'nullable', 'string', 'max:100'],
+            'name' => [$required, 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'code' => ['sometimes', 'nullable', 'string', 'max:100'],
             'is_mandatory' => ['sometimes', 'boolean'],
-            'quantity'     => ['sometimes', 'integer', 'min:0'],
+            'quantity' => ['sometimes', 'integer', 'min:0'],
         ];
     }
 }

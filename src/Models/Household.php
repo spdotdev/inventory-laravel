@@ -6,11 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $join_code
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property HouseholdUserPivot|null $pivot
  */
 class Household extends Model
 {
@@ -45,7 +49,7 @@ class Household extends Model
     /**
      * Members of this household.
      *
-     * @return BelongsToMany<User, $this>
+     * @return BelongsToMany<User, $this, HouseholdUserPivot>
      */
     public function users(): BelongsToMany
     {
@@ -54,7 +58,7 @@ class Household extends Model
             'inventory_household_user',
             'household_id',
             'user_id',
-        )->withPivot('joined_at');
+        )->using(HouseholdUserPivot::class)->withPivot('joined_at');
     }
 
     /**

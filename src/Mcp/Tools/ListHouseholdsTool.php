@@ -14,7 +14,7 @@ class ListHouseholdsTool extends Tool
     public function handle(Request $request): Response
     {
         $households = Household::query()
-            ->withCount(['users', 'storageLocations', 'shelves'])
+            ->withCount(['users', 'locations', 'shelves'])
             ->orderBy('created_at', 'desc')
             ->get();
 

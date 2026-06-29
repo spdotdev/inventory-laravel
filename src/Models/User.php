@@ -4,6 +4,7 @@ namespace Spdotdev\Inventory\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -13,6 +14,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $password
  * @property string|null $google_id
  * @property string|null $avatar_url
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
+ * @property HouseholdUserPivot|null $pivot
  */
 class User extends Authenticatable
 {
@@ -49,7 +53,7 @@ class User extends Authenticatable
     /**
      * Households this user belongs to.
      *
-     * @return BelongsToMany<Household, $this>
+     * @return BelongsToMany<Household, $this, HouseholdUserPivot>
      */
     public function households(): BelongsToMany
     {
@@ -58,6 +62,6 @@ class User extends Authenticatable
             'inventory_household_user',
             'user_id',
             'household_id',
-        )->withPivot('joined_at');
+        )->using(HouseholdUserPivot::class)->withPivot('joined_at');
     }
 }

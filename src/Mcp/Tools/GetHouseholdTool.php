@@ -23,8 +23,8 @@ class GetHouseholdTool extends Tool
     public function handle(Request $request): Response
     {
         $household = Household::query()
-            ->with(['users', 'storageLocations.shelves'])
-            ->withCount(['users', 'storageLocations', 'shelves'])
+            ->with(['users', 'locations.shelves'])
+            ->withCount(['users', 'locations', 'shelves'])
             ->findOrFail($request->get('id'));
 
         return Response::json([
@@ -38,7 +38,7 @@ class GetHouseholdTool extends Tool
                 'email' => $u->email,
                 'joined_at' => $u->pivot?->joined_at,
             ]),
-            'locations' => $household->storageLocations->map(fn ($loc) => [
+            'locations' => $household->locations->map(fn ($loc) => [
                 'id' => $loc->id,
                 'name' => $loc->name,
                 'shelf_count' => $loc->shelves->count(),

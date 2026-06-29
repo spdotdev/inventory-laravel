@@ -36,7 +36,7 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'quantity'     => 'integer',
+            'quantity' => 'integer',
             'is_mandatory' => 'boolean',
         ];
     }

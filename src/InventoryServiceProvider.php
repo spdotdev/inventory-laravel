@@ -7,6 +7,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Mcp\Facades\Mcp;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
 use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
@@ -52,7 +53,7 @@ class InventoryServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
 
         // MCP admin server — only loaded when laravel/mcp is installed on the host.
-        if (class_exists(\Laravel\Mcp\Facades\Mcp::class)) {
+        if (class_exists(Mcp::class)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/mcp.php');
         }
 

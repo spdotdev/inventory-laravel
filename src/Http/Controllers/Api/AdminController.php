@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\HouseholdUserPivot;
 use Spdotdev\Inventory\Models\User;
 
 class AdminController
@@ -28,11 +29,11 @@ class AdminController
 
         return response()->json([
             'data' => array_merge($this->userPayload($user), [
-                'households' => $user->households->map(fn (Household $h) => [
+                'households' => $user->households->map(fn ($h) => [
                     'id' => $h->id,
                     'name' => $h->name,
                     'join_code' => $h->join_code,
-                    'joined_at' => $h->pivot?->joined_at,
+                    'joined_at' => $h->pivot instanceof HouseholdUserPivot ? $h->pivot->joined_at : null,
                 ]),
             ]),
         ]);
@@ -69,7 +70,7 @@ class AdminController
     public function listHouseholds(): JsonResponse
     {
         $households = Household::query()
-            ->withCount(['users', 'storageLocations', 'shelves'])
+            ->withCount(['users', 'locations', 'shelves'])
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn (Household $h) => $this->householdPayload($h));
@@ -80,19 +81,19 @@ class AdminController
     public function getHousehold(int $id): JsonResponse
     {
         $household = Household::query()
-            ->with(['users', 'storageLocations.shelves'])
-            ->withCount(['users', 'storageLocations', 'shelves'])
+            ->with(['users', 'locations.shelves'])
+            ->withCount(['users', 'locations', 'shelves'])
             ->findOrFail($id);
 
         return response()->json([
             'data' => array_merge($this->householdPayload($household), [
-                'members' => $household->users->map(fn (User $u) => [
+                'members' => $household->users->map(fn ($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
-                    'joined_at' => $u->pivot?->joined_at,
+                    'joined_at' => $u->pivot instanceof HouseholdUserPivot ? $u->pivot->joined_at : null,
                 ]),
-                'locations' => $household->storageLocations->map(fn ($loc) => [
+                'locations' => $household->locations->map(fn ($loc) => [
                     'id' => $loc->id,
                     'name' => $loc->name,
                     'shelf_count' => $loc->shelves->count(),
@@ -111,7 +112,6 @@ class AdminController
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    /** @param User $user */
     private function userPayload(User $user): array
     {
         return [
@@ -125,7 +125,6 @@ class AdminController
         ];
     }
 
-    /** @param Household $household */
     private function householdPayload(Household $household): array
     {
         return [
@@ -134,7 +133,7 @@ class AdminController
             'join_code' => $household->join_code,
             'created_at' => $household->created_at,
             'users_count' => $household->users_count ?? null,
-            'storage_locations_count' => $household->storage_locations_count ?? null,
+            'locations_count' => $household->locations_count ?? null,
             'shelves_count' => $household->shelves_count ?? null,
         ];
     }
