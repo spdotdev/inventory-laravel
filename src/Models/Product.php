@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $shelf_id
  * @property string $name
+ * @property string|null $description
+ * @property string|null $code
+ * @property bool $is_mandatory
+ * @property string|null $image_url
  * @property int $quantity
  */
 class Product extends Model
@@ -19,6 +23,10 @@ class Product extends Model
     protected $fillable = [
         'shelf_id',
         'name',
+        'description',
+        'code',
+        'is_mandatory',
+        'image_url',
         'quantity',
     ];
 
@@ -28,7 +36,8 @@ class Product extends Model
     protected function casts(): array
     {
         return [
-            'quantity' => 'integer',
+            'quantity'     => 'integer',
+            'is_mandatory' => 'boolean',
         ];
     }
 
