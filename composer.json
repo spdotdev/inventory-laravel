@@ -8,6 +8,9 @@
         "illuminate/support": "^13.0",
         "laravel/sanctum": "^4.0"
     },
+    "suggest": {
+        "laravel/mcp": "Required to expose the inventory admin MCP server at /mcp on the inventory domain."
+    },
     "require-dev": {
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.27",

@@ -1,0 +1,141 @@
+<?php
+
+namespace Spdotdev\Inventory\Http\Controllers\Api;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\User;
+
+class AdminController
+{
+    // ─── Users ───────────────────────────────────────────────────────────────
+
+    public function listUsers(): JsonResponse
+    {
+        $users = User::query()
+            ->withCount('households')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn (User $u) => $this->userPayload($u));
+
+        return response()->json(['data' => $users]);
+    }
+
+    public function getUser(int $id): JsonResponse
+    {
+        $user = User::query()->with('households')->findOrFail($id);
+
+        return response()->json([
+            'data' => array_merge($this->userPayload($user), [
+                'households' => $user->households->map(fn (Household $h) => [
+                    'id' => $h->id,
+                    'name' => $h->name,
+                    'join_code' => $h->join_code,
+                    'joined_at' => $h->pivot?->joined_at,
+                ]),
+            ]),
+        ]);
+    }
+
+    public function deleteUser(int $id): JsonResponse
+    {
+        $user = User::query()->findOrFail($id);
+        $user->delete();
+
+        return response()->json(['message' => "User {$id} deleted."]);
+    }
+
+    public function searchUsers(Request $request): JsonResponse
+    {
+        $query = (string) $request->input('q', '');
+
+        $users = User::query()
+            ->withCount('households')
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                    ->orWhere('email', 'like', "%{$query}%");
+            })
+            ->orderBy('created_at', 'desc')
+            ->limit(50)
+            ->get()
+            ->map(fn (User $u) => $this->userPayload($u));
+
+        return response()->json(['data' => $users]);
+    }
+
+    // ─── Households ──────────────────────────────────────────────────────────
+
+    public function listHouseholds(): JsonResponse
+    {
+        $households = Household::query()
+            ->withCount(['users', 'storageLocations', 'shelves'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(fn (Household $h) => $this->householdPayload($h));
+
+        return response()->json(['data' => $households]);
+    }
+
+    public function getHousehold(int $id): JsonResponse
+    {
+        $household = Household::query()
+            ->with(['users', 'storageLocations.shelves'])
+            ->withCount(['users', 'storageLocations', 'shelves'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'data' => array_merge($this->householdPayload($household), [
+                'members' => $household->users->map(fn (User $u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'joined_at' => $u->pivot?->joined_at,
+                ]),
+                'locations' => $household->storageLocations->map(fn ($loc) => [
+                    'id' => $loc->id,
+                    'name' => $loc->name,
+                    'shelf_count' => $loc->shelves->count(),
+                ]),
+            ]),
+        ]);
+    }
+
+    public function deleteHousehold(int $id): JsonResponse
+    {
+        $household = Household::query()->findOrFail($id);
+        $household->delete();
+
+        return response()->json(['message' => "Household {$id} deleted."]);
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    /** @param User $user */
+    private function userPayload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'google_id' => $user->google_id,
+            'avatar_url' => $user->avatar_url,
+            'created_at' => $user->created_at,
+            'households_count' => $user->households_count ?? null,
+        ];
+    }
+
+    /** @param Household $household */
+    private function householdPayload(Household $household): array
+    {
+        return [
+            'id' => $household->id,
+            'name' => $household->name,
+            'join_code' => $household->join_code,
+            'created_at' => $household->created_at,
+            'users_count' => $household->users_count ?? null,
+            'storage_locations_count' => $household->storage_locations_count ?? null,
+            'shelves_count' => $household->shelves_count ?? null,
+        ];
+    }
+}

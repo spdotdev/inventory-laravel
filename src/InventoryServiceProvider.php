@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
 use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
+use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
 
 class InventoryServiceProvider extends ServiceProvider
@@ -43,11 +44,17 @@ class InventoryServiceProvider extends ServiceProvider
         /** @var Router $router */
         $router = $this->app['router'];
         $router->aliasMiddleware('household.member', EnsureHouseholdMember::class);
+        $router->aliasMiddleware('inventory.admin', EnsureAdminToken::class);
 
         // Landing page (web) + headless API (api/v1), both host-based routed
         // on config('inventory.domain').
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+
+        // MCP admin server — only loaded when laravel/mcp is installed on the host.
+        if (class_exists(\Laravel\Mcp\Facades\Mcp::class)) {
+            $this->loadRoutesFrom(__DIR__.'/../routes/mcp.php');
+        }
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'inventory');
 

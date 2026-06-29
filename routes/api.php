@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Spdotdev\Inventory\Http\Controllers\Api\AdminController;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
@@ -17,6 +18,19 @@ Route::domain(config('inventory.domain'))
     ->middleware('api')
     ->group(function () {
         Route::get('/health', HealthController::class)->name('inventory.api.health');
+
+        // Admin API — protected by a static bearer token (INVENTORY_ADMIN_TOKEN).
+        // Not tied to Sanctum user auth; intended for MCP / operator access only.
+        Route::middleware('inventory.admin')->prefix('admin')->group(function () {
+            Route::get('users', [AdminController::class, 'listUsers']);
+            Route::get('users/search', [AdminController::class, 'searchUsers']);
+            Route::get('users/{id}', [AdminController::class, 'getUser']);
+            Route::delete('users/{id}', [AdminController::class, 'deleteUser']);
+
+            Route::get('households', [AdminController::class, 'listHouseholds']);
+            Route::get('households/{id}', [AdminController::class, 'getHousehold']);
+            Route::delete('households/{id}', [AdminController::class, 'deleteHousehold']);
+        });
 
         Route::prefix('auth')->group(function () {
             Route::post('register', [AuthController::class, 'register'])->name('inventory.api.auth.register');

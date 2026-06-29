@@ -27,6 +27,19 @@ return [
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin API token
+    |--------------------------------------------------------------------------
+    |
+    | Static bearer token that protects /api/v1/admin/* routes. Set
+    | INVENTORY_ADMIN_TOKEN to a long random string. Leave empty to disable
+    | the admin API entirely.
+    |
+    */
+
+    'admin_token' => env('INVENTORY_ADMIN_TOKEN', ''),
+
     'google' => [
         'client_ids' => array_values(array_filter(
             explode(',', (string) env('INVENTORY_GOOGLE_CLIENT_IDS', '')),
