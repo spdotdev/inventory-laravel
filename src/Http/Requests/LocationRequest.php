@@ -21,7 +21,7 @@ class LocationRequest extends FormRequest
         $required = $this->isMethod('POST') ? 'required' : 'sometimes';
 
         return [
-            'name' => [$required, 'string', 'max:255'],
+            'name' => [$required, 'string', 'max:50'],
             'type' => [$required, Rule::enum(StorageType::class)],
         ];
     }

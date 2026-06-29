@@ -19,7 +19,7 @@ class ShelfRequest extends FormRequest
         $required = $this->isMethod('POST') ? 'required' : 'sometimes';
 
         return [
-            'name' => [$required, 'string', 'max:255'],
+            'name' => [$required, 'string', 'max:50'],
             'position' => ['sometimes', 'integer', 'min:0'],
         ];
     }
