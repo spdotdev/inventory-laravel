@@ -2,6 +2,9 @@
 
 namespace Spdotdev\Inventory;
 
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
@@ -27,6 +30,15 @@ class InventoryServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Return 401 JSON for unauthenticated API requests instead of redirecting to a non-existent login route.
+        $this->callAfterResolving(ExceptionHandler::class, function (ExceptionHandler $handler) {
+            $handler->renderable(function (AuthenticationException $e, Request $request) {
+                if ($request->is('api/*') || $request->expectsJson()) {
+                    return response()->json(['message' => 'Unauthenticated.'], 401);
+                }
+            });
+        });
+
         // Tenancy gate for /households/{household}/* routes.
         /** @var Router $router */
         $router = $this->app['router'];
