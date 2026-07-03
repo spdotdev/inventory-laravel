@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Spdotdev\Inventory\Http\Controllers\Api\AdminController;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
+use Spdotdev\Inventory\Http\Controllers\Api\ClientErrorController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
@@ -18,6 +19,7 @@ Route::domain(config('inventory.domain'))
     ->middleware('api')
     ->group(function () {
         Route::get('/health', HealthController::class)->name('inventory.api.health');
+        Route::post('/errors', ClientErrorController::class)->name('inventory.api.errors.store');
 
         // Admin API — protected by a static bearer token (INVENTORY_ADMIN_TOKEN).
         // Not tied to Sanctum user auth; intended for MCP / operator access only.
