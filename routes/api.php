@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Spdotdev\Inventory\Http\Controllers\Api\AdminController;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
 use Spdotdev\Inventory\Http\Controllers\Api\ClientErrorController;
+use Spdotdev\Inventory\Http\Controllers\Api\ForgotPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
@@ -38,6 +39,7 @@ Route::domain(config('inventory.domain'))
             Route::post('register', [AuthController::class, 'register'])->name('inventory.api.auth.register');
             Route::post('login', [AuthController::class, 'login'])->name('inventory.api.auth.login');
             Route::post('google', [AuthController::class, 'google'])->name('inventory.api.auth.google');
+            Route::post('forgot-password', ForgotPasswordController::class)->name('inventory.api.auth.forgot-password');
             Route::post('logout', [AuthController::class, 'logout'])
                 ->middleware('auth:sanctum')
                 ->name('inventory.api.auth.logout');
