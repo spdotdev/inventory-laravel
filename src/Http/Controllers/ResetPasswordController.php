@@ -6,6 +6,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Models\User;
 
@@ -48,7 +49,13 @@ class ResetPasswordController
             return back()->withErrors(['email' => 'No account found for this email address.']);
         }
 
-        $user->forceFill(['password' => Hash::make($validated['password'])])->save();
+        $user->forceFill([
+            'password'       => Hash::make($validated['password']),
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        // Revoke all existing Sanctum tokens so any stolen bearer token stops working.
+        $user->tokens()->delete();
 
         DB::table('inventory_password_resets')->where('email', $validated['email'])->delete();
 
