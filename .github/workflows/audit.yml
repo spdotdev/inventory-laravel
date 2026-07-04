@@ -68,5 +68,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        # Non-blocking: the action hard-errors when the repo has no Dependency
+        # Graph / Advanced Security enabled, which would red every composer.*
+        # PR on infra, not code. Mirrors the Android dependency-review job (T22).
+        continue-on-error: true
         with:
           fail-on-severity: high
