@@ -8,4 +8,11 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <!-- Coverage source: the package's own code, so the CI quality job's
+         text coverage report targets src/, not vendor. -->
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
 </phpunit>

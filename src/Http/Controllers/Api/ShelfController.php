@@ -23,7 +23,17 @@ class ShelfController
 
     public function store(ShelfRequest $request, Household $household, StorageLocation $location): JsonResponse
     {
-        $shelf = $location->shelves()->create($request->validated());
+        $data = $request->validated();
+
+        // The client only sends `name`, so without this every shelf lands at the
+        // model default position 0 and index()'s orderBy('position') leaves the
+        // tab/pager order undefined. Append new shelves after the current last.
+        if (! array_key_exists('position', $data)) {
+            $maxPosition = $location->shelves()->max('position');
+            $data['position'] = $maxPosition === null ? 0 : $maxPosition + 1;
+        }
+
+        $shelf = $location->shelves()->create($data);
 
         return (new ShelfResource($shelf))->response()->setStatusCode(201);
     }

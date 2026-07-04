@@ -82,6 +82,63 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Backend edge-path tests + orphaned-image cleanup** (wave-2 W15). Added: stock `amount`
+  0/negative/missing rejected on both add + remove (min:1); Google-only account rejected on password login
+  and mixed-case register→login (added under W12/W13). **Orphaned-image decision:** a direct product
+  `destroy()` now best-effort deletes the stored image (test asserts the file is gone), while cascade
+  deletes (shelf/location/household) are DB-level (ON DELETE CASCADE, no Eloquent event) and *intentionally*
+  leave the file to the disk's lifecycle — documented in `destroy()` since app-level tree deletion is what
+  the hard-delete-cascade rule deliberately avoids. Pint+Larastan green.
+- ✅ `2026-07-04` — **Stock `amount`/`quantity` capped to prevent UNSIGNED overflow 500** (wave-2 W14).
+  `amount` was `min:1` with no `max` and `quantity` `min:0` with no `max`; a large/typo'd or repeated add
+  could push the `unsignedInteger` column past ~4.29B and throw MySQL "out of range" (500). Added a shared
+  `ProductRequest::MAX_QUANTITY` (1,000,000) cap on both `quantity` (create/update) and the add/remove
+  `amount`, so an over-cap value is a clean 422. Test asserts the cap rejects on add + remove. Pint+Larastan green.
+- ✅ `2026-07-04` — **Email normalized to lowercase consistently across auth flows** (wave-2 W13).
+  Register/login stored+looked up verbatim; forgot-password lowercased; Google matched verbatim — masked
+  on MySQL (CI collation) but broken on the SQLite the package is CI-tested on, so register `Foo@x.com`
+  then login/reset with other casing silently missed. Normalize to lowercase once at the boundary
+  (`prepareForValidation()` in Register + Login requests, and lowercase the Google claim). Test covers
+  mixed-case register→login. Pint+Larastan green.
+- ✅ `2026-07-04` — **Login no longer leaks account existence via timing** (wave-2 W12). On a missing email
+  (or a Google-only, passwordless account) `login()` threw before any `Hash::check`, so non-existent
+  accounts responded measurably faster than wrong-password ones — a user-enumeration oracle inconsistent
+  with the non-enumerable forgot-password + 404-everywhere posture. Now always run one `Hash::check`
+  against the real hash or a constant bcrypt dummy (default cost), so both paths do equal work before the
+  same `auth.failed`. Tests: unknown email and passwordless account both 422. Pint+Larastan green.
+- ✅ `2026-07-04` — **LIKE wildcards escaped in product + user search** (wave-2 W11). `SearchController`
+  and `AdminController::searchUsers` interpolated the raw term into `%…%`, so a user-typed `%`/`_` acted
+  as a wildcard (`50%` over-matched; a lone `%` returned everything). Bound params meant no injection, just
+  wrong results. Escape `!`,`%`,`_` (escape-char first) and match with an explicit `LIKE ? ESCAPE '!'` —
+  portable because SQLite (the fast CI job) doesn't treat backslash as a LIKE escape by default, unlike
+  MySQL, so `addcslashes`+default-escape would have silently diverged between the two CI jobs. Test asserts
+  `%` is literal. Pint+Larastan green; DB test on CI.
+- ✅ `2026-07-04` — **Last member leaving deletes the household + its tree** (wave-2 W6). `leave()`
+  unconditionally detached; when the last member left, the household and its whole location→shelf→product
+  tree survived with zero members — unreachable by anyone (tenancy 404s non-members), dead data that only
+  grows, inconsistent with the hard-delete posture. After detach, if `users()->count() === 0`, delete the
+  household (ON DELETE CASCADE cleans the tree). Tests cover both last-member-leave (tree gone) and
+  members-remaining (household kept). Pint+Larastan green.
+- ✅ `2026-07-04` — **Shelves get an increasing `position` on create** (wave-2 W5). The client sends only
+  `name`, so `ShelfController::store` never computed `position` → every shelf landed at the model default
+  0, and `index()`'s `orderBy('position')` left the Shelves tab/pager order undefined (could reshuffle
+  between loads). Default `position` to `max(position)+1` within the location (0 for the first) when the
+  request omits it. Test asserts sequential creates get strictly increasing positions. Pint+Larastan green.
+- ✅ `2026-07-04` — **Invite `/join/{code}` link now resolves to a real page** (wave-2 W2).
+  `HouseholdController::invite()` advertised `https://{domain}/join/{code}`, but `routes/web.php`
+  only registered `/` and `/reset-password` — so any recipient opening the invite in a browser
+  got a hard 404 at the exact moment onboarding matters. Added `JoinController` + a Frost-styled
+  `join.blade.php` (shows the code, optional "Get the app" via new `INVENTORY_ANDROID_APP_URL`,
+  `noindex`) wired at `Route::get('/join/{code}')->name('inventory.join')`. Test asserts the page
+  renders the code. Pint + Larastan green; DB/web test on CI.
+- ✅ `2026-07-04` — **Search results now carry navigation IDs** (wave-2 W1). `SearchResultResource` returned
+  only `id,name,quantity,location,shelf,path` — not `household_id`/`location_id`/`shelf_id`. The Android
+  `SearchScreen` only makes a hit tappable when `household_id`+`shelf_id` are present, so against the real
+  backend **every search result was a dead card** — the headline "tap a hit to jump to the product" flow
+  silently did nothing. It looked green only because the instrumented fixture hand-injected those IDs (this
+  is the "flaky SearchFlowTest nav" wave-1 T16 waved off — actually a contract bug). Added the three nav IDs
+  to the resource (additive, backward-compatible), asserted them in `SearchTest` so a mock can't mask it
+  again, and reconciled `api-contract.md` with the full Search-result shape. Pint + Larastan green; DB test on CI.
 - ✅ `2026-07-04` — **Fixed unsigned-underflow in atomic `remove()`** (caught by the new T15 MySQL CI job).
   The T3 decrement used `CASE WHEN quantity - N < 0 …`; because `quantity` is `BIGINT UNSIGNED`, MySQL
   (strict mode) threw `SQLSTATE[22003] value out of range` evaluating `quantity - N` when N > quantity —

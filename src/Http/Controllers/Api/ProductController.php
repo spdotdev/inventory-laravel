@@ -46,7 +46,19 @@ class ProductController
 
     public function destroy(Household $household, Shelf $shelf, Product $product): JsonResponse
     {
+        // Best-effort cleanup of the product's stored image so a direct delete
+        // doesn't orphan the file (W15). NOTE: a *cascade* delete (removing the
+        // shelf/location/household) is DB-level (ON DELETE CASCADE) and fires no
+        // Eloquent event, so those images are intentionally left for the disk's
+        // own lifecycle/GC — cleaning them would require app-level tree deletion,
+        // which the hard-delete-cascade rule deliberately avoids.
+        $image = $product->image_url;
+
         $product->delete();
+
+        if ($image !== null) {
+            $this->deleteStoredImage((string) config('inventory.image_disk', 'public'), $image);
+        }
 
         return response()->json(['message' => 'Product deleted.']);
     }
@@ -151,8 +163,11 @@ class ProductController
 
     private function amount(Request $request): int
     {
+        // Cap the single-request delta so a huge/typo'd amount is a clean 422
+        // rather than pushing quantity past the unsignedInteger column ceiling and
+        // triggering a MySQL "out of range" 500 (W14).
         /** @var array{amount: int} $data */
-        $data = $request->validate(['amount' => ['required', 'integer', 'min:1']]);
+        $data = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:'.ProductRequest::MAX_QUANTITY]]);
 
         return $data['amount'];
     }

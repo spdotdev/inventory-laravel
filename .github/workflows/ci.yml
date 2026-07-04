@@ -1,5 +1,12 @@
 name: CI
 
+# Supersede an in-flight run when a newer commit lands on the same ref, so
+# rapid pushes/PR updates don't stack redundant (and, for the emulator/MySQL
+# jobs, expensive) runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Quality + tests for the spdotdev/inventory package: Pint (style),
 # Larastan (static analysis), PHPUnit (tests via orchestra/testbench).
 # Mirrors the spdotdev/scuttle-dev CI.
@@ -23,6 +30,8 @@ on:
       - 'phpunit.xml'
       - 'phpstan.neon'
       - 'pint.json'
+      # Run the suite when the workflow itself changes, so CI edits are validated.
+      - '.github/workflows/ci.yml'
   pull_request:
     paths:
       - 'src/**'
@@ -36,6 +45,8 @@ on:
       - 'phpunit.xml'
       - 'phpstan.neon'
       - 'pint.json'
+      # Run the suite when the workflow itself changes, so CI edits are validated.
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -52,7 +63,8 @@ jobs:
         with:
           php-version: '8.3'
           extensions: mbstring, dom, xml, pdo, sqlite3, pdo_sqlite, bcmath
-          coverage: none
+          # PCOV drives phpunit --coverage-text below; cheaper than Xdebug.
+          coverage: pcov
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -65,7 +77,9 @@ jobs:
 
       - name: Tests
         # Package tests run on testbench's in-memory SQLite; no external services.
-        run: ./vendor/bin/phpunit
+        # --coverage-text prints a src/ coverage summary to the log (reporting
+        # only, no minimum threshold — surfaces erosion without blocking a PR).
+        run: ./vendor/bin/phpunit --coverage-text
 
   # Prod runs MySQL, not SQLite. This job runs the SAME suite against a real MySQL
   # 8 service so the migrations actually execute on MySQL and engine-specific

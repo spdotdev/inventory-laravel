@@ -60,6 +60,23 @@ class ResourceCrudTest extends TestCase
         $this->assertDatabaseMissing('inventory_products', ['id' => $productId]);
     }
 
+    public function test_shelves_created_without_position_get_increasing_order(): void
+    {
+        // The client sends only `name`; the server must assign an increasing
+        // position so the Shelves tab/pager order is deterministic (W5). Without
+        // it every shelf lands at 0 and orderBy('position') is undefined.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $url = "{$this->base}/households/{$h->id}/locations/{$location->id}/shelves";
+
+        $first = $this->postJson($url, ['name' => 'Top'])->assertCreated()->json('data.position');
+        $second = $this->postJson($url, ['name' => 'Middle'])->assertCreated()->json('data.position');
+        $third = $this->postJson($url, ['name' => 'Bottom'])->assertCreated()->json('data.position');
+
+        $this->assertLessThan($second, $first);
+        $this->assertLessThan($third, $second);
+    }
+
     public function test_add_and_remove_floor_quantity_at_zero(): void
     {
         $h = $this->memberHousehold();
@@ -74,6 +91,40 @@ class ResourceCrudTest extends TestCase
         $this->postJson("{$url}/remove", ['amount' => 2])->assertOk()->assertJsonPath('data.quantity', 3);
         $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'quantity' => 3]);
         $this->postJson("{$url}/remove", ['amount' => 100])->assertOk()->assertJsonPath('data.quantity', 0);
+    }
+
+    public function test_stock_amount_over_the_cap_is_rejected(): void
+    {
+        // W14: an over-cap amount must be a clean 422, not a MySQL unsignedInteger
+        // "out of range" 500.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $url = "{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}";
+        $overCap = 1_000_001;
+
+        $this->postJson("{$url}/add", ['amount' => $overCap])->assertStatus(422)->assertJsonValidationErrors('amount');
+        $this->postJson("{$url}/remove", ['amount' => $overCap])->assertStatus(422)->assertJsonValidationErrors('amount');
+    }
+
+    public function test_stock_amount_must_be_a_positive_integer(): void
+    {
+        // W15: 0, negative, and missing amounts are rejected on both add and remove
+        // (min:1), so a no-op or nonsensical mutation can't slip through.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 5]);
+
+        $url = "{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}";
+
+        foreach (['add', 'remove'] as $action) {
+            $this->postJson("{$url}/{$action}", ['amount' => 0])->assertStatus(422)->assertJsonValidationErrors('amount');
+            $this->postJson("{$url}/{$action}", ['amount' => -3])->assertStatus(422)->assertJsonValidationErrors('amount');
+            $this->postJson("{$url}/{$action}", [])->assertStatus(422)->assertJsonValidationErrors('amount');
+        }
     }
 
     public function test_move_within_the_household_relocates_the_product(): void

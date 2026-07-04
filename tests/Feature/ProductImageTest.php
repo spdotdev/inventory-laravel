@@ -74,6 +74,28 @@ class ProductImageTest extends TestCase
         Storage::disk('public')->assertExists($newPath);
     }
 
+    public function test_deleting_a_product_removes_its_stored_image(): void
+    {
+        // W15: a direct product delete cleans up its image file (best-effort), so
+        // the common delete path doesn't orphan storage. (Cascade deletes via a
+        // shelf/location/household are DB-level and intentionally leave the file.)
+        Storage::fake('public');
+        $product = $this->memberProduct();
+
+        $this->postJson($this->imageUrl($product), [
+            'image' => UploadedFile::fake()->create('photo.jpg', 100, 'image/jpeg'),
+        ])->assertOk();
+        $url = $product->refresh()->image_url;
+        $path = substr($url, strpos($url, 'inventory/products/'));
+        Storage::disk('public')->assertExists($path);
+
+        $deleteUrl = "{$this->base}/households/{$product->shelf->location->household_id}/shelves/{$product->shelf_id}/products/{$product->id}";
+        $this->deleteJson($deleteUrl)->assertOk();
+
+        Storage::disk('public')->assertMissing($path);
+        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+    }
+
     public function test_non_image_upload_is_rejected(): void
     {
         Storage::fake('public');

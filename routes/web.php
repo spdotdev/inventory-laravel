@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Spdotdev\Inventory\Http\Controllers\JoinController;
 use Spdotdev\Inventory\Http\Controllers\LandingController;
 use Spdotdev\Inventory\Http\Controllers\ResetPasswordController;
 
@@ -11,4 +12,5 @@ Route::domain(config('inventory.domain'))
         Route::get('/', [LandingController::class, 'index'])->name('inventory.landing');
         Route::get('/reset-password', [ResetPasswordController::class, 'show'])->name('inventory.reset-password');
         Route::post('/reset-password', [ResetPasswordController::class, 'update'])->name('inventory.reset-password.update');
+        Route::get('/join/{code}', [JoinController::class, 'show'])->name('inventory.join');
     });

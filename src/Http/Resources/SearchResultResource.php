@@ -25,6 +25,12 @@ class SearchResultResource extends JsonResource
             'location' => $location->name,
             'shelf' => $this->shelf->name,
             'path' => $location->name.' › '.$this->shelf->name,
+            // Navigation IDs so the client can deep-link a hit straight to the
+            // product (household › location › shelf › product). Without these the
+            // Android search result is non-clickable — the whole point of search.
+            'household_id' => $location->household_id,
+            'location_id' => $location->getKey(),
+            'shelf_id' => $this->shelf_id,
         ];
     }
 }
