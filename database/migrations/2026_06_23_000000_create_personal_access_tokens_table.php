@@ -11,6 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Sanctum's own SanctumServiceProvider auto-loads its personal_access_tokens
+        // migration when running in console (and the host app installs Sanctum too),
+        // so this table may already exist. Guard against the double-create instead of
+        // erroring — this migration is just a fallback for hosts that haven't published
+        // Sanctum's migrations.
+        if (Schema::hasTable('personal_access_tokens')) {
+            return;
+        }
+
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
             $table->morphs('tokenable');
