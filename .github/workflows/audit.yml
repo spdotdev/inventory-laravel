@@ -55,18 +55,12 @@ jobs:
         run: composer validate --strict --no-check-publish
 
       # --locked audits the lock directly (no install needed);
-      # --abandoned=ignore avoids failing on long-deprecated packages.
+      # --abandoned=ignore avoids failing on long-deprecated packages. This is the
+      # BLOCKING dependency-CVE gate for the package (X6). The GitHub-native
+      # dependency-review-action was removed rather than kept fail-open: it needs
+      # Dependency Graph / Advanced Security (unavailable here, so it hard-errored
+      # and would red every composer.* PR on infra), and composer audit already
+      # covers CVE detection — a fail-open gate is worse than no duplicate gate.
       - name: composer audit
         if: steps.guard.outputs.present == 'true'
         run: composer audit --no-interaction --abandoned=ignore --locked
-
-  dependency-review:
-    name: dependency review
-    runs-on: ubuntu-latest
-    # Needs a base ref to diff — only meaningful on pull_request.
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high

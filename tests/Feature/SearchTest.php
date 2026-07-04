@@ -69,6 +69,23 @@ class SearchTest extends TestCase
             ->assertJsonPath('data.0.name', 'Milk 2% fat');
     }
 
+    public function test_search_results_are_capped_at_fifty(): void
+    {
+        // X10: a large household (or an empty query) must not dump the whole
+        // catalog — the result set is bounded like the admin + MCP searches.
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+        $household = $this->seedHouseholdWithProduct($user);
+        $shelf = $household->locations()->first()->shelves()->first();
+        for ($i = 0; $i < 60; $i++) {
+            $shelf->products()->create(['name' => "Ice pop {$i}", 'quantity' => 1]);
+        }
+
+        $this->getJson("http://inventory.test/api/v1/households/{$household->id}/search?q=ice")
+            ->assertOk()
+            ->assertJsonCount(50, 'data');
+    }
+
     public function test_search_does_not_match_other_terms(): void
     {
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);

@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 
@@ -28,7 +29,10 @@ class AddHouseholdMemberCommand extends Command
         $emails = (array) $this->argument('email');
 
         foreach ($emails as $email) {
-            $email = (string) $email;
+            // Emails are stored lowercase-normalized at the web boundary (W13), so
+            // normalize the operator-typed argument the same way — otherwise the
+            // lookup misses on case-sensitive SQLite (X11).
+            $email = Str::lower((string) $email);
             $user = User::query()->where('email', $email)->first();
 
             if ($user === null) {

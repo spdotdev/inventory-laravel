@@ -32,6 +32,10 @@ class SearchController
             ->when($q !== '', fn (Builder $query) => $query->whereRaw("name LIKE ? ESCAPE '!'", ['%'.$escaped.'%']))
             ->with('shelf.location')
             ->orderBy('name')
+            // Bound the result set (consistent with the admin + MCP searches) so a
+            // large household — or an empty query, which matches everything — can't
+            // load and serialize the entire product catalog (X10).
+            ->limit(50)
             ->get();
 
         return SearchResultResource::collection($products);
