@@ -82,6 +82,13 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Fixed unsigned-underflow in atomic `remove()`** (caught by the new T15 MySQL CI job).
+  The T3 decrement used `CASE WHEN quantity - N < 0 …`; because `quantity` is `BIGINT UNSIGNED`, MySQL
+  (strict mode) threw `SQLSTATE[22003] value out of range` evaluating `quantity - N` when N > quantity —
+  SQLite has no unsigned ints so it silently passed. Rewrote to compare **before** subtracting
+  (`CASE WHEN quantity < N THEN 0 ELSE quantity - N END`), so the subtraction only runs where it's
+  non-negative. Portable to both engines. Exactly the class of bug T15 was added to catch — the MySQL job
+  did its job on the very first CI run. Pint + Larastan green; MySQL suite re-runs on CI.
 - ✅ `2026-07-04` — **Corrected stale status docs** (gap analysis T18). `CLAUDE.md` framed the work as a
   "Build order (start here)" as if nothing was built, and the `README` said "skeleton". Added a `## Status`
   (functionally-complete MVP, CI-green), reframed the build order as "historical — all shipped", and

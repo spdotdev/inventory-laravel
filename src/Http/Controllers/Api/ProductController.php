@@ -66,9 +66,14 @@ class ProductController
         // uses increment() for the same reason; a silently dropped stock delta is
         // not the "last-write-wins on a full-record edit" the concurrency rule
         // sanctions). Quantity floors at 0 (D-012), row retained as out-of-stock.
-        // CASE (not MySQL's GREATEST) keeps it portable to the SQLite test DB.
+        //
+        // Compare BEFORE subtracting (`quantity < N`, not `quantity - N < 0`): the
+        // column is BIGINT UNSIGNED, so evaluating `quantity - N` when N > quantity
+        // underflows and MySQL (strict mode) throws "value out of range". The
+        // subtraction now only runs in the ELSE branch where quantity >= N. Portable
+        // to the SQLite test DB, and CASE (not MySQL-only GREATEST) keeps it so.
         Product::query()->whereKey($product->getKey())->update([
-            'quantity' => DB::raw('CASE WHEN quantity - '.$amount.' < 0 THEN 0 ELSE quantity - '.$amount.' END'),
+            'quantity' => DB::raw('CASE WHEN quantity < '.$amount.' THEN 0 ELSE quantity - '.$amount.' END'),
         ]);
 
         return new ProductResource($product->refresh());
