@@ -82,6 +82,13 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Backend edge-path tests + orphaned-image cleanup** (wave-2 W15). Added: stock `amount`
+  0/negative/missing rejected on both add + remove (min:1); Google-only account rejected on password login
+  and mixed-case register→login (added under W12/W13). **Orphaned-image decision:** a direct product
+  `destroy()` now best-effort deletes the stored image (test asserts the file is gone), while cascade
+  deletes (shelf/location/household) are DB-level (ON DELETE CASCADE, no Eloquent event) and *intentionally*
+  leave the file to the disk's lifecycle — documented in `destroy()` since app-level tree deletion is what
+  the hard-delete-cascade rule deliberately avoids. Pint+Larastan green.
 - ✅ `2026-07-04` — **Stock `amount`/`quantity` capped to prevent UNSIGNED overflow 500** (wave-2 W14).
   `amount` was `min:1` with no `max` and `quantity` `min:0` with no `max`; a large/typo'd or repeated add
   could push the `unsignedInteger` column past ~4.29B and throw MySQL "out of range" (500). Added a shared

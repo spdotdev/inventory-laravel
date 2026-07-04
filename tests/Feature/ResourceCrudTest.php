@@ -109,6 +109,24 @@ class ResourceCrudTest extends TestCase
         $this->postJson("{$url}/remove", ['amount' => $overCap])->assertStatus(422)->assertJsonValidationErrors('amount');
     }
 
+    public function test_stock_amount_must_be_a_positive_integer(): void
+    {
+        // W15: 0, negative, and missing amounts are rejected on both add and remove
+        // (min:1), so a no-op or nonsensical mutation can't slip through.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 5]);
+
+        $url = "{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}";
+
+        foreach (['add', 'remove'] as $action) {
+            $this->postJson("{$url}/{$action}", ['amount' => 0])->assertStatus(422)->assertJsonValidationErrors('amount');
+            $this->postJson("{$url}/{$action}", ['amount' => -3])->assertStatus(422)->assertJsonValidationErrors('amount');
+            $this->postJson("{$url}/{$action}", [])->assertStatus(422)->assertJsonValidationErrors('amount');
+        }
+    }
+
     public function test_move_within_the_household_relocates_the_product(): void
     {
         $h = $this->memberHousehold();

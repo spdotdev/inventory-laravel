@@ -46,7 +46,19 @@ class ProductController
 
     public function destroy(Household $household, Shelf $shelf, Product $product): JsonResponse
     {
+        // Best-effort cleanup of the product's stored image so a direct delete
+        // doesn't orphan the file (W15). NOTE: a *cascade* delete (removing the
+        // shelf/location/household) is DB-level (ON DELETE CASCADE) and fires no
+        // Eloquent event, so those images are intentionally left for the disk's
+        // own lifecycle/GC — cleaning them would require app-level tree deletion,
+        // which the hard-delete-cascade rule deliberately avoids.
+        $image = $product->image_url;
+
         $product->delete();
+
+        if ($image !== null) {
+            $this->deleteStoredImage((string) config('inventory.image_disk', 'public'), $image);
+        }
 
         return response()->json(['message' => 'Product deleted.']);
     }
