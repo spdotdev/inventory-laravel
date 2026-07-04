@@ -82,6 +82,13 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Fixed reset-token expiry silently disabled under Carbon 3** (gap analysis T1).
+  `ResetPasswordController` used `now()->diffInMinutes($created_at) > 60`; Carbon 3's `diffInMinutes`
+  is signed, so a past `created_at` yields a negative value and the TTL check never fired — expired
+  reset links stayed valid indefinitely. Replaced with an explicit instant comparison
+  (`Carbon::parse($created_at)->isBefore(now()->subMinutes(TTL))`). `ResetPasswordTest` (3): valid
+  token resets + revokes existing Sanctum tokens + consumes the row; expired (61-min) token rejected,
+  password unchanged; tampered token rejected. Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **`inventory:household:*` operator CLI family** (beyond create). Three
   console-only commands registered in `InventoryServiceProvider`: `inventory:household:list`
   (table of id / name / join code / member count via `withCount('users')`; graceful "No
