@@ -100,6 +100,45 @@ class HouseholdTest extends TestCase
         ]);
     }
 
+    public function test_last_member_leaving_deletes_the_household_and_its_tree(): void
+    {
+        // W6: an orphaned (zero-member) household is unreachable by anyone
+        // (tenancy 404s non-members) — dead data that only grows. Leaving as the
+        // last member must delete it; ON DELETE CASCADE cleans the tree.
+        $user = $this->actingAsUser();
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => 'freezer']);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->deleteJson("http://inventory.test/api/v1/households/{$household->id}/leave")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('inventory_households', ['id' => $household->id]);
+        $this->assertDatabaseMissing('inventory_storage_locations', ['id' => $location->id]);
+        $this->assertDatabaseMissing('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_leaving_with_other_members_remaining_keeps_the_household(): void
+    {
+        $user = $this->actingAsUser();
+        $other = User::create(['name' => 'Other', 'email' => 'other@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($other->getKey(), ['joined_at' => now()]);
+
+        $this->deleteJson("http://inventory.test/api/v1/households/{$household->id}/leave")
+            ->assertOk();
+
+        $this->assertDatabaseHas('inventory_households', ['id' => $household->id]);
+        $this->assertDatabaseHas('inventory_household_user', [
+            'household_id' => $household->id,
+            'user_id' => $other->getKey(),
+        ]);
+    }
+
     public function test_non_member_cannot_access_household_routes(): void
     {
         $this->actingAsUser('outsider@example.test');

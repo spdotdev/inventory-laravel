@@ -72,6 +72,14 @@ class HouseholdController
 
         $household->users()->detach($user->getKey());
 
+        // If that was the last member, the household + its whole location→shelf→
+        // product tree would otherwise survive with zero members — unreachable by
+        // anyone (tenancy 404s non-members), dead data that only grows. Delete it;
+        // ON DELETE CASCADE cleans the tree, matching the hard-delete posture.
+        if ($household->users()->count() === 0) {
+            $household->delete();
+        }
+
         return response()->json(['message' => 'Left the household.']);
     }
 

@@ -82,6 +82,12 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Last member leaving deletes the household + its tree** (wave-2 W6). `leave()`
+  unconditionally detached; when the last member left, the household and its whole location→shelf→product
+  tree survived with zero members — unreachable by anyone (tenancy 404s non-members), dead data that only
+  grows, inconsistent with the hard-delete posture. After detach, if `users()->count() === 0`, delete the
+  household (ON DELETE CASCADE cleans the tree). Tests cover both last-member-leave (tree gone) and
+  members-remaining (household kept). Pint+Larastan green.
 - ✅ `2026-07-04` — **Shelves get an increasing `position` on create** (wave-2 W5). The client sends only
   `name`, so `ShelfController::store` never computed `position` → every shelf landed at the model default
   0, and `index()`'s `orderBy('position')` left the Shelves tab/pager order undefined (could reshuffle
