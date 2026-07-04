@@ -1,5 +1,12 @@
 name: Security audit
 
+# Supersede an in-flight run when a newer commit lands on the same ref, so
+# rapid pushes/PR updates don't stack redundant (and, for the emulator/MySQL
+# jobs, expensive) runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Scans dependencies for known CVEs and enforces composer lockfile sync.
 # Runs on dependency-manifest changes + a daily schedule to catch newly
 # disclosed advisories in unchanged deps. Mirrors leadai's audit.yml.

@@ -1,5 +1,12 @@
 name: CI
 
+# Supersede an in-flight run when a newer commit lands on the same ref, so
+# rapid pushes/PR updates don't stack redundant (and, for the emulator/MySQL
+# jobs, expensive) runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Quality + tests for the spdotdev/inventory package: Pint (style),
 # Larastan (static analysis), PHPUnit (tests via orchestra/testbench).
 # Mirrors the spdotdev/scuttle-dev CI.
