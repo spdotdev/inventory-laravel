@@ -82,6 +82,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Search results now carry navigation IDs** (wave-2 W1). `SearchResultResource` returned
+  only `id,name,quantity,location,shelf,path` — not `household_id`/`location_id`/`shelf_id`. The Android
+  `SearchScreen` only makes a hit tappable when `household_id`+`shelf_id` are present, so against the real
+  backend **every search result was a dead card** — the headline "tap a hit to jump to the product" flow
+  silently did nothing. It looked green only because the instrumented fixture hand-injected those IDs (this
+  is the "flaky SearchFlowTest nav" wave-1 T16 waved off — actually a contract bug). Added the three nav IDs
+  to the resource (additive, backward-compatible), asserted them in `SearchTest` so a mock can't mask it
+  again, and reconciled `api-contract.md` with the full Search-result shape. Pint + Larastan green; DB test on CI.
 - ✅ `2026-07-04` — **Fixed unsigned-underflow in atomic `remove()`** (caught by the new T15 MySQL CI job).
   The T3 decrement used `CASE WHEN quantity - N < 0 …`; because `quantity` is `BIGINT UNSIGNED`, MySQL
   (strict mode) threw `SQLSTATE[22003] value out of range` evaluating `quantity - N` when N > quantity —

@@ -31,12 +31,20 @@ class SearchTest extends TestCase
         Sanctum::actingAs($user);
         $household = $this->seedHouseholdWithProduct($user);
 
+        $location = $household->locations()->first();
+        $shelf = $location->shelves()->first();
+
         $this->getJson("http://inventory.test/api/v1/households/{$household->id}/search?q=ice")
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.name', 'Vanilla ice cream')
             ->assertJsonPath('data.0.quantity', 1)
-            ->assertJsonPath('data.0.path', 'Garage Chest › Middle shelf');
+            ->assertJsonPath('data.0.path', 'Garage Chest › Middle shelf')
+            // Nav IDs the client needs to make a hit tappable (W1) — without these
+            // every result is a dead card against the real backend.
+            ->assertJsonPath('data.0.household_id', $household->id)
+            ->assertJsonPath('data.0.location_id', $location->id)
+            ->assertJsonPath('data.0.shelf_id', $shelf->id);
     }
 
     public function test_search_does_not_match_other_terms(): void
