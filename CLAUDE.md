@@ -78,7 +78,17 @@ Frost palette (icy-blue #7dd3fc, Plus Jakarta Sans). Blade view + publishable as
 - Tests cover critical paths + obvious failure modes only: tenancy isolation, auth
   (email/password + Google), stock floor at 0, cascade deletes, join-by-code. No trivial tests.
 
-## Build order (start here)
+## Status
+Functionally-complete MVP, CI-green. All of the build order below is implemented: the
+package skeleton + provider + host-based route groups, landing page, `inventory_*` schema +
+models, `household.member` tenancy middleware, auth (Sanctum + Google), households
+(create/list/invite/join/leave) + search, locations/shelves/products CRUD + add/remove/move
++ image upload, password reset, client-error intake, the admin API, an MCP server, and the
+artisan `inventory:household:*` commands. Gated by Pint + Larastan + PHPUnit (SQLite for the
+fast job, a real MySQL service job too). Forward-looking work is in [`ROADMAP.md`](ROADMAP.md);
+shipped history in [`BACKLOG.md`](BACKLOG.md).
+
+## Build order (historical — all shipped)
 1. Package skeleton + service provider + config + host-based route groups (web + api/v1).
 2. Landing page (Blade + assets).
 3. Migrations (`inventory_*`) + models.
@@ -87,4 +97,3 @@ Frost palette (icy-blue #7dd3fc, Plus Jakarta Sans). Blade view + publishable as
 6. Households (create/list/invite/join/leave) + search.
 7. Locations / shelves / products CRUD + add/remove/move.
 8. Artisan commands (household create, …).
-**Start with the skeleton + migrations + tenancy middleware.**

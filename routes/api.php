@@ -20,7 +20,11 @@ Route::domain(config('inventory.domain'))
     ->middleware('api')
     ->group(function () {
         Route::get('/health', HealthController::class)->name('inventory.api.health');
-        Route::post('/errors', ClientErrorController::class)->name('inventory.api.errors.store');
+        // Unauthenticated crash intake — throttled per device+IP so it can't flood
+        // the inventory_client_errors table (pruned by inventory:client-errors:prune).
+        Route::post('/errors', ClientErrorController::class)
+            ->middleware('throttle:inventory-errors')
+            ->name('inventory.api.errors.store');
 
         // Admin API — protected by a static bearer token (INVENTORY_ADMIN_TOKEN).
         // Not tied to Sanctum user auth; intended for MCP / operator access only.
@@ -71,6 +75,9 @@ Route::domain(config('inventory.domain'))
                 Route::post('households/{household}/shelves/{shelf}/products/{product}/add', [ProductController::class, 'add'])->name('inventory.api.products.add');
                 Route::post('households/{household}/shelves/{shelf}/products/{product}/remove', [ProductController::class, 'remove'])->name('inventory.api.products.remove');
                 Route::post('households/{household}/shelves/{shelf}/products/{product}/move', [ProductController::class, 'move'])->name('inventory.api.products.move');
+                // Product photo upload (multipart). Stores on the configured disk and
+                // populates image_url; the Android client posts a single "image" part.
+                Route::post('households/{household}/shelves/{shelf}/products/{product}/image', [ProductController::class, 'image'])->name('inventory.api.products.image');
 
                 // Nested resource CRUD (apiResource = index/store/show/update/destroy).
                 Route::apiResource('households.locations', LocationController::class)->shallow(false);

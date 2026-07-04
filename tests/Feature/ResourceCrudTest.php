@@ -70,6 +70,9 @@ class ResourceCrudTest extends TestCase
         $url = "{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}";
 
         $this->postJson("{$url}/add", ['amount' => 3])->assertOk()->assertJsonPath('data.quantity', 5);
+        // Partial atomic decrement lands the DB-truth quantity, not just the floor case.
+        $this->postJson("{$url}/remove", ['amount' => 2])->assertOk()->assertJsonPath('data.quantity', 3);
+        $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'quantity' => 3]);
         $this->postJson("{$url}/remove", ['amount' => 100])->assertOk()->assertJsonPath('data.quantity', 0);
     }
 

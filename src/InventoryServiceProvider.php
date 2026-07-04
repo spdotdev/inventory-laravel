@@ -15,6 +15,7 @@ use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
 use Spdotdev\Inventory\Console\Commands\AddHouseholdMemberCommand;
 use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
 use Spdotdev\Inventory\Console\Commands\ListHouseholdsCommand;
+use Spdotdev\Inventory\Console\Commands\PruneClientErrorsCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
@@ -84,6 +85,7 @@ class InventoryServiceProvider extends ServiceProvider
                 ListHouseholdsCommand::class,
                 AddHouseholdMemberCommand::class,
                 RegenerateJoinCodeCommand::class,
+                PruneClientErrorsCommand::class,
             ]);
         }
     }
@@ -124,6 +126,20 @@ class InventoryServiceProvider extends ServiceProvider
             $id = $request->user()?->getAuthIdentifier() ?? $request->ip();
 
             return Limit::perMinute($perUser)->by('join|'.$id);
+        });
+
+        RateLimiter::for('inventory-errors', function (Request $request) {
+            $perDevice = (int) $this->app['config']->get('inventory.rate_limits.errors_per_device');
+            if ($perDevice <= 0) {
+                return Limit::none();
+            }
+
+            // Unauthenticated crash intake — key by the client-supplied device_id
+            // plus IP so one device (or host) can't flood the error table.
+            $device = trim((string) $request->input('device_id'));
+            $ip = (string) $request->ip();
+
+            return Limit::perMinute($perDevice)->by('errors|'.($device !== '' ? $device : $ip).'|'.$ip);
         });
     }
 }

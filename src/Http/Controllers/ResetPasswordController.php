@@ -4,6 +4,7 @@ namespace Spdotdev\Inventory\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -36,9 +37,16 @@ class ResetPasswordController
             ->where('email', $validated['email'])
             ->first();
 
+        // Explicit expiry check: the token is stale if it was created before the
+        // TTL window opened. (Carbon 3's diffInMinutes is signed, so the old
+        // `now()->diffInMinutes($created_at) > TTL` was always false for past
+        // timestamps — silently disabling expiry. Compare absolute instants instead.)
+        $expired = $record !== null
+            && Carbon::parse($record->created_at)->isBefore(now()->subMinutes(self::TOKEN_TTL_MINUTES));
+
         $invalid = $record === null
             || ! Hash::check($validated['token'], $record->token)
-            || now()->diffInMinutes($record->created_at) > self::TOKEN_TTL_MINUTES;
+            || $expired;
 
         if ($invalid) {
             return back()->withErrors(['token' => 'This password reset link is invalid or has expired.']);

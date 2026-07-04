@@ -5,6 +5,8 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
 use Spdotdev\Inventory\Http\Resources\ProductResource;
@@ -58,9 +60,47 @@ class ProductController
 
     public function remove(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
     {
-        // Quantity floors at 0 (D-012); the row is retained as out-of-stock.
-        $product->quantity = max(0, $product->quantity - $this->amount($request));
-        $product->save();
+        $amount = $this->amount($request);
+
+        // Atomic decrement so concurrent removes can't lose a decrement (add()
+        // uses increment() for the same reason; a silently dropped stock delta is
+        // not the "last-write-wins on a full-record edit" the concurrency rule
+        // sanctions). Quantity floors at 0 (D-012), row retained as out-of-stock.
+        //
+        // Compare BEFORE subtracting (`quantity < N`, not `quantity - N < 0`): the
+        // column is BIGINT UNSIGNED, so evaluating `quantity - N` when N > quantity
+        // underflows and MySQL (strict mode) throws "value out of range". The
+        // subtraction now only runs in the ELSE branch where quantity >= N. Portable
+        // to the SQLite test DB, and CASE (not MySQL-only GREATEST) keeps it so.
+        Product::query()->whereKey($product->getKey())->update([
+            'quantity' => DB::raw('CASE WHEN quantity < '.$amount.' THEN 0 ELSE quantity - '.$amount.' END'),
+        ]);
+
+        return new ProductResource($product->refresh());
+    }
+
+    public function image(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
+    {
+        $disk = (string) config('inventory.image_disk', 'public');
+
+        $request->validate([
+            // mimetypes (server-detected) not the `image` rule, so tests don't
+            // need GD to synthesize a real bitmap.
+            'image' => ['required', 'file', 'mimetypes:image/jpeg,image/png,image/webp', 'max:'.(int) config('inventory.image_max_kb', 5120)],
+        ]);
+
+        // Best-effort cleanup of a previously-stored image on the same disk.
+        $previous = $product->image_url;
+
+        $path = $request->file('image')->store('inventory/products', $disk);
+        $url = Storage::disk($disk)->url($path);
+        // Local/public disks return a root-relative path; make it absolute so the
+        // client (which loads image_url directly) can fetch it. S3 etc. are already absolute.
+        $product->update(['image_url' => str_starts_with($url, 'http') ? $url : url($url)]);
+
+        if ($previous !== null) {
+            $this->deleteStoredImage($disk, $previous);
+        }
 
         return new ProductResource($product);
     }
@@ -84,6 +124,29 @@ class ProductController
         $product->save();
 
         return new ProductResource($product);
+    }
+
+    /**
+     * Best-effort removal of a previously-stored product image so replacing a
+     * photo doesn't orphan the old file. We only know the public URL, so we
+     * recover the disk-relative path from the known `inventory/products/` prefix
+     * and delete it if it still exists. Off-disk / externally-hosted URLs (no
+     * matching prefix) are left untouched.
+     */
+    private function deleteStoredImage(string $disk, string $imageUrl): void
+    {
+        $marker = 'inventory/products/';
+        $pos = strpos($imageUrl, $marker);
+
+        if ($pos === false) {
+            return;
+        }
+
+        $path = substr($imageUrl, $pos);
+
+        if (Storage::disk($disk)->exists($path)) {
+            Storage::disk($disk)->delete($path);
+        }
     }
 
     private function amount(Request $request): int

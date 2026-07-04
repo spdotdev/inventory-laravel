@@ -82,6 +82,79 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Fixed unsigned-underflow in atomic `remove()`** (caught by the new T15 MySQL CI job).
+  The T3 decrement used `CASE WHEN quantity - N < 0 …`; because `quantity` is `BIGINT UNSIGNED`, MySQL
+  (strict mode) threw `SQLSTATE[22003] value out of range` evaluating `quantity - N` when N > quantity —
+  SQLite has no unsigned ints so it silently passed. Rewrote to compare **before** subtracting
+  (`CASE WHEN quantity < N THEN 0 ELSE quantity - N END`), so the subtraction only runs where it's
+  non-negative. Portable to both engines. Exactly the class of bug T15 was added to catch — the MySQL job
+  did its job on the very first CI run. Pint + Larastan green; MySQL suite re-runs on CI.
+- ✅ `2026-07-04` — **Corrected stale status docs** (gap analysis T18). `CLAUDE.md` framed the work as a
+  "Build order (start here)" as if nothing was built, and the `README` said "skeleton". Added a `## Status`
+  (functionally-complete MVP, CI-green), reframed the build order as "historical — all shipped", and
+  rewrote the README status block to list the actual shipped surface (auth, schema, CRUD, image upload,
+  search, password reset, admin API, MCP, commands; Pint/Larastan/PHPUnit + MySQL CI).
+- ✅ `2026-07-04` — **MySQL CI job** (gap analysis T15). Tests ran only on testbench's in-memory SQLite,
+  but prod is MySQL — the ENUM storage-type column, `ON DELETE CASCADE` down the location→shelf→product
+  tree, and the migrations themselves had never actually executed on MySQL in CI, so an engine-specific
+  break could pass CI and fail prod. Added a `mysql` job to `ci.yml` with a health-gated MySQL 8 service
+  running the **full** PHPUnit suite against it. `TestCase.defineEnvironment` now honors
+  `DB_CONNECTION=mysql` (+ `DB_HOST/PORT/DATABASE/USERNAME/PASSWORD`) to flip the driver; the default
+  remains in-memory SQLite so the fast `quality` job is unchanged. `RefreshDatabase` migrates the
+  `inventory_*` schema on the real engine before each test. YAML validated + Pint/Larastan green locally;
+  the MySQL suite runs on CI (local PHP has no pdo_mysql/pdo_sqlite).
+- ✅ `2026-07-04` — **Health check now probes the database** (gap analysis T14). `HealthController` returned
+  `{status: ok}` unconditionally — an app with a dead DB still reported healthy. It now runs a `SELECT 1`
+  and returns `{name, api, status, database}`: DB reachable → 200 `status: ok, database: ok`; DB
+  unreachable → **503** `status: error, database: unavailable`, with the raw exception logged via
+  `report()` and never leaked into the response. Redis was intentionally left unprobed — the package
+  doesn't own the host app's cache/queue config. `HealthCheckTest` mocks the `DB` facade so both the
+  healthy and DB-down paths run without a real driver — **ran green locally** (2 tests), a rare case
+  where a DB-adjacent test isn't CI-only. Contract (`api-contract.md`) updated.
+- ✅ `2026-07-04` — **Security-flow test coverage** (gap analysis T8). Filled the two untested
+  security surfaces. `ForgotPasswordTest`: a known email stores a hashed reset token and sends
+  `PasswordResetMail`; an unknown email returns the **same 200** with no stored row and no mail
+  (no user-enumeration signal); a malformed email 422s. `AdminApiTest`: the static-bearer admin
+  API rejects an absent/wrong token (401), is **disabled** (503) when `inventory.admin_token` is
+  unconfigured, lists with a valid token, and its destructive deletes behave — deleting a
+  household cascades the whole location→shelf→product tree, deleting a user drops their
+  memberships but keeps the shared household. (ResetPassword + ClientError were already covered.)
+  Pint + Larastan green locally; DB tests on CI.
+- ✅ `2026-07-04` — **Product image upload endpoint** (gap analysis T7). The Android client already
+  posted a multipart photo to `POST …/products/{product}/image`, but no route/controller existed and
+  `image_url` was never populated — a dead end. Implemented the server side: the route sits with
+  add/remove/move inside the `household.member` + `scopeBindings` group (non-member → 404), and
+  `ProductController::image` validates a single `image` part (`mimetypes:image/jpeg,image/png,image/webp`
+  — deliberately not the `image` rule, which needs GD/`getimagesize`, so `UploadedFile::fake()->create()`
+  works in CI without GD), stores it on the configured disk (`INVENTORY_IMAGE_DISK`, default `public`;
+  `INVENTORY_IMAGE_MAX_KB` cap, default 5 MB), sets `image_url` to the file's absolute URL, deletes any
+  previously-stored file, and returns the refreshed `ProductResource`. `image_url` stays out of the
+  create/update Form Request (managed only here). `ProductImageTest` covers upload-sets-url + file
+  stored, replace-deletes-old, non-image 422, missing-part 422, non-member 404. Contract + data-model
+  reconciled. Pint + Larastan green locally; DB tests on CI.
+- ✅ `2026-07-04` — **Atomic stock `remove`** (gap analysis T3). `ProductController::remove` did a
+  read-modify-write (`quantity = max(0, q - amount); save()`) — two concurrent removes read the same
+  start value and one decrement was lost, leaving stock too high. Now a single atomic UPDATE using a
+  portable `CASE WHEN quantity - N < 0 THEN 0 ELSE quantity - N END` (not MySQL-only `GREATEST`, so it
+  also runs on the SQLite test DB), floored at 0, returning the refreshed row. (`move` only writes the
+  `shelf_id` column via `save()` — genuine last-write-wins per D-011, no lost-delta, left as-is.)
+  `ResourceCrudTest` extended: partial decrement lands DB-truth quantity + existing floor-at-0 case.
+  Pint + Larastan green locally; DB tests on CI.
+- ✅ `2026-07-04` — **Hardened the `/errors` crash-intake endpoint** (gap analysis T2). The
+  unauthenticated `POST /errors` had no throttle and unbounded table growth. Added an
+  `inventory-errors` rate limiter (keyed device_id+IP, `INVENTORY_RL_ERRORS_DEVICE`, default 20/min)
+  applied via `throttle:` middleware, plus `inventory:client-errors:prune` deleting
+  `inventory_client_errors` rows older than `client_errors_retention_days`
+  (`INVENTORY_CLIENT_ERRORS_RETENTION_DAYS`, default 30; 0 disables) — schedule it daily in the host
+  app. `ClientErrorsTest` (5): valid store, 422 on junk, per-device 429, prune deletes-old/keeps-recent,
+  prune no-op when disabled. Pint + Larastan green locally; DB tests on CI.
+- ✅ `2026-07-04` — **Fixed reset-token expiry silently disabled under Carbon 3** (gap analysis T1).
+  `ResetPasswordController` used `now()->diffInMinutes($created_at) > 60`; Carbon 3's `diffInMinutes`
+  is signed, so a past `created_at` yields a negative value and the TTL check never fired — expired
+  reset links stayed valid indefinitely. Replaced with an explicit instant comparison
+  (`Carbon::parse($created_at)->isBefore(now()->subMinutes(TTL))`). `ResetPasswordTest` (3): valid
+  token resets + revokes existing Sanctum tokens + consumes the row; expired (61-min) token rejected,
+  password unchanged; tampered token rejected. Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **`inventory:household:*` operator CLI family** (beyond create). Three
   console-only commands registered in `InventoryServiceProvider`: `inventory:household:list`
   (table of id / name / join code / member count via `withCount('users')`; graceful "No
