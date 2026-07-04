@@ -93,6 +93,25 @@ class ResourceCrudTest extends TestCase
         $this->postJson("{$url}/remove", ['amount' => 100])->assertOk()->assertJsonPath('data.quantity', 0);
     }
 
+    public function test_add_clamps_quantity_at_the_cap(): void
+    {
+        // X5: add() must clamp the resulting total at MAX_QUANTITY so a near-cap
+        // quantity plus repeated adds can't exceed the invariant / unsigned ceiling.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 999_999]);
+
+        $url = "{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}";
+
+        // 999,999 + 1,000 = 1,000,999 → clamped to the 1,000,000 cap.
+        $this->postJson("{$url}/add", ['amount' => 1000])
+            ->assertOk()->assertJsonPath('data.quantity', 1_000_000);
+        // A further add stays pinned at the cap, never beyond.
+        $this->postJson("{$url}/add", ['amount' => 5])
+            ->assertOk()->assertJsonPath('data.quantity', 1_000_000);
+    }
+
     public function test_stock_amount_over_the_cap_is_rejected(): void
     {
         // W14: an over-cap amount must be a clean 422, not a MySQL unsignedInteger
