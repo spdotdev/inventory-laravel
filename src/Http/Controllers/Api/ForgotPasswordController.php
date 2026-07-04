@@ -32,8 +32,8 @@ class ForgotPasswordController
 
             DB::table('inventory_password_resets')->upsert(
                 [
-                    'email'      => $user->email,
-                    'token'      => Hash::make($rawToken),
+                    'email' => $user->email,
+                    'token' => Hash::make($rawToken),
                     'created_at' => now(),
                 ],
                 ['email'],

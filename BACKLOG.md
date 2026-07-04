@@ -67,16 +67,48 @@ carefully; may belong wholly in Phase 2.
 **Kill criterion.** If the Android app fully covers onboarding and web sign-up sees no
 demand, keep the landing page marketing-only.
 
+> **Deferred 2026-07-04** (backlog-sweep decision) — stays **LOCKED Phase-2**. `CLAUDE.md`
+> holds the package headless/server-authoritative rule and "Web/Filament admin UI is Phase 2,
+> not now"; building this now would reopen the headless-only decision (D-005/D-029) and add a
+> second auth surface. Not implemented on purpose.
+
 ---
 
 ## Ideas — parking lot
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
-- 💡 Rate-limiting + abuse protection on auth + join-by-code endpoints.
-- 💡 `inventory:household:*` CLI family (add member, regenerate join code, list).
+  *Deferred 2026-07-04 (backlog-sweep decision): stays LOCKED Phase-2 per `CLAUDE.md`
+  ("Web/Filament admin UI is Phase 2, not now"). Not implemented on purpose.*
 
 ---
 
 ## Done
+- ✅ `2026-07-04` — **`inventory:household:*` operator CLI family** (beyond create). Three
+  console-only commands registered in `InventoryServiceProvider`: `inventory:household:list`
+  (table of id / name / join code / member count via `withCount('users')`; graceful "No
+  households yet." when empty), `inventory:household:add-member {household} {email*}` (attaches
+  existing users by email — idempotent `syncWithoutDetaching`, warns+continues on unknown email,
+  FAILURE on unknown household), and `inventory:household:regenerate-code {household}` (rotates
+  the join code via `Household::generateUniqueJoinCode()`, prints old→new, FAILURE on unknown
+  household). `HouseholdCommandsTest` (7): list-populated, list-empty, add-member attach,
+  add-member idempotent+unknown-email warn, add-member unknown-household FAILURE, regenerate
+  rotate, regenerate unknown-household FAILURE. Pint + Larastan green locally; DB tests on CI.
+- ✅ `2026-07-04` — **Rate limiting / abuse protection** on the brute-forceable surfaces.
+  Two named limiters registered in `InventoryServiceProvider::registerRateLimiters()`:
+  `inventory-auth` on `register`/`login`/`google`/`forgot-password` (logout is token-bound, so
+  exempt) and `inventory-join` on `households/join`. Auth layers a tight per-identity limit
+  (submitted email + IP; falls back to IP when no email, e.g. `/auth/google`) under a looser
+  per-IP cap (blunts distributed attempts without locking a shared NAT); join is keyed per
+  authenticated user (code-guessing cap). All counts live in `config('inventory.rate_limits')`
+  and are env-tunable (`INVENTORY_RL_AUTH_IDENTITY|AUTH_IP|JOIN_USER`); 0 disables a layer.
+  `RateLimitTest` (4): per-identity 429, per-IP-catches-varied-emails 429, join per-user 429,
+  and join-throttle-is-per-user-not-global. Closures read config per request so tests tighten
+  limits at runtime. Pint + Larastan green locally; DB tests on CI (local PHP lacks pdo_sqlite).
+  Also cleared pre-existing CI-red debt from the password-reset flow surfaced during this work:
+  Pint reformatting on `ForgotPasswordController`/`ClientErrorController`/`ResetPasswordController`,
+  and two `@phpstan-ignore argument.type` comments on `ResetPasswordController`'s package-view
+  `view()` calls — matching the existing `LandingController` convention (the `inventory::`
+  namespace is registered at runtime via `loadViewsFrom`, so it is unresolvable in package-only
+  static analysis).
 - ✅ `2026-06-23` — **Artisan CLI** (D-032) — `inventory:household:create {name} {--member=*}`
   creates a household with a fresh join code, optionally attaches existing users by email
   (warns + continues on unknown email), and prints the join code. Registered console-only.

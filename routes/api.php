@@ -36,10 +36,14 @@ Route::domain(config('inventory.domain'))
         });
 
         Route::prefix('auth')->group(function () {
-            Route::post('register', [AuthController::class, 'register'])->name('inventory.api.auth.register');
-            Route::post('login', [AuthController::class, 'login'])->name('inventory.api.auth.login');
-            Route::post('google', [AuthController::class, 'google'])->name('inventory.api.auth.google');
-            Route::post('forgot-password', ForgotPasswordController::class)->name('inventory.api.auth.forgot-password');
+            // Brute-force / credential-stuffing protection on the unauthenticated
+            // entry points. logout is authenticated (token-bound) so it's exempt.
+            Route::middleware('throttle:inventory-auth')->group(function () {
+                Route::post('register', [AuthController::class, 'register'])->name('inventory.api.auth.register');
+                Route::post('login', [AuthController::class, 'login'])->name('inventory.api.auth.login');
+                Route::post('google', [AuthController::class, 'google'])->name('inventory.api.auth.google');
+                Route::post('forgot-password', ForgotPasswordController::class)->name('inventory.api.auth.forgot-password');
+            });
             Route::post('logout', [AuthController::class, 'logout'])
                 ->middleware('auth:sanctum')
                 ->name('inventory.api.auth.logout');
@@ -49,7 +53,10 @@ Route::domain(config('inventory.domain'))
             Route::get('households', [HouseholdController::class, 'index'])->name('inventory.api.households.index');
             Route::post('households', [HouseholdController::class, 'store'])->name('inventory.api.households.store');
             // Defined before the {household} routes so "join" isn't captured as an id.
-            Route::post('households/join', [HouseholdController::class, 'join'])->name('inventory.api.households.join');
+            // Throttled: join-by-code is guessable, so cap attempts per user.
+            Route::post('households/join', [HouseholdController::class, 'join'])
+                ->middleware('throttle:inventory-join')
+                ->name('inventory.api.households.join');
 
             // Tenancy: household.member verifies the caller is a member;
             // scopeBindings verifies each nested resource belongs to its parent

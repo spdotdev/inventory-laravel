@@ -16,6 +16,7 @@ class ResetPasswordController
 
     public function show(Request $request): View
     {
+        // @phpstan-ignore argument.type (the inventory:: namespace is registered at runtime via loadViewsFrom, so it is not resolvable during package-only static analysis)
         return view('inventory::auth.reset-password', [
             'token' => $request->query('token', ''),
             'email' => $request->query('email', ''),
@@ -25,9 +26,9 @@ class ResetPasswordController
     public function update(Request $request): View|RedirectResponse
     {
         $validated = $request->validate([
-            'token'                 => ['required', 'string'],
-            'email'                 => ['required', 'email'],
-            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
         ]);
 
@@ -50,7 +51,7 @@ class ResetPasswordController
         }
 
         $user->forceFill([
-            'password'       => Hash::make($validated['password']),
+            'password' => Hash::make($validated['password']),
             'remember_token' => Str::random(60),
         ])->save();
 
@@ -59,6 +60,7 @@ class ResetPasswordController
 
         DB::table('inventory_password_resets')->where('email', $validated['email'])->delete();
 
+        // @phpstan-ignore argument.type (the inventory:: namespace is registered at runtime via loadViewsFrom, so it is not resolvable during package-only static analysis)
         return view('inventory::auth.reset-password-success');
     }
 }
