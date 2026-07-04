@@ -82,6 +82,11 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Shelves get an increasing `position` on create** (wave-2 W5). The client sends only
+  `name`, so `ShelfController::store` never computed `position` → every shelf landed at the model default
+  0, and `index()`'s `orderBy('position')` left the Shelves tab/pager order undefined (could reshuffle
+  between loads). Default `position` to `max(position)+1` within the location (0 for the first) when the
+  request omits it. Test asserts sequential creates get strictly increasing positions. Pint+Larastan green.
 - ✅ `2026-07-04` — **Invite `/join/{code}` link now resolves to a real page** (wave-2 W2).
   `HouseholdController::invite()` advertised `https://{domain}/join/{code}`, but `routes/web.php`
   only registered `/` and `/reset-password` — so any recipient opening the invite in a browser

@@ -60,6 +60,23 @@ class ResourceCrudTest extends TestCase
         $this->assertDatabaseMissing('inventory_products', ['id' => $productId]);
     }
 
+    public function test_shelves_created_without_position_get_increasing_order(): void
+    {
+        // The client sends only `name`; the server must assign an increasing
+        // position so the Shelves tab/pager order is deterministic (W5). Without
+        // it every shelf lands at 0 and orderBy('position') is undefined.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $url = "{$this->base}/households/{$h->id}/locations/{$location->id}/shelves";
+
+        $first = $this->postJson($url, ['name' => 'Top'])->assertCreated()->json('data.position');
+        $second = $this->postJson($url, ['name' => 'Middle'])->assertCreated()->json('data.position');
+        $third = $this->postJson($url, ['name' => 'Bottom'])->assertCreated()->json('data.position');
+
+        $this->assertLessThan($second, $first);
+        $this->assertLessThan($third, $second);
+    }
+
     public function test_add_and_remove_floor_quantity_at_zero(): void
     {
         $h = $this->memberHousehold();
