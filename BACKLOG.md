@@ -67,10 +67,17 @@ carefully; may belong wholly in Phase 2.
 **Kill criterion.** If the Android app fully covers onboarding and web sign-up sees no
 demand, keep the landing page marketing-only.
 
+> **Deferred 2026-07-04** (backlog-sweep decision) — stays **LOCKED Phase-2**. `CLAUDE.md`
+> holds the package headless/server-authoritative rule and "Web/Filament admin UI is Phase 2,
+> not now"; building this now would reopen the headless-only decision (D-005/D-029) and add a
+> second auth surface. Not implemented on purpose.
+
 ---
 
 ## Ideas — parking lot
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
+  *Deferred 2026-07-04 (backlog-sweep decision): stays LOCKED Phase-2 per `CLAUDE.md`
+  ("Web/Filament admin UI is Phase 2, not now"). Not implemented on purpose.*
 
 ---
 
