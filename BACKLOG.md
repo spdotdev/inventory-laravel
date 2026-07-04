@@ -82,6 +82,11 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Stock `amount`/`quantity` capped to prevent UNSIGNED overflow 500** (wave-2 W14).
+  `amount` was `min:1` with no `max` and `quantity` `min:0` with no `max`; a large/typo'd or repeated add
+  could push the `unsignedInteger` column past ~4.29B and throw MySQL "out of range" (500). Added a shared
+  `ProductRequest::MAX_QUANTITY` (1,000,000) cap on both `quantity` (create/update) and the add/remove
+  `amount`, so an over-cap value is a clean 422. Test asserts the cap rejects on add + remove. Pint+Larastan green.
 - ✅ `2026-07-04` — **Email normalized to lowercase consistently across auth flows** (wave-2 W13).
   Register/login stored+looked up verbatim; forgot-password lowercased; Google matched verbatim — masked
   on MySQL (CI collation) but broken on the SQLite the package is CI-tested on, so register `Foo@x.com`

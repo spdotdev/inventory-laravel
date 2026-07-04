@@ -151,8 +151,11 @@ class ProductController
 
     private function amount(Request $request): int
     {
+        // Cap the single-request delta so a huge/typo'd amount is a clean 422
+        // rather than pushing quantity past the unsignedInteger column ceiling and
+        // triggering a MySQL "out of range" 500 (W14).
         /** @var array{amount: int} $data */
-        $data = $request->validate(['amount' => ['required', 'integer', 'min:1']]);
+        $data = $request->validate(['amount' => ['required', 'integer', 'min:1', 'max:'.ProductRequest::MAX_QUANTITY]]);
 
         return $data['amount'];
     }

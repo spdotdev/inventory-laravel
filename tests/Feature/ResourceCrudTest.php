@@ -93,6 +93,22 @@ class ResourceCrudTest extends TestCase
         $this->postJson("{$url}/remove", ['amount' => 100])->assertOk()->assertJsonPath('data.quantity', 0);
     }
 
+    public function test_stock_amount_over_the_cap_is_rejected(): void
+    {
+        // W14: an over-cap amount must be a clean 422, not a MySQL unsignedInteger
+        // "out of range" 500.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $url = "{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}";
+        $overCap = 1_000_001;
+
+        $this->postJson("{$url}/add", ['amount' => $overCap])->assertStatus(422)->assertJsonValidationErrors('amount');
+        $this->postJson("{$url}/remove", ['amount' => $overCap])->assertStatus(422)->assertJsonValidationErrors('amount');
+    }
+
     public function test_move_within_the_household_relocates_the_product(): void
     {
         $h = $this->memberHousehold();
