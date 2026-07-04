@@ -4,9 +4,12 @@ Laravel backend for the **Inventory** product — shipped as the Composer packag
 `spdotdev/inventory`: a **headless API + marketing landing page** mounted into a host
 Laravel app (sd-admin) via host-based routing. Android is the sole API client.
 
-> Status: **skeleton**. Service provider, host-based route groups, landing page, and the
-> `/api/v1/health` probe are in place. Auth (Sanctum + Google), the `inventory_*` schema,
-> and the resource CRUD land in the next steps — see [`ROADMAP.md`](ROADMAP.md).
+> Status: **functionally-complete MVP, CI-green.** Auth (Sanctum + Google), the full
+> `inventory_*` schema + models, `household.member` tenancy, resource CRUD
+> (locations/shelves/products) + add/remove/move + image upload, search, password reset,
+> client-error intake, the admin API, an MCP server, and the `inventory:household:*` commands
+> are all in place — gated by Pint + Larastan + PHPUnit (SQLite + a real-MySQL CI job). See
+> [`ROADMAP.md`](ROADMAP.md) for what's next and [`BACKLOG.md`](BACKLOG.md) for shipped history.
 
 ## Install (into a host Laravel app)
 

@@ -82,6 +82,11 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Corrected stale status docs** (gap analysis T18). `CLAUDE.md` framed the work as a
+  "Build order (start here)" as if nothing was built, and the `README` said "skeleton". Added a `## Status`
+  (functionally-complete MVP, CI-green), reframed the build order as "historical — all shipped", and
+  rewrote the README status block to list the actual shipped surface (auth, schema, CRUD, image upload,
+  search, password reset, admin API, MCP, commands; Pint/Larastan/PHPUnit + MySQL CI).
 - ✅ `2026-07-04` — **MySQL CI job** (gap analysis T15). Tests ran only on testbench's in-memory SQLite,
   but prod is MySQL — the ENUM storage-type column, `ON DELETE CASCADE` down the location→shelf→product
   tree, and the migrations themselves had never actually executed on MySQL in CI, so an engine-specific
