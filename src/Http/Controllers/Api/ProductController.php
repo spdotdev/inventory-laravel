@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
 use Spdotdev\Inventory\Http\Resources\ProductResource;
@@ -58,11 +59,18 @@ class ProductController
 
     public function remove(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
     {
-        // Quantity floors at 0 (D-012); the row is retained as out-of-stock.
-        $product->quantity = max(0, $product->quantity - $this->amount($request));
-        $product->save();
+        $amount = $this->amount($request);
 
-        return new ProductResource($product);
+        // Atomic decrement so concurrent removes can't lose a decrement (add()
+        // uses increment() for the same reason; a silently dropped stock delta is
+        // not the "last-write-wins on a full-record edit" the concurrency rule
+        // sanctions). Quantity floors at 0 (D-012), row retained as out-of-stock.
+        // CASE (not MySQL's GREATEST) keeps it portable to the SQLite test DB.
+        Product::query()->whereKey($product->getKey())->update([
+            'quantity' => DB::raw('CASE WHEN quantity - '.$amount.' < 0 THEN 0 ELSE quantity - '.$amount.' END'),
+        ]);
+
+        return new ProductResource($product->refresh());
     }
 
     public function move(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource

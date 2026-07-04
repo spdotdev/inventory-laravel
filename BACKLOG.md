@@ -82,6 +82,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Atomic stock `remove`** (gap analysis T3). `ProductController::remove` did a
+  read-modify-write (`quantity = max(0, q - amount); save()`) — two concurrent removes read the same
+  start value and one decrement was lost, leaving stock too high. Now a single atomic UPDATE using a
+  portable `CASE WHEN quantity - N < 0 THEN 0 ELSE quantity - N END` (not MySQL-only `GREATEST`, so it
+  also runs on the SQLite test DB), floored at 0, returning the refreshed row. (`move` only writes the
+  `shelf_id` column via `save()` — genuine last-write-wins per D-011, no lost-delta, left as-is.)
+  `ResourceCrudTest` extended: partial decrement lands DB-truth quantity + existing floor-at-0 case.
+  Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **Hardened the `/errors` crash-intake endpoint** (gap analysis T2). The
   unauthenticated `POST /errors` had no throttle and unbounded table growth. Added an
   `inventory-errors` rate limiter (keyed device_id+IP, `INVENTORY_RL_ERRORS_DEVICE`, default 20/min)
