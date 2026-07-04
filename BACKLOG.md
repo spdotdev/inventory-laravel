@@ -82,6 +82,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Health check now probes the database** (gap analysis T14). `HealthController` returned
+  `{status: ok}` unconditionally — an app with a dead DB still reported healthy. It now runs a `SELECT 1`
+  and returns `{name, api, status, database}`: DB reachable → 200 `status: ok, database: ok`; DB
+  unreachable → **503** `status: error, database: unavailable`, with the raw exception logged via
+  `report()` and never leaked into the response. Redis was intentionally left unprobed — the package
+  doesn't own the host app's cache/queue config. `HealthCheckTest` mocks the `DB` facade so both the
+  healthy and DB-down paths run without a real driver — **ran green locally** (2 tests), a rare case
+  where a DB-adjacent test isn't CI-only. Contract (`api-contract.md`) updated.
 - ✅ `2026-07-04` — **Security-flow test coverage** (gap analysis T8). Filled the two untested
   security surfaces. `ForgotPasswordTest`: a known email stores a hashed reset token and sends
   `PasswordResetMail`; an unknown email returns the **same 200** with no stored row and no mail
