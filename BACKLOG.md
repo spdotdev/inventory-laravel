@@ -82,6 +82,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Hardened the `/errors` crash-intake endpoint** (gap analysis T2). The
+  unauthenticated `POST /errors` had no throttle and unbounded table growth. Added an
+  `inventory-errors` rate limiter (keyed device_id+IP, `INVENTORY_RL_ERRORS_DEVICE`, default 20/min)
+  applied via `throttle:` middleware, plus `inventory:client-errors:prune` deleting
+  `inventory_client_errors` rows older than `client_errors_retention_days`
+  (`INVENTORY_CLIENT_ERRORS_RETENTION_DAYS`, default 30; 0 disables) — schedule it daily in the host
+  app. `ClientErrorsTest` (5): valid store, 422 on junk, per-device 429, prune deletes-old/keeps-recent,
+  prune no-op when disabled. Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **Fixed reset-token expiry silently disabled under Carbon 3** (gap analysis T1).
   `ResetPasswordController` used `now()->diffInMinutes($created_at) > 60`; Carbon 3's `diffInMinutes`
   is signed, so a past `created_at` yields a negative value and the TTL check never fired — expired

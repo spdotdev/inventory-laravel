@@ -68,6 +68,22 @@ return [
         'auth_per_ip' => (int) env('INVENTORY_RL_AUTH_IP', 30),
         // households/join, keyed by the authenticated user (code-guessing cap).
         'join_per_user' => (int) env('INVENTORY_RL_JOIN_USER', 8),
+        // POST /errors (unauthenticated crash intake), keyed by device_id + IP,
+        // to stop a single client flooding the inventory_client_errors table.
+        'errors_per_device' => (int) env('INVENTORY_RL_ERRORS_DEVICE', 20),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Client-error log retention
+    |--------------------------------------------------------------------------
+    |
+    | inventory:client-errors:prune deletes inventory_client_errors rows older
+    | than this many days. Schedule it (e.g. daily) in the host app. 0 disables
+    | pruning (retain forever).
+    |
+    */
+
+    'client_errors_retention_days' => (int) env('INVENTORY_CLIENT_ERRORS_RETENTION_DAYS', 30),
 
 ];

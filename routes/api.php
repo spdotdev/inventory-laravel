@@ -20,7 +20,11 @@ Route::domain(config('inventory.domain'))
     ->middleware('api')
     ->group(function () {
         Route::get('/health', HealthController::class)->name('inventory.api.health');
-        Route::post('/errors', ClientErrorController::class)->name('inventory.api.errors.store');
+        // Unauthenticated crash intake — throttled per device+IP so it can't flood
+        // the inventory_client_errors table (pruned by inventory:client-errors:prune).
+        Route::post('/errors', ClientErrorController::class)
+            ->middleware('throttle:inventory-errors')
+            ->name('inventory.api.errors.store');
 
         // Admin API — protected by a static bearer token (INVENTORY_ADMIN_TOKEN).
         // Not tied to Sanctum user auth; intended for MCP / operator access only.
