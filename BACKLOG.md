@@ -82,6 +82,15 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Security-flow test coverage** (gap analysis T8). Filled the two untested
+  security surfaces. `ForgotPasswordTest`: a known email stores a hashed reset token and sends
+  `PasswordResetMail`; an unknown email returns the **same 200** with no stored row and no mail
+  (no user-enumeration signal); a malformed email 422s. `AdminApiTest`: the static-bearer admin
+  API rejects an absent/wrong token (401), is **disabled** (503) when `inventory.admin_token` is
+  unconfigured, lists with a valid token, and its destructive deletes behave — deleting a
+  household cascades the whole location→shelf→product tree, deleting a user drops their
+  memberships but keeps the shared household. (ResetPassword + ClientError were already covered.)
+  Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **Product image upload endpoint** (gap analysis T7). The Android client already
   posted a multipart photo to `POST …/products/{product}/image`, but no route/controller existed and
   `image_url` was never populated — a dead end. Implemented the server side: the route sits with
