@@ -47,6 +47,28 @@ class SearchTest extends TestCase
             ->assertJsonPath('data.0.shelf_id', $shelf->id);
     }
 
+    public function test_search_treats_like_wildcards_literally(): void
+    {
+        // W11: a user-typed % must not act as a wildcard — searching "%" over a
+        // product with no literal % in its name should return nothing, not all.
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+        $household = $this->seedHouseholdWithProduct($user);
+
+        $this->getJson("http://inventory.test/api/v1/households/{$household->id}/search?q=%25")
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        // A literal % in the query matches only a name that actually contains it.
+        $shelf = $household->locations()->first()->shelves()->first();
+        $shelf->products()->create(['name' => 'Milk 2% fat', 'quantity' => 1]);
+
+        $this->getJson("http://inventory.test/api/v1/households/{$household->id}/search?q=2%25")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.name', 'Milk 2% fat');
+    }
+
     public function test_search_does_not_match_other_terms(): void
     {
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);

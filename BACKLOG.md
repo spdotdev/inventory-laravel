@@ -82,6 +82,13 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **LIKE wildcards escaped in product + user search** (wave-2 W11). `SearchController`
+  and `AdminController::searchUsers` interpolated the raw term into `%…%`, so a user-typed `%`/`_` acted
+  as a wildcard (`50%` over-matched; a lone `%` returned everything). Bound params meant no injection, just
+  wrong results. Escape `!`,`%`,`_` (escape-char first) and match with an explicit `LIKE ? ESCAPE '!'` —
+  portable because SQLite (the fast CI job) doesn't treat backslash as a LIKE escape by default, unlike
+  MySQL, so `addcslashes`+default-escape would have silently diverged between the two CI jobs. Test asserts
+  `%` is literal. Pint+Larastan green; DB test on CI.
 - ✅ `2026-07-04` — **Last member leaving deletes the household + its tree** (wave-2 W6). `leave()`
   unconditionally detached; when the last member left, the household and its whole location→shelf→product
   tree survived with zero members — unreachable by anyone (tenancy 404s non-members), dead data that only

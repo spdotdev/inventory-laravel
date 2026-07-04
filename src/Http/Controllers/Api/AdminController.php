@@ -51,11 +51,16 @@ class AdminController
     {
         $query = (string) $request->input('q', '');
 
+        // Escape LIKE wildcards so a literal % / _ in the operator's query is
+        // matched literally rather than acting as a wildcard (correct results).
+        // Explicit ESCAPE '!' is portable across SQLite (CI) + MySQL; '!' first.
+        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $query);
+
         $users = User::query()
             ->withCount('households')
-            ->where(function ($q) use ($query) {
-                $q->where('name', 'like', "%{$query}%")
-                    ->orWhere('email', 'like', "%{$query}%");
+            ->where(function ($q) use ($escaped) {
+                $q->whereRaw("name LIKE ? ESCAPE '!'", ["%{$escaped}%"])
+                    ->orWhereRaw("email LIKE ? ESCAPE '!'", ["%{$escaped}%"]);
             })
             ->orderBy('created_at', 'desc')
             ->limit(50)

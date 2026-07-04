@@ -20,9 +20,16 @@ class SearchController
     {
         $q = trim((string) $request->query('q', ''));
 
+        // Escape LIKE wildcards so a user-typed % or _ is matched literally (e.g.
+        // "50%" doesn't over-match, a lone "%" doesn't return everything). Bound
+        // params already prevent injection; this is about correct results. The
+        // explicit ESCAPE '!' is portable — SQLite (the fast CI job) doesn't treat
+        // backslash as a LIKE escape by default, unlike MySQL. '!' is escaped first.
+        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $q);
+
         $products = Product::query()
             ->whereHas('shelf.location', fn (Builder $query) => $query->where('household_id', $household->getKey()))
-            ->when($q !== '', fn (Builder $query) => $query->where('name', 'like', '%'.$q.'%'))
+            ->when($q !== '', fn (Builder $query) => $query->whereRaw("name LIKE ? ESCAPE '!'", ['%'.$escaped.'%']))
             ->with('shelf.location')
             ->orderBy('name')
             ->get();
