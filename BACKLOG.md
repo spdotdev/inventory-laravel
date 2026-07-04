@@ -82,6 +82,25 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Removed the fail-open `dependency-review` audit job** (wave-3 X6). The wave-3 audit
+  flagged that `audit.yml`'s `dependency-review` job lacked the Android job's `continue-on-error` and red-ed
+  every `composer.*` PR (Dependency Graph isn't enabled). The obvious "mirror Android" fix would have made it
+  *fail-open* — silently passing on real CVEs. Instead removed the job entirely: `composer audit --locked` in
+  the same workflow is already the blocking dependency-CVE gate, so the GitHub-native action was pure
+  infra-red with no added coverage. A fail-open gate is worse than no duplicate gate.
+- ✅ `2026-07-04` — **MCP `SearchUsersTool` escapes LIKE wildcards** (wave-3 X9). The exact injection W11
+  fixed in `AdminController::searchUsers` survived in the MCP admin tool: a raw `%`/`_` in the query acted as
+  a wildcard. Applied the same `str_replace(['!','%','_'], …) + LIKE ? ESCAPE '!'` treatment to both the name
+  and email clauses. (`Mcp/` is excluded from the phpstan/test job since `laravel/mcp` is a suggested dep;
+  fix verified by inspection against the W11 pattern.)
+- ✅ `2026-07-04` — **Household product search bounded at 50** (wave-3 X10). `SearchController` returned every
+  match — and an empty `q` dumped the whole catalog — unlike the admin and MCP searches, which both
+  `limit(50)`. Added `->limit(50)` for parity. Test seeds 60 matching products and asserts exactly 50 come
+  back. Pint+Larastan green.
+- ✅ `2026-07-04` — **`add-member` CLI matches email case-insensitively** (wave-3 X11). W13 normalized web
+  auth to lowercase (emails stored lowercase), but `inventory:household:add-member` looked up the raw
+  argument — so on case-sensitive SQLite `add-member 1 Foo@x.com` silently added nobody for a `foo@x.com`
+  user. Now `Str::lower()` the argument before lookup. Test adds a member via a mixed-case argument. Pint+Larastan green.
 - ✅ `2026-07-04` — **`add()` clamps quantity at the cap (was overflow-able)** (wave-3 X5). W14 capped the
   per-request `amount` and the stored `quantity` (create/update) at 1,000,000, but `add()` used
   `increment()` with no ceiling on the resulting total — repeated adds from a near-cap quantity could
