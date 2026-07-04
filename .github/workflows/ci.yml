@@ -63,7 +63,8 @@ jobs:
         with:
           php-version: '8.3'
           extensions: mbstring, dom, xml, pdo, sqlite3, pdo_sqlite, bcmath
-          coverage: none
+          # PCOV drives phpunit --coverage-text below; cheaper than Xdebug.
+          coverage: pcov
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -76,7 +77,9 @@ jobs:
 
       - name: Tests
         # Package tests run on testbench's in-memory SQLite; no external services.
-        run: ./vendor/bin/phpunit
+        # --coverage-text prints a src/ coverage summary to the log (reporting
+        # only, no minimum threshold — surfaces erosion without blocking a PR).
+        run: ./vendor/bin/phpunit --coverage-text
 
   # Prod runs MySQL, not SQLite. This job runs the SAME suite against a real MySQL
   # 8 service so the migrations actually execute on MySQL and engine-specific
