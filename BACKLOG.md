@@ -82,6 +82,12 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Email normalized to lowercase consistently across auth flows** (wave-2 W13).
+  Register/login stored+looked up verbatim; forgot-password lowercased; Google matched verbatim — masked
+  on MySQL (CI collation) but broken on the SQLite the package is CI-tested on, so register `Foo@x.com`
+  then login/reset with other casing silently missed. Normalize to lowercase once at the boundary
+  (`prepareForValidation()` in Register + Login requests, and lowercase the Google claim). Test covers
+  mixed-case register→login. Pint+Larastan green.
 - ✅ `2026-07-04` — **Login no longer leaks account existence via timing** (wave-2 W12). On a missing email
   (or a Google-only, passwordless account) `login()` threw before any `Hash::check`, so non-existent
   accounts responded measurably faster than wrong-password ones — a user-enumeration oracle inconsistent

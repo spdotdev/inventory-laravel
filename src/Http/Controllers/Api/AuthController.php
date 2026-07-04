@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Http\Requests\LoginRequest;
@@ -64,13 +65,18 @@ class AuthController
             return response()->json(['message' => 'Invalid Google token.'], 401);
         }
 
+        // Normalize the Google email the same way register/login do (W13), so the
+        // email fallback links to a case-normalized password account rather than
+        // silently creating a duplicate on case-sensitive storage.
+        $email = Str::lower($claims['email']);
+
         // Match by google_id, then fall back to email. The email-match links a
         // Google identity to a pre-existing (e.g. password) account — safe only
         // because the verifier guarantees a Google-verified email bound to our
         // own client ID, so the caller provably controls that address.
         $user = User::query()->where('google_id', $claims['sub'])->first()
-            ?? User::query()->where('email', $claims['email'])->first()
-            ?? new User(['name' => $claims['name'] ?? $claims['email'], 'email' => $claims['email']]);
+            ?? User::query()->where('email', $email)->first()
+            ?? new User(['name' => $claims['name'] ?? $email, 'email' => $email]);
 
         $user->google_id = $claims['sub'];
 
