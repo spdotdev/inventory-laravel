@@ -82,6 +82,13 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Invite `/join/{code}` link now resolves to a real page** (wave-2 W2).
+  `HouseholdController::invite()` advertised `https://{domain}/join/{code}`, but `routes/web.php`
+  only registered `/` and `/reset-password` — so any recipient opening the invite in a browser
+  got a hard 404 at the exact moment onboarding matters. Added `JoinController` + a Frost-styled
+  `join.blade.php` (shows the code, optional "Get the app" via new `INVENTORY_ANDROID_APP_URL`,
+  `noindex`) wired at `Route::get('/join/{code}')->name('inventory.join')`. Test asserts the page
+  renders the code. Pint + Larastan green; DB/web test on CI.
 - ✅ `2026-07-04` — **Search results now carry navigation IDs** (wave-2 W1). `SearchResultResource` returned
   only `id,name,quantity,location,shelf,path` — not `household_id`/`location_id`/`shelf_id`. The Android
   `SearchScreen` only makes a hit tappable when `household_id`+`shelf_id` are present, so against the real

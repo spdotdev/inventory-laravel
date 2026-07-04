@@ -56,6 +56,8 @@ class HouseholdController
 
     public function invite(Request $request, Household $household): JsonResponse
     {
+        // Always https for the shared invite link (the web fallback served by
+        // the `inventory.join` route lives at this exact path).
         $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code;
 
         return response()->json([

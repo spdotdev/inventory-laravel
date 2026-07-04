@@ -76,6 +76,15 @@ class HouseholdTest extends TestCase
             ->assertJsonPath('link', 'https://inventory.test/join/AAAA-1111');
     }
 
+    public function test_invite_link_web_fallback_renders_the_code(): void
+    {
+        // The link advertised by invite() must resolve to a real page — a
+        // recipient opening it in a browser should see the join code, not a 404.
+        $this->get('http://inventory.test/join/AAAA-1111')
+            ->assertOk()
+            ->assertSee('AAAA-1111');
+    }
+
     public function test_leave_detaches_the_user(): void
     {
         $user = $this->actingAsUser();

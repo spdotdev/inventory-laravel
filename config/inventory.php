@@ -102,4 +102,17 @@ return [
 
     'image_max_kb' => (int) env('INVENTORY_IMAGE_MAX_KB', 5120),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Android app link
+    |--------------------------------------------------------------------------
+    |
+    | Play Store (or direct APK) URL the /join/{code} web fallback points people
+    | at to install the app. Optional — when unset the page just shows the join
+    | code with instructions to enter it in the app.
+    |
+    */
+
+    'android_app_url' => env('INVENTORY_ANDROID_APP_URL', ''),
+
 ];
