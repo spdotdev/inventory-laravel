@@ -82,6 +82,15 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **MySQL CI job** (gap analysis T15). Tests ran only on testbench's in-memory SQLite,
+  but prod is MySQL — the ENUM storage-type column, `ON DELETE CASCADE` down the location→shelf→product
+  tree, and the migrations themselves had never actually executed on MySQL in CI, so an engine-specific
+  break could pass CI and fail prod. Added a `mysql` job to `ci.yml` with a health-gated MySQL 8 service
+  running the **full** PHPUnit suite against it. `TestCase.defineEnvironment` now honors
+  `DB_CONNECTION=mysql` (+ `DB_HOST/PORT/DATABASE/USERNAME/PASSWORD`) to flip the driver; the default
+  remains in-memory SQLite so the fast `quality` job is unchanged. `RefreshDatabase` migrates the
+  `inventory_*` schema on the real engine before each test. YAML validated + Pint/Larastan green locally;
+  the MySQL suite runs on CI (local PHP has no pdo_mysql/pdo_sqlite).
 - ✅ `2026-07-04` — **Health check now probes the database** (gap analysis T14). `HealthController` returned
   `{status: ok}` unconditionally — an app with a dead DB still reported healthy. It now runs a `SELECT 1`
   and returns `{name, api, status, database}`: DB reachable → 200 `status: ok, database: ok`; DB

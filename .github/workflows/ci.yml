@@ -66,3 +66,59 @@ jobs:
       - name: Tests
         # Package tests run on testbench's in-memory SQLite; no external services.
         run: ./vendor/bin/phpunit
+
+  # Prod runs MySQL, not SQLite. This job runs the SAME suite against a real MySQL
+  # 8 service so the migrations actually execute on MySQL and engine-specific
+  # behaviour — the ENUM storage-type column, ON DELETE CASCADE down the
+  # location→shelf→product tree — is exercised. SQLite can accept schema/queries
+  # that MySQL rejects (or that behave differently), so a green SQLite run isn't
+  # proof the app works in prod.
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: inventory_test
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, xml, pdo, mysql, pdo_mysql, bcmath
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Wait for MySQL
+        run: |
+          for i in $(seq 1 30); do
+            if mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent; then
+              echo "MySQL is up"; exit 0
+            fi
+            echo "waiting for MySQL ($i)…"; sleep 2
+          done
+          echo "MySQL did not become ready"; exit 1
+
+      - name: Tests (MySQL)
+        # RefreshDatabase migrates the inventory_* schema on the real engine before
+        # each test; DB_CONNECTION flips TestCase from SQLite to this MySQL service.
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_DATABASE: inventory_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: ./vendor/bin/phpunit
