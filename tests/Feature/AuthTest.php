@@ -56,6 +56,29 @@ class AuthTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('email');
     }
 
+    public function test_login_fails_identically_for_unknown_email(): void
+    {
+        // W12: an unknown email must produce the same 422 auth.failed as a wrong
+        // password (and run the same dummy Hash::check) so login timing can't be
+        // used to enumerate registered accounts.
+        $this->postJson('http://inventory.test/api/v1/auth/login', [
+            'email' => 'ghost@example.test',
+            'password' => 'whatever-password',
+        ])->assertStatus(422)->assertJsonValidationErrors('email');
+    }
+
+    public function test_google_only_account_cannot_log_in_with_a_password(): void
+    {
+        // A passwordless (Google-only) account must be rejected on password login,
+        // via the same constant-time path.
+        User::create(['name' => 'Goog', 'email' => 'goog@example.test', 'password' => null]);
+
+        $this->postJson('http://inventory.test/api/v1/auth/login', [
+            'email' => 'goog@example.test',
+            'password' => 'any-password',
+        ])->assertStatus(422)->assertJsonValidationErrors('email');
+    }
+
     public function test_logout_revokes_the_current_token(): void
     {
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);

@@ -14,6 +14,16 @@ use Spdotdev\Inventory\Models\User;
 
 class AuthController
 {
+    /**
+     * A valid bcrypt hash (of a throwaway string) at the default cost, used only
+     * to equalize login timing when no real password hash is available (unknown
+     * email or a Google-only account). Without it, `login()` returns measurably
+     * faster for a non-existent account than for a wrong password — a
+     * user-enumeration oracle, inconsistent with the non-enumerable
+     * forgot-password + 404-everywhere posture. Never used to authenticate.
+     */
+    private const DUMMY_PASSWORD_HASH = '$2y$12$2wtKLGVwS/ep14NDXHi1hecz8ZrOiWF1IpuMhLFC58A2lmm0/Olfe';
+
     public function register(RegisterRequest $request): JsonResponse
     {
         $user = User::create($request->validated());
@@ -28,7 +38,13 @@ class AuthController
 
         $user = User::query()->where('email', $credentials['email'])->first();
 
-        if ($user === null || $user->password === null || ! Hash::check($credentials['password'], $user->password)) {
+        // Always run a hash comparison — against the real hash, or a constant dummy
+        // when the account is missing/passwordless — so both paths take the same
+        // time and login can't be used to enumerate registered emails by timing.
+        $hash = ($user !== null && $user->password !== null) ? $user->password : self::DUMMY_PASSWORD_HASH;
+        $passwordMatches = Hash::check($credentials['password'], $hash);
+
+        if ($user === null || $user->password === null || ! $passwordMatches) {
             throw ValidationException::withMessages([
                 'email' => [__('auth.failed')],
             ]);

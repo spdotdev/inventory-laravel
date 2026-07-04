@@ -82,6 +82,12 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Login no longer leaks account existence via timing** (wave-2 W12). On a missing email
+  (or a Google-only, passwordless account) `login()` threw before any `Hash::check`, so non-existent
+  accounts responded measurably faster than wrong-password ones — a user-enumeration oracle inconsistent
+  with the non-enumerable forgot-password + 404-everywhere posture. Now always run one `Hash::check`
+  against the real hash or a constant bcrypt dummy (default cost), so both paths do equal work before the
+  same `auth.failed`. Tests: unknown email and passwordless account both 422. Pint+Larastan green.
 - ✅ `2026-07-04` — **LIKE wildcards escaped in product + user search** (wave-2 W11). `SearchController`
   and `AdminController::searchUsers` interpolated the raw term into `%…%`, so a user-typed `%`/`_` acted
   as a wildcard (`50%` over-matched; a lone `%` returned everything). Bound params meant no injection, just
