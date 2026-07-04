@@ -82,6 +82,18 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Product image upload endpoint** (gap analysis T7). The Android client already
+  posted a multipart photo to `POST …/products/{product}/image`, but no route/controller existed and
+  `image_url` was never populated — a dead end. Implemented the server side: the route sits with
+  add/remove/move inside the `household.member` + `scopeBindings` group (non-member → 404), and
+  `ProductController::image` validates a single `image` part (`mimetypes:image/jpeg,image/png,image/webp`
+  — deliberately not the `image` rule, which needs GD/`getimagesize`, so `UploadedFile::fake()->create()`
+  works in CI without GD), stores it on the configured disk (`INVENTORY_IMAGE_DISK`, default `public`;
+  `INVENTORY_IMAGE_MAX_KB` cap, default 5 MB), sets `image_url` to the file's absolute URL, deletes any
+  previously-stored file, and returns the refreshed `ProductResource`. `image_url` stays out of the
+  create/update Form Request (managed only here). `ProductImageTest` covers upload-sets-url + file
+  stored, replace-deletes-old, non-image 422, missing-part 422, non-member 404. Contract + data-model
+  reconciled. Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **Atomic stock `remove`** (gap analysis T3). `ProductController::remove` did a
   read-modify-write (`quantity = max(0, q - amount); save()`) — two concurrent removes read the same
   start value and one decrement was lost, leaving stock too high. Now a single atomic UPDATE using a

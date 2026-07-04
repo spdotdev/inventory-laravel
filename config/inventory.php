@@ -86,4 +86,20 @@ return [
 
     'client_errors_retention_days' => (int) env('INVENTORY_CLIENT_ERRORS_RETENTION_DAYS', 30),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Product images
+    |--------------------------------------------------------------------------
+    |
+    | Filesystem disk product photos are stored on (POST .../products/{id}/image).
+    | Defaults to the framework's `public` disk — the host app must have run
+    | `php artisan storage:link` for the returned URLs to be reachable. Point this
+    | at `s3` (or any configured disk) to offload storage. Max upload size in KB.
+    |
+    */
+
+    'image_disk' => env('INVENTORY_IMAGE_DISK', 'public'),
+
+    'image_max_kb' => (int) env('INVENTORY_IMAGE_MAX_KB', 5120),
+
 ];
