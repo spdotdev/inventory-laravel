@@ -52,6 +52,21 @@ class HouseholdCommandsTest extends TestCase
         $this->assertTrue($household->users()->whereKey($user->getKey())->exists());
     }
 
+    public function test_add_member_matches_email_case_insensitively(): void
+    {
+        // X11: emails are stored lowercase (W13), so a mixed-case CLI argument must
+        // still find the user — otherwise it silently adds nobody on SQLite.
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+
+        $this->artisan('inventory:household:add-member', [
+            'household' => $household->id,
+            'email' => ['Stan@Example.TEST'],
+        ])->assertExitCode(0);
+
+        $this->assertTrue($household->users()->whereKey($user->getKey())->exists());
+    }
+
     public function test_add_member_is_idempotent_and_warns_on_unknown_email(): void
     {
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
