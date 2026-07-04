@@ -82,6 +82,18 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-04` — **`add()` clamps quantity at the cap (was overflow-able)** (wave-3 X5). W14 capped the
+  per-request `amount` and the stored `quantity` (create/update) at 1,000,000, but `add()` used
+  `increment()` with no ceiling on the resulting total — repeated adds from a near-cap quantity could
+  exceed the `unsignedInteger` column (SQLSTATE 22003 → 500) and always violated the "≤ 1,000,000"
+  invariant. Rewrote `add()` as an atomic clamped update (`CASE WHEN quantity + N > MAX THEN MAX ELSE
+  quantity + N END`, portable, mirroring `remove()`'s floor). Test asserts the total pins at the cap. Pint+Larastan green.
+- ✅ `2026-07-04` — **Password-reset link built on `inventory.domain`, not `APP_URL`** (wave-3 X3).
+  `ForgotPasswordController` did `url(route('inventory.reset-password', …, absolute: false))`, prefixing the
+  path with `config('app.url')` and discarding the route's own domain. `/reset-password` is only registered
+  on the inventory domain, so on a supported split-domain deploy (`INVENTORY_DOMAIN` ≠ host `APP_URL`) the
+  emailed link pointed at the host app → 404. Now build `https://` + `config('inventory.domain')` + the
+  relative path, mirroring `HouseholdController::invite()`. Test asserts the link host. Pint+Larastan green.
 - ✅ `2026-07-04` — **Backend edge-path tests + orphaned-image cleanup** (wave-2 W15). Added: stock `amount`
   0/negative/missing rejected on both add + remove (min:1); Google-only account rejected on password login
   and mixed-case register→login (added under W12/W13). **Orphaned-image decision:** a direct product

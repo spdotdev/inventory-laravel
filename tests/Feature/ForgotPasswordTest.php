@@ -29,6 +29,23 @@ class ForgotPasswordTest extends TestCase
         Mail::assertSent(PasswordResetMail::class);
     }
 
+    public function test_the_reset_link_is_built_on_the_inventory_domain(): void
+    {
+        // X3: the link must point at config('inventory.domain') (where the
+        // /reset-password page lives), not the host app's APP_URL — otherwise a
+        // split-domain deploy emails a 404.
+        Mail::fake();
+        config(['inventory.domain' => 'inventory.example.test', 'app.url' => 'https://host-app.test']);
+        User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+
+        $this->postJson($this->url, ['email' => 'stan@example.test'])->assertOk();
+
+        Mail::assertSent(PasswordResetMail::class, function (PasswordResetMail $mail) {
+            return str_starts_with($mail->resetUrl, 'https://inventory.example.test/reset-password')
+                && ! str_contains($mail->resetUrl, 'host-app.test');
+        });
+    }
+
     public function test_an_unknown_email_still_returns_200_and_leaks_nothing(): void
     {
         Mail::fake();

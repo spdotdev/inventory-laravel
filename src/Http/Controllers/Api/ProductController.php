@@ -65,7 +65,17 @@ class ProductController
 
     public function add(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
     {
-        $product->increment('quantity', $this->amount($request));
+        $amount = $this->amount($request);
+        $max = ProductRequest::MAX_QUANTITY;
+
+        // Atomic increment (concurrency-safe like remove()), clamped to
+        // MAX_QUANTITY so a near-cap quantity plus repeated/large adds can't push
+        // past the invariant enforced everywhere else — or, at the extreme, past the
+        // unsignedInteger column ceiling (SQLSTATE 22003 → 500). Portable CASE (not
+        // MySQL-only LEAST), mirroring remove()'s floor-at-0.
+        Product::query()->whereKey($product->getKey())->update([
+            'quantity' => DB::raw('CASE WHEN quantity + '.$amount.' > '.$max.' THEN '.$max.' ELSE quantity + '.$amount.' END'),
+        ]);
 
         return new ProductResource($product->refresh());
     }

@@ -40,10 +40,15 @@ class ForgotPasswordController
                 ['token', 'created_at'],
             );
 
-            $resetUrl = url(route('inventory.reset-password', [
+            // Build the link on the package's own host (config('inventory.domain')),
+            // not the host app's APP_URL — `/reset-password` is only registered on the
+            // inventory domain, so on a split-domain deploy (INVENTORY_DOMAIN ≠ APP_URL)
+            // an APP_URL-based link 404s. Mirror HouseholdController::invite()'s approach.
+            $path = route('inventory.reset-password', [
                 'token' => $rawToken,
                 'email' => $user->email,
-            ], absolute: false));
+            ], absolute: false);
+            $resetUrl = 'https://'.config('inventory.domain').$path;
 
             Mail::to($user->email)->send(new PasswordResetMail($resetUrl));
         }
