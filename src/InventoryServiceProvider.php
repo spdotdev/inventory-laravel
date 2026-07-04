@@ -12,7 +12,10 @@ use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Auth\GoogleTokenInfoVerifier;
+use Spdotdev\Inventory\Console\Commands\AddHouseholdMemberCommand;
 use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
+use Spdotdev\Inventory\Console\Commands\ListHouseholdsCommand;
+use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
 
@@ -78,6 +81,9 @@ class InventoryServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 CreateHouseholdCommand::class,
+                ListHouseholdsCommand::class,
+                AddHouseholdMemberCommand::class,
+                RegenerateJoinCodeCommand::class,
             ]);
         }
     }

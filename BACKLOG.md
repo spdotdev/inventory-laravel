@@ -71,11 +71,20 @@ demand, keep the landing page marketing-only.
 
 ## Ideas — parking lot
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
-- 💡 `inventory:household:*` CLI family (add member, regenerate join code, list).
 
 ---
 
 ## Done
+- ✅ `2026-07-04` — **`inventory:household:*` operator CLI family** (beyond create). Three
+  console-only commands registered in `InventoryServiceProvider`: `inventory:household:list`
+  (table of id / name / join code / member count via `withCount('users')`; graceful "No
+  households yet." when empty), `inventory:household:add-member {household} {email*}` (attaches
+  existing users by email — idempotent `syncWithoutDetaching`, warns+continues on unknown email,
+  FAILURE on unknown household), and `inventory:household:regenerate-code {household}` (rotates
+  the join code via `Household::generateUniqueJoinCode()`, prints old→new, FAILURE on unknown
+  household). `HouseholdCommandsTest` (7): list-populated, list-empty, add-member attach,
+  add-member idempotent+unknown-email warn, add-member unknown-household FAILURE, regenerate
+  rotate, regenerate unknown-household FAILURE. Pint + Larastan green locally; DB tests on CI.
 - ✅ `2026-07-04` — **Rate limiting / abuse protection** on the brute-forceable surfaces.
   Two named limiters registered in `InventoryServiceProvider::registerRateLimiters()`:
   `inventory-auth` on `register`/`login`/`google`/`forgot-password` (logout is token-bound, so
