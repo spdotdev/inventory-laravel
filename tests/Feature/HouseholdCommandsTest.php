@@ -21,9 +21,14 @@ class HouseholdCommandsTest extends TestCase
         $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
         $household->users()->attach($user->getKey(), ['joined_at' => now()]);
 
+        // expectsTable compares the rendered table structurally (through the same
+        // renderer), so it isn't sensitive to terminal-width column wrapping the way
+        // a raw expectsOutputToContain on a cell value is.
         $this->artisan('inventory:household:list')
-            ->expectsOutputToContain('Garage')
-            ->expectsOutputToContain('AAAA-1111')
+            ->expectsTable(
+                ['ID', 'Name', 'Join code', 'Members'],
+                [[$household->id, 'Garage', 'AAAA-1111', 1]],
+            )
             ->assertExitCode(0);
     }
 
