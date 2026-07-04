@@ -71,12 +71,28 @@ demand, keep the landing page marketing-only.
 
 ## Ideas — parking lot
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
-- 💡 Rate-limiting + abuse protection on auth + join-by-code endpoints.
 - 💡 `inventory:household:*` CLI family (add member, regenerate join code, list).
 
 ---
 
 ## Done
+- ✅ `2026-07-04` — **Rate limiting / abuse protection** on the brute-forceable surfaces.
+  Two named limiters registered in `InventoryServiceProvider::registerRateLimiters()`:
+  `inventory-auth` on `register`/`login`/`google`/`forgot-password` (logout is token-bound, so
+  exempt) and `inventory-join` on `households/join`. Auth layers a tight per-identity limit
+  (submitted email + IP; falls back to IP when no email, e.g. `/auth/google`) under a looser
+  per-IP cap (blunts distributed attempts without locking a shared NAT); join is keyed per
+  authenticated user (code-guessing cap). All counts live in `config('inventory.rate_limits')`
+  and are env-tunable (`INVENTORY_RL_AUTH_IDENTITY|AUTH_IP|JOIN_USER`); 0 disables a layer.
+  `RateLimitTest` (4): per-identity 429, per-IP-catches-varied-emails 429, join per-user 429,
+  and join-throttle-is-per-user-not-global. Closures read config per request so tests tighten
+  limits at runtime. Pint + Larastan green locally; DB tests on CI (local PHP lacks pdo_sqlite).
+  Also cleared pre-existing CI-red debt from the password-reset flow surfaced during this work:
+  Pint reformatting on `ForgotPasswordController`/`ClientErrorController`/`ResetPasswordController`,
+  and two `@phpstan-ignore argument.type` comments on `ResetPasswordController`'s package-view
+  `view()` calls — matching the existing `LandingController` convention (the `inventory::`
+  namespace is registered at runtime via `loadViewsFrom`, so it is unresolvable in package-only
+  static analysis).
 - ✅ `2026-06-23` — **Artisan CLI** (D-032) — `inventory:household:create {name} {--member=*}`
   creates a household with a fresh join code, optionally attaches existing users by email
   (warns + continues on unknown email), and prints the join code. Registered console-only.

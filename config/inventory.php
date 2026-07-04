@@ -46,4 +46,28 @@ return [
         )),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Rate limiting (abuse protection)
+    |--------------------------------------------------------------------------
+    |
+    | Throttles on the unauthenticated auth endpoints (register/login/google/
+    | forgot-password) and on join-by-code, which are the brute-forceable
+    | surfaces: credential stuffing, password spraying, and guessing household
+    | join codes. Two layers per surface — a tight per-identity limit (email or
+    | user id) to stop targeted attacks, and a looser per-IP limit to blunt
+    | distributed attempts without locking out a shared NAT. All counts are
+    | per-minute and env-tunable; set any to 0 to disable that layer.
+    |
+    */
+
+    'rate_limits' => [
+        // Auth endpoints, keyed by the submitted email + client IP.
+        'auth_per_identity' => (int) env('INVENTORY_RL_AUTH_IDENTITY', 10),
+        // Auth endpoints, keyed by client IP only (distributed-attempt cap).
+        'auth_per_ip' => (int) env('INVENTORY_RL_AUTH_IP', 30),
+        // households/join, keyed by the authenticated user (code-guessing cap).
+        'join_per_user' => (int) env('INVENTORY_RL_JOIN_USER', 8),
+    ],
+
 ];
