@@ -7,7 +7,7 @@
 
 Backend for the **Inventory** product, shipped as the Composer package `spdotdev/inventory`
 mounted into the sd-admin host app. Authoritative spec lives in
-[`inventory-docs`](https://github.com/spdotdev/inventory-docs); this file tracks build work.
+[`docs/specs/`](docs/specs/); this file tracks build work.
 
 Markers: 🟡 TBD · 🔲 TODO · 🛠 in progress · ✅ done (shipped work moves to `BACKLOG.md`).
 

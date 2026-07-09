@@ -52,8 +52,8 @@ audit and secret scan.
 
 ## Spec
 
-Authoritative product spec lives in
-[`inventory-docs`](https://github.com/spdotdev/inventory-docs); package-specific notes in
+Authoritative product spec lives in [`docs/specs/`](docs/specs/) (canonical for both
+`inventory-android` and `inventory-laravel`); package-specific notes in
 [`CLAUDE.md`](CLAUDE.md) and [`docs/backend-plan.md`](docs/backend-plan.md).
 
 ## License

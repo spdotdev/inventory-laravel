@@ -1,8 +1,9 @@
 # CLAUDE.md — Inventory (Laravel package)
 
-Working agreement for Claude Code. Read before any task. Shared spec lives in the
-[`inventory-docs`](https://github.com/spdotdev/inventory-docs) repo
-(`planning/project-brief.md`, `specs/data-model.md`, `specs/api-contract.md`).
+Working agreement for Claude Code. Read before any task. Canonical spec lives in this
+repo's `docs/` (`docs/planning/project-brief.md`, `docs/specs/data-model.md`,
+`docs/specs/api-contract.md`) — the former `inventory-docs` repo has been retired and
+its contents merged here and into `inventory-android`.
 
 ## What this is
 A **Composer package** (`spdotdev/inventory`) — a **headless Laravel API + a marketing
@@ -62,7 +63,7 @@ machinery (private for now — flag if it goes public). Web/Filament admin UI is
 not now.
 
 ## Data model & API
-Canonical and authoritative in `inventory-docs/specs/`. Do not duplicate the schema or
+Canonical and authoritative in `docs/specs/`. Do not duplicate the schema or
 route table here — follow those files. Summary: `inventory_users`,
 `inventory_households`, `inventory_household_user`, `inventory_storage_locations`,
 `inventory_shelves`, `inventory_products`, Sanctum `personal_access_tokens`.

@@ -78,6 +78,10 @@ demand, keep the landing page marketing-only.
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
   *Deferred 2026-07-04 (backlog-sweep decision): stays LOCKED Phase-2 per `CLAUDE.md`
   ("Web/Filament admin UI is Phase 2, not now"). Not implemented on purpose.*
+- 💡 Codename / brand for the product (product-level; METADATA still lists "Inventory"
+  as the working title). *Moved from the retired `inventory-docs` repo, 2026-07-09.*
+- 💡 Public/commercial release path — would re-trigger the deferred GDPR work (D-018).
+  *Moved from the retired `inventory-docs` repo, 2026-07-09.*
 
 ---
 
