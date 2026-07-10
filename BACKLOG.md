@@ -67,17 +67,17 @@ carefully; may belong wholly in Phase 2.
 **Kill criterion.** If the Android app fully covers onboarding and web sign-up sees no
 demand, keep the landing page marketing-only.
 
-> **Deferred 2026-07-04** (backlog-sweep decision) — stays **LOCKED Phase-2**. `CLAUDE.md`
-> holds the package headless/server-authoritative rule and "Web/Filament admin UI is Phase 2,
-> not now"; building this now would reopen the headless-only decision (D-005/D-029) and add a
-> second auth surface. Not implemented on purpose.
+> **Deferred 2026-07-04** (backlog-sweep decision), then **unlocked 2026-07-10** (user
+> decision) — now a commitment tracked in [`ROADMAP.md`](ROADMAP.md) → Phase 2. The
+> scoping questions above (web session guard vs token, thin web layer vs Filament)
+> are the first work item; the headless `/api/v1` contract stays untouched.
 
 ---
 
 ## Ideas — parking lot
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
-  *Deferred 2026-07-04 (backlog-sweep decision): stays LOCKED Phase-2 per `CLAUDE.md`
-  ("Web/Filament admin UI is Phase 2, not now"). Not implemented on purpose.*
+  *Deferred 2026-07-04, unlocked 2026-07-10 (user decision) — folded into the web
+  account/household UI commitment in [`ROADMAP.md`](ROADMAP.md) → Phase 2.*
 - 💡 Codename / brand for the product (product-level; METADATA still lists "Inventory"
   as the working title). *Moved from the retired `inventory-docs` repo, 2026-07-09.*
 - 💡 Public/commercial release path — would re-trigger the deferred GDPR work (D-018).

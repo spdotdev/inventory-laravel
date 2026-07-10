@@ -21,7 +21,7 @@ Markers: 🟡 TBD · 🔲 TODO · 🛠 in progress · ✅ done (shipped work mov
 | 1 — Auth | 🔲 TODO | Sanctum register/login/logout + Google sign-in (Socialite, verify Android ID token). |
 | 2 — MVP API | 🔲 TODO | Households (create/list/invite/join/leave) + search; locations/shelves/products CRUD + add/remove/move. |
 | 3 — CLI + polish | 🔲 TODO | Artisan commands (household create, …); quality gates green (Pint/Larastan/PHPUnit). |
-| 4 — Phase 2 | 🟡 TBD | Filament admin UI; product attributes (unit/category/barcode); backup/export. |
+| 4 — Phase 2 | 🛠 in progress | **Unlocked 2026-07-10** (user decision): web account/household UI, `low_stock_threshold` product attribute. Backup/export + further attributes stay 🟡 TBD. |
 
 Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 [`docs/backend-plan.md`](docs/backend-plan.md).
@@ -37,11 +37,23 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 > leave, search, full locations/shelves/products CRUD + stock actions, and the
 > `inventory:household:create` CLI are all shipped and CI-green. See [`BACKLOG.md`](BACKLOG.md) → Done.
 
+### PHASE 2 (unlocked 2026-07-10 — user decision; was deferred 2026-07-04)
+- [ ] **`low_stock_threshold` product attribute** — nullable unsigned int on
+  `inventory_products` (null = feature off for that product); validation in the product
+  form requests, exposed in the product API resource; `/api/v1` stays backward
+  compatible (additive field). Unblocks the Android "running low" dashboard tile.
+- [ ] **Web account/household UI** — sign-up, household create/manage, invite
+  code/link/QR on the inventory domain (detailed proposal in
+  [`BACKLOG.md`](BACKLOG.md) → Ideas). Scoping decisions to settle first: web session
+  guard alongside the Sanctum token guard on the same `inventory_users`; thin web
+  layer reusing the domain logic vs Filament. The headless `/api/v1` contract is
+  untouched either way.
+
 ### REMAINING (need a decision or external dependency — not autonomous)
-- [ ] **Redesign the landing page** — blocked on the app having something to show / Play Store
-  presence; also wants the web account/household brainstorm first ([`BACKLOG.md`](BACKLOG.md) → Ideas).
-- [ ] **Phase 2** — Filament admin UI, product attributes (unit/category/barcode), backup/export.
-  Not committed; needs scoping.
+- [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
+  placeholder while the app stays debug-only; revisit when there is something public
+  to show. The web account/household UI (Phase 2 above) may become the page's real
+  content when it lands.
 
 ### LANDING PAGE
 - [ ] **Redesign the landing page** — once the product has something to show, replace the

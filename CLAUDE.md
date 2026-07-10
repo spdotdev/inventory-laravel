@@ -59,8 +59,11 @@ public/                               landing assets (publishable)
 
 ## Scope guardrails — deliberately cut; refuse to add
 No expiry/reminders, no recipes, no shopping list, no activity/audit log, no GDPR
-machinery (private for now — flag if it goes public). Web/Filament admin UI is Phase 2,
-not now.
+machinery (private for now — flag if it goes public).
+**Phase 2 unlocked 2026-07-10** (user decision): the web account/household UI
+(Filament/web surface) and product attributes (starting with `low_stock_threshold`)
+are now committed work — see `ROADMAP.md`. The API stays headless and versioned;
+the web surface is additive on the same domain, never a breaking change to `/api/v1`.
 
 ## Data model & API
 Canonical and authoritative in `docs/specs/`. Do not duplicate the schema or
