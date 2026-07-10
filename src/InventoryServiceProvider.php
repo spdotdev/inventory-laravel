@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory;
 
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
@@ -19,12 +20,20 @@ use Spdotdev\Inventory\Console\Commands\PruneClientErrorsCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
+use Spdotdev\Inventory\Models\User;
 
 class InventoryServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/inventory.php', 'inventory');
+
+        // Web session guard on inventory_users (Phase 2 web UI) — separate from
+        // the host app's own `web` guard/users and from the API's Sanctum tokens.
+        config([
+            'auth.guards.inventory' => ['driver' => 'session', 'provider' => 'inventory_users'],
+            'auth.providers.inventory_users' => ['driver' => 'eloquent', 'model' => User::class],
+        ]);
 
         // Default Google ID-token verifier (tokeninfo endpoint). Swap the
         // binding to a local JWT-cert verifier if call volume warrants it.
@@ -38,13 +47,24 @@ class InventoryServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Return 401 JSON for unauthenticated API requests instead of redirecting to a non-existent login route.
+        // Return 401 JSON for unauthenticated API requests instead of redirecting to a
+        // non-existent login route; unauthenticated WEB requests on the inventory domain
+        // go to the package's own sign-in page (the host's route('login') may not exist).
         $this->callAfterResolving(ExceptionHandler::class, function (ExceptionHandler $handler) {
             $handler->renderable(function (AuthenticationException $e, Request $request) {
                 if ($request->is('api/*') || $request->expectsJson()) {
                     return response()->json(['message' => 'Unauthenticated.'], 401);
                 }
             });
+        });
+
+        // Unauthenticated WEB requests on the inventory domain go to the package's
+        // own sign-in page (the host's route('login') may not exist). Other hosts
+        // fall through to the framework default.
+        Authenticate::redirectUsing(function (Request $request) {
+            return $request->getHost() === config('inventory.domain')
+                ? route('inventory.web.login.show')
+                : null;
         });
 
         // Tenancy gate for /households/{household}/* routes.
