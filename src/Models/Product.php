@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property bool $is_mandatory
  * @property string|null $image_url
  * @property int $quantity
+ * @property int|null $low_stock_threshold
  */
 class Product extends Model
 {
@@ -28,6 +29,7 @@ class Product extends Model
         'is_mandatory',
         'image_url',
         'quantity',
+        'low_stock_threshold',
     ];
 
     /**
@@ -38,6 +40,7 @@ class Product extends Model
         return [
             'quantity' => 'integer',
             'is_mandatory' => 'boolean',
+            'low_stock_threshold' => 'integer',
         ];
     }
 

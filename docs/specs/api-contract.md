@@ -156,6 +156,7 @@ Response (`ProductResource`):
 
 ```
 { id, shelf_id, name, quantity,
+  low_stock_threshold,         # nullable int >= 1; quantity <= threshold = "running low"; null = off
   description | null,          # free-form notes
   code | null,                 # free-form product code / barcode
   is_mandatory,                # bool; a mandatory item at quantity 0 = "missing"

@@ -42,6 +42,8 @@ inventory_products
   code (nullable string, max 100 — free-form product code / scanned barcode),
   is_mandatory (boolean, default false — "should always be stocked"; qty 0 = missing),
   image_url (nullable string — absolute URL, set by POST .../products/{id}/image),
+  low_stock_threshold (nullable unsigned int, >= 1 — "running low" warning at
+    quantity <= threshold; NULL = feature off for the product; Phase 2, 2026-07-10),
   created_at, updated_at
   -- quantity 0 = out of stock; row retained for easy re-add
 

@@ -25,6 +25,7 @@ class ProductResource extends JsonResource
             'is_mandatory' => $this->is_mandatory,
             'image_url' => $this->image_url,
             'quantity' => $this->quantity,
+            'low_stock_threshold' => $this->low_stock_threshold,
         ];
     }
 }
