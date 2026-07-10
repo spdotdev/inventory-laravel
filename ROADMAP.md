@@ -63,9 +63,13 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 - [x] **Live updates backend (Q-3, user decision 2026-07-10: full Reverb)** — shipped
   2026-07-10. `HouseholdChanged` broadcast (model observers → every surface pings),
   private `inventory.household.{id}` channel, Sanctum-gated `/api/v1/broadcasting/auth`.
-  Host side: Reverb container + nginx websocket proxying live in sd-admin; server
-  needs `BROADCAST_CONNECTION=reverb` + `REVERB_*` env keys (manual, .env is
-  server-only) before events actually flow.
+  Host side: Reverb container + nginx websocket proxying live in sd-admin.
+  **Server config completed 2026-07-10** (user-approved SSH): `REVERB_*` keys +
+  `BROADCAST_CONNECTION=reverb` set on d051; verified 101 Switching Protocols
+  through Caddy→nginx→Reverb and a broadcast job processed clean. Two prod
+  gotchas fixed on the way: the nginx catch-all block needed `default_server`
+  (unmatched hosts fell to the crm block), and the single-file bind mount served
+  stale config after deploys (now a directory mount).
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
