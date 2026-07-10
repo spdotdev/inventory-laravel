@@ -65,40 +65,16 @@ class ProductController
 
     public function add(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
     {
-        $amount = $this->amount($request);
-        $max = ProductRequest::MAX_QUANTITY;
+        $product->addStock($this->amount($request), ProductRequest::MAX_QUANTITY);
 
-        // Atomic increment (concurrency-safe like remove()), clamped to
-        // MAX_QUANTITY so a near-cap quantity plus repeated/large adds can't push
-        // past the invariant enforced everywhere else — or, at the extreme, past the
-        // unsignedInteger column ceiling (SQLSTATE 22003 → 500). Portable CASE (not
-        // MySQL-only LEAST), mirroring remove()'s floor-at-0.
-        Product::query()->whereKey($product->getKey())->update([
-            'quantity' => DB::raw('CASE WHEN quantity + '.$amount.' > '.$max.' THEN '.$max.' ELSE quantity + '.$amount.' END'),
-        ]);
-
-        return new ProductResource($product->refresh());
+        return new ProductResource($product);
     }
 
     public function remove(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
     {
-        $amount = $this->amount($request);
+        $product->removeStock($this->amount($request));
 
-        // Atomic decrement so concurrent removes can't lose a decrement (add()
-        // uses increment() for the same reason; a silently dropped stock delta is
-        // not the "last-write-wins on a full-record edit" the concurrency rule
-        // sanctions). Quantity floors at 0 (D-012), row retained as out-of-stock.
-        //
-        // Compare BEFORE subtracting (`quantity < N`, not `quantity - N < 0`): the
-        // column is BIGINT UNSIGNED, so evaluating `quantity - N` when N > quantity
-        // underflows and MySQL (strict mode) throws "value out of range". The
-        // subtraction now only runs in the ELSE branch where quantity >= N. Portable
-        // to the SQLite test DB, and CASE (not MySQL-only GREATEST) keeps it so.
-        Product::query()->whereKey($product->getKey())->update([
-            'quantity' => DB::raw('CASE WHEN quantity < '.$amount.' THEN 0 ELSE quantity - '.$amount.' END'),
-        ]);
-
-        return new ProductResource($product->refresh());
+        return new ProductResource($product);
     }
 
     public function image(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource

@@ -112,4 +112,103 @@ class WebUiTest extends TestCase
             ->getJson("{$this->base}/api/v1/households")
             ->assertUnauthorized();
     }
+
+    /** Build an authenticated member + household + location + shelf for CRUD tests. */
+    private function memberSetup(): array
+    {
+        $user = $this->user('member@example.test');
+        $household = Household::query()->create(['name' => 'Home', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Fridge', 'type' => 'fridge']);
+        $shelf = $location->shelves()->create(['name' => 'Top']);
+
+        return [$user, $household, $location, $shelf];
+    }
+
+    public function test_location_and_shelf_crud_on_the_web(): void
+    {
+        [$user, $household] = $this->memberSetup();
+
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.locations.store', $household), ['name' => 'Pantry', 'type' => 'pantry'])
+            ->assertRedirect(route('inventory.web.households.show', $household));
+        $this->assertDatabaseHas('inventory_storage_locations', ['name' => 'Pantry']);
+
+        $location = $household->locations()->where('name', 'Pantry')->firstOrFail();
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.shelves.store', [$household, $location]), ['name' => 'Shelf A'])
+            ->assertRedirect(route('inventory.web.locations.show', [$household, $location]));
+
+        $this->actingAs($user, 'inventory')
+            ->get(route('inventory.web.locations.show', [$household, $location]))
+            ->assertOk()->assertSee('Shelf A');
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.locations.destroy', [$household, $location]))
+            ->assertRedirect();
+        $this->assertDatabaseMissing('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_product_crud_and_stock_actions_on_the_web(): void
+    {
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.products.store', [$household, $shelf]), ['name' => 'Milk'])
+            ->assertRedirect(route('inventory.web.locations.show', [$household, $location]));
+        $product = $shelf->products()->firstOrFail();
+        $this->assertSame(0, $product->quantity);
+
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.products.add', [$household, $shelf, $product]));
+        $this->assertSame(1, $product->refresh()->quantity);
+
+        // Remove floors at 0 (D-012) — two removes from 1 stay at 0.
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.products.remove', [$household, $shelf, $product]));
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.products.remove', [$household, $shelf, $product]));
+        $this->assertSame(0, $product->refresh()->quantity);
+
+        // Full edit incl. checkbox + threshold; unchecking mandatory persists.
+        $this->actingAs($user, 'inventory')
+            ->put(route('inventory.web.products.update', [$household, $shelf, $product]), [
+                'name' => 'Whole milk',
+                'code' => '871234',
+                'is_mandatory' => '1',
+                'low_stock_threshold' => 2,
+            ])->assertRedirect();
+        $product->refresh();
+        $this->assertTrue($product->is_mandatory);
+        $this->assertSame(2, $product->low_stock_threshold);
+
+        $this->actingAs($user, 'inventory')
+            ->put(route('inventory.web.products.update', [$household, $shelf, $product]), [
+                'name' => 'Whole milk',
+                'low_stock_threshold' => '',
+            ])->assertRedirect();
+        $product->refresh();
+        $this->assertFalse($product->is_mandatory);
+        $this->assertNull($product->low_stock_threshold);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.products.destroy', [$household, $shelf, $product]))
+            ->assertRedirect();
+        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_web_crud_is_tenancy_gated(): void
+    {
+        [, $household, $location, $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $stranger = $this->user('stranger2@example.test');
+        $this->actingAs($stranger, 'inventory')
+            ->get(route('inventory.web.locations.show', [$household, $location]))
+            ->assertNotFound();
+        $this->actingAs($stranger, 'inventory')
+            ->post(route('inventory.web.products.add', [$household, $shelf, $product]))
+            ->assertNotFound();
+        $this->assertSame(1, $product->refresh()->quantity);
+    }
 }

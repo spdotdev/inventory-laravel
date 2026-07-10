@@ -1,0 +1,76 @@
+<?php
+
+namespace Spdotdev\Inventory\Http\Controllers\Web;
+
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Routing\Controller;
+use Illuminate\View\View;
+use Spdotdev\Inventory\Http\Requests\ProductRequest;
+use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Product;
+use Spdotdev\Inventory\Models\Shelf;
+
+/**
+ * Web CRUD + stock actions for products (Phase 2 stage 2). Tenancy via the
+ * shared middleware + scoped bindings; validation via the API's ProductRequest;
+ * stock mutations via the same atomic Product::addStock/removeStock the API uses.
+ */
+class WebProductController extends Controller
+{
+    public function store(ProductRequest $request, Household $household, Shelf $shelf): RedirectResponse
+    {
+        $shelf->products()->create($request->validated() + ['quantity' => 0]);
+
+        return $this->backToLocation($household, $shelf)->with('status', __('Product added.'));
+    }
+
+    public function edit(Household $household, Shelf $shelf, Product $product): View
+    {
+        // @phpstan-ignore argument.type (the inventory:: namespace is registered at runtime via loadViewsFrom, so it is not resolvable during package-only static analysis)
+        return view('inventory::web.product-edit', [
+            'household' => $household,
+            'shelf' => $shelf,
+            'product' => $product,
+        ]);
+    }
+
+    public function update(ProductRequest $request, Household $household, Shelf $shelf, Product $product): RedirectResponse
+    {
+        // Web checkboxes are absent when unchecked; normalize before the fill so
+        // unchecking actually persists (the API sends explicit booleans instead).
+        $data = $request->validated();
+        $data['is_mandatory'] = $request->boolean('is_mandatory');
+        $data['low_stock_threshold'] = $request->filled('low_stock_threshold')
+            ? (int) $request->input('low_stock_threshold')
+            : null;
+        $product->update($data);
+
+        return $this->backToLocation($household, $shelf)->with('status', __('Product saved.'));
+    }
+
+    public function add(Household $household, Shelf $shelf, Product $product): RedirectResponse
+    {
+        $product->addStock(1, ProductRequest::MAX_QUANTITY);
+
+        return $this->backToLocation($household, $shelf);
+    }
+
+    public function remove(Household $household, Shelf $shelf, Product $product): RedirectResponse
+    {
+        $product->removeStock(1);
+
+        return $this->backToLocation($household, $shelf);
+    }
+
+    public function destroy(Household $household, Shelf $shelf, Product $product): RedirectResponse
+    {
+        $product->delete();
+
+        return $this->backToLocation($household, $shelf)->with('status', __('Product deleted.'));
+    }
+
+    private function backToLocation(Household $household, Shelf $shelf): RedirectResponse
+    {
+        return redirect()->route('inventory.web.locations.show', [$household, $shelf->location_id]);
+    }
+}

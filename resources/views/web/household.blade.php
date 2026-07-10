@@ -25,11 +25,26 @@
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Storage locations</h2>
   @forelse ($locations as $location)
     <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)">
-      <div class="grow">{{ $location->name }} <span class="muted">({{ $location->type }}, {{ $location->shelves_count }} {{ Str::plural('shelf', $location->shelves_count) }})</span></div>
+      <div class="grow">
+        <a href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ $location->name }}</a>
+        <span class="muted">({{ $location->type }}, {{ $location->shelves_count }} {{ Str::plural('shelf', $location->shelves_count) }})</span>
+      </div>
+      <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">Open</a>
     </div>
   @empty
-    <p class="muted">No locations yet — add them in the app for now.</p>
+    <p class="muted">No locations yet.</p>
   @endforelse
+
+  <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" class="row" style="margin-top:14px">
+    @csrf
+    <input class="grow" type="text" name="name" placeholder="e.g. Fridge" required style="margin-bottom:0">
+    <select name="type" required style="width:140px;margin-bottom:0">
+      @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
+        <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
+      @endforeach
+    </select>
+    <button type="submit">Add location</button>
+  </form>
 </div>
 
 <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"

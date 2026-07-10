@@ -6,6 +6,9 @@ use Spdotdev\Inventory\Http\Controllers\LandingController;
 use Spdotdev\Inventory\Http\Controllers\ResetPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebLocationController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebProductController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebShelfController;
 
 // Marketing landing page + password reset form, served on the configured inventory host.
 Route::domain(config('inventory.domain'))
@@ -31,5 +34,20 @@ Route::domain(config('inventory.domain'))
             Route::post('/households/join', [WebHouseholdController::class, 'join'])->name('inventory.web.households.join');
             Route::get('/households/{household}', [WebHouseholdController::class, 'show'])->name('inventory.web.households.show');
             Route::delete('/households/{household}/leave', [WebHouseholdController::class, 'leave'])->name('inventory.web.households.leave');
+
+            // Inventory CRUD (stage 2) — same tenancy gate + scoped bindings as /api/v1.
+            Route::middleware('household.member')->scopeBindings()->group(function () {
+                Route::post('/households/{household}/locations', [WebLocationController::class, 'store'])->name('inventory.web.locations.store');
+                Route::get('/households/{household}/locations/{location}', [WebLocationController::class, 'show'])->name('inventory.web.locations.show');
+                Route::delete('/households/{household}/locations/{location}', [WebLocationController::class, 'destroy'])->name('inventory.web.locations.destroy');
+                Route::post('/households/{household}/locations/{location}/shelves', [WebShelfController::class, 'store'])->name('inventory.web.shelves.store');
+                Route::delete('/households/{household}/locations/{location}/shelves/{shelf}', [WebShelfController::class, 'destroy'])->name('inventory.web.shelves.destroy');
+                Route::post('/households/{household}/shelves/{shelf}/products', [WebProductController::class, 'store'])->name('inventory.web.products.store');
+                Route::get('/households/{household}/shelves/{shelf}/products/{product}/edit', [WebProductController::class, 'edit'])->name('inventory.web.products.edit');
+                Route::put('/households/{household}/shelves/{shelf}/products/{product}', [WebProductController::class, 'update'])->name('inventory.web.products.update');
+                Route::post('/households/{household}/shelves/{shelf}/products/{product}/add', [WebProductController::class, 'add'])->name('inventory.web.products.add');
+                Route::post('/households/{household}/shelves/{shelf}/products/{product}/remove', [WebProductController::class, 'remove'])->name('inventory.web.products.remove');
+                Route::delete('/households/{household}/shelves/{shelf}/products/{product}', [WebProductController::class, 'destroy'])->name('inventory.web.products.destroy');
+            });
         });
     });
