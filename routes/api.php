@@ -66,6 +66,7 @@ Route::domain(config('inventory.domain'))
             // scopeBindings verifies each nested resource belongs to its parent
             // (location ⊂ household, shelf ⊂ location/household, product ⊂ shelf).
             Route::middleware('household.member')->scopeBindings()->group(function () {
+                Route::patch('households/{household}', [HouseholdController::class, 'update'])->name('inventory.api.households.update');
                 Route::get('households/{household}/invite', [HouseholdController::class, 'invite'])->name('inventory.api.households.invite');
                 Route::delete('households/{household}/leave', [HouseholdController::class, 'leave'])->name('inventory.api.households.leave');
                 Route::get('households/{household}/search', SearchController::class)->name('inventory.api.households.search');

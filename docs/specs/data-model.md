@@ -22,8 +22,12 @@ inventory_users
   email_verified_at (nullable), remember_token, created_at, updated_at
 
 inventory_households
-  id, name, join_code (unique), created_at, updated_at
+  id, name, join_code (unique),
+  color (nullable string — palette key, see HouseholdColor enum),
+  icon (nullable string — icon key, see HouseholdIcon enum),
+  created_at, updated_at
   -- join_code drives the invite link + QR (D-026)
+  -- color/icon: Phase-2 user-chosen theme; null = client derives from id
 
 inventory_household_user                      -- membership pivot
   household_id, user_id, joined_at

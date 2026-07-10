@@ -12,6 +12,8 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $name
  * @property string $join_code
+ * @property string|null $color
+ * @property string|null $icon
  * @property Carbon $created_at
  * @property Carbon $updated_at
  * @property HouseholdUserPivot|null $pivot
@@ -24,6 +26,8 @@ class Household extends Model
     protected $fillable = [
         'name',
         'join_code',
+        'color',
+        'icon',
     ];
 
     /**

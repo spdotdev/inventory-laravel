@@ -6,6 +6,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\View\View;
+use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Support\InviteQr;
@@ -78,6 +79,20 @@ class WebHouseholdController extends Controller
             'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
             'inviteQrSvg' => InviteQr::svg($link),
         ]);
+    }
+
+    /** Rename + theme (Phase 2). Same validation as the API's PATCH endpoint. */
+    public function update(UpdateHouseholdRequest $request, Household $household): RedirectResponse
+    {
+        $this->authorizeMember($request, $household);
+
+        // The web form posts '' for "default"; ConvertEmptyStringsToNull has
+        // already turned that into the null the API also uses for clearing.
+        $household->update($request->validated());
+
+        return redirect()
+            ->route('inventory.web.households.show', $household)
+            ->with('status', __('Household updated.'));
     }
 
     public function leave(Request $request, Household $household): RedirectResponse

@@ -56,6 +56,27 @@
   </form>
 </div>
 
+<div class="card">
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Appearance</h2>
+  <p class="muted" style="margin-bottom:14px">Pick a colour and icon for this household in the apps — “Default” derives one automatically.</p>
+  <form method="POST" action="{{ route('inventory.web.households.update', $household) }}" class="row">
+    @csrf @method('PUT')
+    <select name="color" style="width:150px;margin-bottom:0">
+      <option value="">Default colour</option>
+      @foreach (\Spdotdev\Inventory\Enums\HouseholdColor::cases() as $color)
+        <option value="{{ $color->value }}" @selected($household->color === $color->value)>{{ ucfirst($color->value) }}</option>
+      @endforeach
+    </select>
+    <select name="icon" style="width:150px;margin-bottom:0">
+      <option value="">Default icon</option>
+      @foreach (\Spdotdev\Inventory\Enums\HouseholdIcon::cases() as $icon)
+        <option value="{{ $icon->value }}" @selected($household->icon === $icon->value)>{{ ucfirst($icon->value) }}</option>
+      @endforeach
+    </select>
+    <button type="submit">Save</button>
+  </form>
+</div>
+
 <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
       onsubmit="return confirm({{ Illuminate\Support\Js::from('Leave '.$household->name.'?') }})">
   @csrf

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Spdotdev\Inventory\Http\Requests\JoinHouseholdRequest;
 use Spdotdev\Inventory\Http\Requests\StoreHouseholdRequest;
+use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Http\Resources\HouseholdResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
@@ -50,6 +51,18 @@ class HouseholdController
 
         // Idempotent: joining a household you're already in is a no-op.
         $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now()]]);
+
+        return (new HouseholdResource($household))->response();
+    }
+
+    /**
+     * Rename and/or theme a household (Phase 2). Any member may update — all
+     * members are equal (no roles). Color/icon are palette keys; explicit null
+     * clears back to the client-derived default.
+     */
+    public function update(UpdateHouseholdRequest $request, Household $household): JsonResponse
+    {
+        $household->update($request->validated());
 
         return (new HouseholdResource($household))->response();
     }

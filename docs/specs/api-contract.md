@@ -84,6 +84,8 @@ Email/password accounts can self-serve a reset (Google-only accounts have no pas
 ```
 GET    /api/v1/households                                     -> households the caller belongs to
 POST   /api/v1/households                  { name }           -> create (creator auto-joins)
+PATCH  /api/v1/households/{household}      { name?, color?,   -> partial update: rename + theme
+                                             icon? }             (any member; null clears theme)
 GET    /api/v1/households/{household}/invite                  -> { code, link }
                                                                  (client renders QR from link)
 POST   /api/v1/households/join             { code }           -> join by code
@@ -95,9 +97,13 @@ GET    /api/v1/households/{household}/search?q=               -> matching produc
 
 ```
 { id, name,
-  join_code }                  # visible to members (all members are equal and may
+  join_code,                   # visible to members (all members are equal and may
                                # invite); this resource is only ever returned to members.
                                # Client field is required — a rename breaks deserialization.
+  color, icon }                # nullable theme KEYS (Phase 2) — color: sky|teal|indigo|pink|
+                               # amber|green|violet|orange; icon: home|kitchen|house|apartment|
+                               # cottage|warehouse|storefront|box. null = client derives a
+                               # stable default from the household id.
 ```
 
 The invite endpoint returns `{ code, link }` where `link` is

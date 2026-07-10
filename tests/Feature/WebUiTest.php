@@ -237,6 +237,26 @@ class WebUiTest extends TestCase
         }
     }
 
+    public function test_household_theme_can_be_set_from_the_web(): void
+    {
+        [$user, $household] = $this->memberSetup();
+
+        $this->actingAs($user, 'inventory')
+            ->put(route('inventory.web.households.update', $household), ['color' => 'amber', 'icon' => 'warehouse'])
+            ->assertRedirect(route('inventory.web.households.show', $household));
+        $household->refresh();
+        $this->assertSame('amber', $household->color);
+        $this->assertSame('warehouse', $household->icon);
+
+        // '' from the "Default" option clears (ConvertEmptyStringsToNull → null).
+        $this->actingAs($user, 'inventory')
+            ->put(route('inventory.web.households.update', $household), ['color' => '', 'icon' => ''])
+            ->assertRedirect();
+        $household->refresh();
+        $this->assertNull($household->color);
+        $this->assertNull($household->icon);
+    }
+
     public function test_web_search_finds_products_and_links_their_location(): void
     {
         [$user, $household, $location, $shelf] = $this->memberSetup();

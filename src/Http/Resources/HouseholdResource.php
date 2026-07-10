@@ -22,6 +22,9 @@ class HouseholdResource extends JsonResource
             // All members are equal and may invite, so the join code is visible
             // to members (this resource is only ever returned to members).
             'join_code' => $this->join_code,
+            // Phase-2 theme keys (null = client derives a default from the id).
+            'color' => $this->color,
+            'icon' => $this->icon,
         ];
     }
 }
