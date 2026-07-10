@@ -51,6 +51,11 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   untouched. Follow-ups: QR on the invite page shipped 2026-07-10 (bacon/bacon-qr-code,
   inline SVG via Support\InviteQr). Still open: Google sign-in on the web
   (needs a GCP redirect-flow client + secret — external config).
+- [x] **Deployed to production 2026-07-10** (user decision) — tagged **v0.1.5** and bumped
+  sd-admin's lock from v0.1.0 (sd-admin 5df2444 → CI → auto-deploy to d051). Verified live:
+  `/up` 200 (DB-probing health check), `/login` + `/register` 200 (web UI routes new in
+  this release), API auth guard intact. Production had been on v0.1.0 since the MVP —
+  this picked up ~60 commits of fixes and Phase 2.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
