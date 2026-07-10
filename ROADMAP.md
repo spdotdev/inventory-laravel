@@ -51,6 +51,13 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   (same tenancy gate, LIKE escaping via the new shared `Support\Like`, 50-row bound),
   results linking into location pages. Still open: Google sign-in on the web
   (needs a GCP redirect-flow client + secret — external config).
+  **Prod click-through smoke-passed 2026-07-10** (browser against
+  `inventory.scuttle.dev`, throwaway account, data cleaned up after): register →
+  auto-login → create household → invite code/link/QR render → add location/shelf/
+  product → stock stepper → edit page saves `low_stock_threshold` + mandatory and
+  the "running low" badge appears → search finds the product with its
+  `location › shelf` path → leave household deletes the tree → the household URL
+  then 404s (tenancy intact) → sign out.
 - [x] **Deployed to production 2026-07-10** (user decision) — tagged **v0.1.5** and bumped
   sd-admin's lock from v0.1.0 (sd-admin 5df2444 → CI → auto-deploy to d051). Verified live:
   `/up` 200 (DB-probing health check), `/login` + `/register` 200 (web UI routes new in
@@ -67,6 +74,11 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   gotchas fixed on the way: the nginx catch-all block needed `default_server`
   (unmatched hosts fell to the crm block), and the single-file bind mount served
   stale config after deploys (now a directory mount).
+  **Full loop smoke-verified end-to-end 2026-07-10** from a real external websocket
+  client against prod: connect → Sanctum-gated channel auth → subscribe to
+  `private-inventory.household.{id}` → API product create → `household.changed`
+  received on the socket ~1.6 s after the mutation. Only the Android UI's reaction
+  to the ping remains covered by unit tests rather than a live device.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
