@@ -1,8 +1,9 @@
 # inventory-laravel — backend planning slice
 
-> Backend-specific planning. The shared, authoritative spec lives in
-> [`inventory-docs`](https://github.com/spdotdev/inventory-docs):
-> `planning/project-brief.md`, `specs/data-model.md`, `specs/api-contract.md`.
+> Backend-specific planning. The shared, authoritative spec lives alongside this file:
+> [`planning/project-brief.md`](planning/project-brief.md),
+> [`specs/data-model.md`](specs/data-model.md),
+> [`specs/api-contract.md`](specs/api-contract.md).
 > This file covers only what's specific to building the Laravel package.
 
 ## Identity
@@ -66,9 +67,9 @@ Tenancy isolation, auth (email/password + Google find-or-create), stock floor at
 cascade deletes, join-by-code, domain routing resolves landing vs api.
 
 ## Build order
-See `CLAUDE.md` → "Build order". Start: skeleton + migrations + tenancy middleware.
+See `CLAUDE.md` → "Build order" (historical — all shipped).
 
 ## Deploy
-No standalone deploy. Ships with sd-admin (DigitalOcean d051). By default it serves on
-sd-admin's own domain; **optionally** set `INVENTORY_DOMAIN` (+ DNS) at the infra step to
-move it onto a dedicated subdomain like `inventory.scuttle.dev`.
+No standalone deploy. Ships with sd-admin (DigitalOcean d051), **live in production at
+`inventory.scuttle.dev`** (`INVENTORY_DOMAIN` set to the dedicated subdomain). Full
+procedure in [`deploy-runbook.md`](deploy-runbook.md).

@@ -84,9 +84,8 @@ demand, keep the landing page marketing-only.
   *Deferred 2026-07-04, unlocked 2026-07-10 (user decision) — folded into the web
   account/household UI commitment in [`ROADMAP.md`](ROADMAP.md) → Phase 2.*
 - 💡 Codename / brand for the product (product-level; METADATA still lists "Inventory"
-  as the working title). *Moved from the retired `inventory-docs` repo, 2026-07-09.*
+  as the working title).
 - 💡 Public/commercial release path — would re-trigger the deferred GDPR work (D-018).
-  *Moved from the retired `inventory-docs` repo, 2026-07-09.*
 
 ---
 

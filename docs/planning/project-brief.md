@@ -12,8 +12,8 @@
 | **Project** | Inventory (general-purpose household stock manager) |
 | **Studio** | Scuttle Development (KvK 96040947 · VAT NL005184584B85 · Eindhoven, NL) |
 | **Operator** | Stanislav Plotnikov |
-| **Created** | 2026-06-14 · **Updated** 2026-06-23 |
-| **Status** | `SPEC COMPLETE` |
+| **Created** | 2026-06-14 · **Updated** 2026-07-10 |
+| **Status** | `SHIPPED` — MVP + Phase 2 live in production (`inventory.scuttle.dev`, 2026-07-10) |
 | **Backend** | `LOCKED` — headless server-authoritative Laravel API, shipped as a **Composer package** mounted into a host app (sd-admin). |
 | **Client** | `LOCKED` — Android (Kotlin/Compose) sole client. |
 | **Design** | `LOCKED` — B · Frost (frosted glass, icy-blue, rounded, light/dark). |
@@ -57,7 +57,7 @@ mirroring the `spdotdev/scuttle-dev` pattern:
 | D-005 | ~~Standalone headless app; Android sole client.~~ **Superseded by D-027** — backend is a Composer package; Android is still the sole client. | `SUPERSEDED` |
 | D-006 | Always-online. No offline store / sync / conflict resolution. | `LOCKED` |
 | D-007 | Active household via explicit route param `/api/v1/households/{household}/...`, served under host-based subdomain `inventory.{domain}`. | `LOCKED` |
-| D-008 | Realtime: pull-to-refresh + optimistic UI; WebSockets deferred. | `RECOMMENDED` (Q-3) |
+| D-008 | ~~Realtime: pull-to-refresh + optimistic UI; WebSockets deferred.~~ **Superseded by D-034** — pull-to-refresh remains the fallback. | `SUPERSEDED` |
 | D-009 | API versioning from day one (`/api/v1/`). | `LOCKED` |
 | D-010 | Auth: Laravel Sanctum, token-based. | `LOCKED` |
 | D-011 | Shopping list and recipes excluded. | `LOCKED` |
@@ -83,6 +83,8 @@ mirroring the `spdotdev/scuttle-dev` pattern:
 | **D-031** | **Database engine = MySQL on the host app's default connection (matches sd-admin). No separate DB.** | `LOCKED` |
 | **D-032** | **Ship Artisan CLI commands for admin tasks (e.g. `inventory:household:create`).** | `LOCKED` |
 | **D-033** | **Global product naming: "Inventory" identity; freezer/fridge/pantry are examples, not the brand.** | `LOCKED` |
+| **D-034** | **Live updates via Laravel Reverb (Q-3 resolved 2026-07-10, user decision): model observers broadcast `household.changed` on private `inventory.household.{id}` channels; Sanctum-gated `/api/v1/broadcasting/auth`; clients keep pull-to-refresh as fallback.** | `LOCKED` |
+| **D-035** | **Phase 2 web surface (unlocked 2026-07-10, user decision): session-guarded thin-Blade account/household/inventory UI on the same domain (`/login`, `/register`, `/app/*`). Additive only — never a breaking change to `/api/v1`.** | `LOCKED` |
 
 ---
 
@@ -103,11 +105,12 @@ mirroring the `spdotdev/scuttle-dev` pattern:
 - **Artisan CLI** for admin tasks (create household, etc.).
 - Always-online; shared; last-write-wins.
 
-### Phase 2 — candidates
-- Web/Filament admin UI inside the host app (deferred, anticipated).
-- Product attributes: unit, category, barcode; barcode scanning (native).
-- Filter / sort; backup / restore / export.
-- Live cross-user updates (WebSockets / Reverb) if demanded.
+### Phase 2 — unlocked 2026-07-10 (user decision), largely shipped
+- ✅ Web account/household UI (D-035 — thin Blade, session guard; shipped 2026-07-10).
+- ✅ Barcode scanning (Android CameraX + ML Kit; `code` field) — shipped 2026-07-10.
+- ✅ Low-stock threshold + "running low" view — shipped 2026-07-10.
+- ✅ Live cross-user updates via Reverb (D-034) — shipped 2026-07-10.
+- Remaining candidates: unit/category product attributes; backup / restore / export.
 
 ### Out of scope
 - Expiry tracking + reminders, recipes, shopping list, offline mode, iOS UI (now),
@@ -158,10 +161,12 @@ Canonical: [`../specs/api-contract.md`](../specs/api-contract.md). REST+JSON und
 ---
 
 ## OPEN QUESTIONS
-- **Q-3:** Live cross-user push, or pull-to-refresh? (Recommendation: pull-to-refresh — no WebSockets.)
+_None._
+- ~~**Q-3:** Live cross-user push, or pull-to-refresh?~~ **Resolved 2026-07-10 (user
+  decision):** full Reverb live updates (D-034); pull-to-refresh stays as fallback.
 - ~~**Q-6:** Which parent domain for `inventory.{domain}`?~~ **Resolved 2026-06-23:** the package
   defaults to the **host app's own domain** (`APP_URL` host); a dedicated subdomain like
-  `inventory.scuttle.dev` is opt-in via `INVENTORY_DOMAIN`.
+  `inventory.scuttle.dev` is opt-in via `INVENTORY_DOMAIN` — production uses it.
 
 ---
 
@@ -178,3 +183,8 @@ Canonical: [`../specs/api-contract.md`](../specs/api-contract.md). REST+JSON und
 - `2026-06-23` — Q-6 resolved: `inventory.domain` defaults to the host app's own domain
   (`APP_URL`), overridable via `INVENTORY_DOMAIN`. Frost mocks (`frost-app.html`,
   `frost-dark.png`, `frost-light.png`) added to `inventory-android/docs/design/`.
+- `2026-07-10` — **Phase 2 unlocked (user decision) and shipped; production go-live.**
+  Web account/household UI (D-035), Reverb live updates (D-034, Q-3 resolved, D-008
+  superseded), `low_stock_threshold`, barcode scanning + household color/icon on
+  Android. Backend v0.1.5 deployed to production via sd-admin (d051) at
+  `inventory.scuttle.dev`; Reverb configured and verified end-to-end.

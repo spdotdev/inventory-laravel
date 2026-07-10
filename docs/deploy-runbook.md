@@ -1,142 +1,154 @@
 # Deploy runbook — Inventory
 
-How to ship the `spdotdev/inventory` backend package into the **sd-admin** host app and
-make it serve at `inventory.{domain}`. The package is headless API + a landing page,
-mounted via host-based routing — it has no standalone deploy of its own.
+How the `spdotdev/inventory` package ships inside the **sd-admin** host app and serves
+at `inventory.{domain}`. The package is a headless API + web UI + landing page mounted
+via host-based routing — it has **no standalone deploy of its own**; it rides sd-admin's
+pipeline.
 
-> Status (2026-06-24): package integrated into sd-admin in **PR #1**
-> (`feat/mount-inventory-package`). Steps 1–2 below are done in that PR; the rest run on
-> the server once it's provisioned.
-
----
-
-## Prerequisites
-
-- **sd-admin** deployed on the DigitalOcean server (**d051** — pending provisioning).
-- **MySQL** reachable by sd-admin (the package ships migrations onto the host's default
-  connection).
-- Server PHP **8.4+** with `ext-intl` (Filament needs it) — matches sd-admin's lock.
-- A **GitHub token** available to Composer on the server, so it can fetch the package
-  from its VCS repo:
-  ```bash
-  composer config --global github-oauth.github.com <token>
-  ```
-  (`spdotdev/inventory-laravel` is public, but the token avoids API rate limits.)
+> **Status: live in production** at `https://inventory.scuttle.dev` on DigitalOcean
+> **d051** since 2026-07-10 (package v0.1.5, sd-admin auto-deploy with per-push
+> approval). Reverb live updates are configured and verified. The sections below are
+> the operating procedure; §1–§6 describe one-time setup that is already in place.
 
 ---
 
-## 1. Install the package (done in PR #1)
+## Release procedure (routine)
 
-`sd-admin/composer.json` already has the VCS repository + requirement:
+Releases are **pulled by the host, not pushed from here**:
+
+1. Merge to `main` in `inventory-laravel`; CI must be green.
+2. Tag a release: `git tag v0.x.y && git push origin v0.x.y`.
+3. In **sd-admin**, bump the pin and lock:
+   ```bash
+   composer update spdotdev/inventory        # do NOT use --with-all-dependencies
+   git commit -am "chore: bump spdotdev/inventory to v0.x.y" && git push
+   ```
+4. sd-admin's CI builds and deploys to d051 (deploy requires per-push approval).
+5. Run the smoke tests (§7).
+
+The deploy runs `composer install`, `php artisan migrate --force`, and cache refreshes
+on the server — package migrations are additive and `inventory_`-prefixed, so they never
+collide with host tables.
+
+---
+
+## 1. Host integration (in place)
+
+`sd-admin/composer.json` carries the VCS repository + requirement:
 
 ```json
 "repositories": [{ "name": "inventory", "type": "vcs", "url": "https://github.com/spdotdev/inventory-laravel" }],
 "require":      { "spdotdev/inventory": "^0.1" }
 ```
 
-On the server, a normal install picks it up (and Sanctum, pulled transitively):
+`InventoryServiceProvider` auto-discovers — no manual registration. Server
+prerequisites: PHP 8.4+ with `ext-intl`, MySQL on the host's default connection, and a
+GitHub token for Composer (`composer config --global github-oauth.github.com <token>` —
+the repo is public, but the token avoids API rate limits).
 
-```bash
-cd /path/to/sd-admin
-composer install --no-dev --optimize-autoloader
-```
-
-`InventoryServiceProvider` auto-discovers — no manual registration.
-
-> To bump the package later: tag a new `inventory-laravel` release, then
-> `composer update spdotdev/inventory` (do **not** use `--with-all-dependencies` — it
-> needlessly bumps unrelated deps).
-
-## 2. Configure environment (`sd-admin/.env`)
+## 2. Environment (`sd-admin/.env` on d051)
 
 ```dotenv
-# Host the landing page (/) and API (/api/v1) answer on.
-# Leave blank to use the app's own APP_URL host; set a subdomain to split it out:
+# Host the whole package answers on. Blank = the app's own APP_URL host.
 INVENTORY_DOMAIN=inventory.scuttle.dev
 
-# Comma-separated Google OAuth client IDs accepted by /api/v1/auth/google
-INVENTORY_GOOGLE_CLIENT_IDS=
+# Comma-separated Google OAuth client IDs accepted by /api/v1/auth/google.
+# Fails closed: empty rejects all Google sign-ins.
+INVENTORY_GOOGLE_CLIENT_IDS=<android-oauth-client-id>
+
+# Static bearer token for /api/v1/admin/* and /mcp. Empty disables the admin surface.
+INVENTORY_ADMIN_TOKEN=<long-random-string>
+
+# Live updates — Reverb (Pusher protocol). Without these the broadcast
+# events are silent no-ops and clients fall back to pull-to-refresh.
+BROADCAST_CONNECTION=reverb
+REVERB_APP_ID=…
+REVERB_APP_KEY=…
+REVERB_APP_SECRET=…
+REVERB_HOST=…
+REVERB_PORT=…
 ```
 
-## 3. Migrate the database
+Optional tuning: `INVENTORY_RL_*` (rate limits), `INVENTORY_CLIENT_ERRORS_RETENTION_DAYS`,
+`INVENTORY_IMAGE_DISK` / `INVENTORY_IMAGE_MAX_KB`, `INVENTORY_ANDROID_APP_URL` — see
+`config/inventory.php` for the documented defaults.
 
-Creates the `inventory_*` tables **and** Sanctum's `personal_access_tokens`:
+## 3. Database
 
 ```bash
 php artisan migrate --force
 ```
 
-Idempotent and additive — the package's tables are `inventory_`-prefixed, so they never
-collide with sd-admin's own tables.
+Creates the `inventory_*` tables **and** Sanctum's `personal_access_tokens`. Idempotent
+and additive.
 
-## 4. Publish assets (optional)
-
-The landing page is self-contained (inline styles), so this is only needed if/when the
-package ships static assets:
+## 4. Assets & caches
 
 ```bash
-php artisan vendor:publish --tag=inventory-assets   # -> public/vendor/inventory
-php artisan vendor:publish --tag=inventory-config   # -> config/inventory.php (to override)
-```
-
-## 5. Refresh caches
-
-After any `.env` or route change:
-
-```bash
+php artisan vendor:publish --tag=inventory-assets   # only if the package ships static assets
+php artisan vendor:publish --tag=inventory-config   # to override config locally
 php artisan config:clear && php artisan config:cache
 php artisan route:clear  && php artisan route:cache
 ```
 
-## 6. DNS + TLS
+Product images use the `public` disk by default — the host must have run
+`php artisan storage:link`.
 
-- **DNS:** add an `A` record for `inventory.<domain>` → the d051 server IP.
-- **TLS:** the cert must cover the subdomain (wildcard `*.<domain>`, or add it to the
-  Let's Encrypt SAN list). Host-based routing keys on `config('inventory.domain')`, so the
-  request `Host` header must match `INVENTORY_DOMAIN`.
+## 5. DNS + TLS (in place)
 
-## 7. Smoke test
+- `A` record for `inventory.scuttle.dev` → d051.
+- TLS cert covers the subdomain. Host-based routing keys on
+  `config('inventory.domain')`, so the request `Host` header must match
+  `INVENTORY_DOMAIN`.
+
+## 6. Reverb / websockets (in place)
+
+Reverb runs as a container in the sd-admin stack; nginx proxies websocket upgrades
+through to it (Caddy → nginx → Reverb). Verified end-to-end 2026-07-10: 101 Switching
+Protocols on the websocket handshake and a broadcast job processed clean.
+
+**Hard-won host gotchas** (both fixed, kept here so they aren't re-learned):
+- The nginx catch-all server block needs `default_server` — without it, unmatched hosts
+  fell through to the crm block.
+- A single-file bind mount for nginx config served **stale config after deploys**; use
+  a directory mount instead.
+
+## 7. Smoke tests (after every deploy)
 
 ```bash
-curl -s https://inventory.<domain>/            # Frost "coming soon" landing page (HTML)
-curl -s https://inventory.<domain>/api/v1/health
-# -> {"name":"inventory","api":"v1","status":"ok"}
+curl -s -o /dev/null -w '%{http_code}\n' https://inventory.scuttle.dev/          # 200 landing
+curl -s https://inventory.scuttle.dev/api/v1/health
+# -> {"name":"inventory","api":"v1","status":"ok","database":"ok"}
+curl -s -o /dev/null -w '%{http_code}\n' https://inventory.scuttle.dev/login     # 200 web UI
+curl -s -o /dev/null -w '%{http_code}\n' https://inventory.scuttle.dev/register  # 200 web UI
 ```
 
-Then exercise auth end-to-end:
+Then exercise auth end-to-end (register issues a token) and — after any
+proxy/Reverb/env change — confirm the websocket handshake returns
+**101 Switching Protocols** on the Reverb endpoint.
 
-```bash
-curl -s -X POST https://inventory.<domain>/api/v1/auth/register \
-  -H 'Accept: application/json' \
-  -d 'name=Test&[email protected]&password=secret-password'
-# -> { "user": {...}, "token": "..." }
-```
+## 8. Android client pairing
 
-## 8. Point the Android client at it
-
-In `inventory-android/app/build.gradle.kts`, set the release `BASE_URL` to
-`https://inventory.<domain>/api/v1/` (trailing slash required). For Google sign-in, add a
-real Google OAuth client ID on both sides (`INVENTORY_GOOGLE_CLIENT_IDS` on the server +
-the Android Credential Manager config).
+`inventory-android` release builds point `BASE_URL` at
+`https://inventory.scuttle.dev/api/v1/` (trailing slash required). Google sign-in needs
+the same OAuth client ID on both sides: `INVENTORY_GOOGLE_CLIENT_IDS` on the server and
+the Credential Manager config in the app.
 
 ---
 
 ## Rollback
 
+Two levels, cheapest first:
+
 ```bash
-# Remove the package (app keeps running without the inventory routes):
+# 1. Pin sd-admin back to the previous package tag and redeploy:
+composer require spdotdev/inventory:v0.x.(y-1)
+git commit -am "revert: pin spdotdev/inventory back to v0.x.(y-1)" && git push
+
+# 2. Remove the package entirely (host keeps running without the inventory routes):
 composer remove spdotdev/inventory
 php artisan config:cache && php artisan route:cache
-
-# The inventory_* tables can be left in place (harmless) or dropped manually.
 ```
 
-Or revert the sd-admin merge commit and `composer install`.
-
----
-
-## Open items (tracked elsewhere)
-
-- DO server **d051** provisioning + the CD pipeline (sd-admin / d0-admin).
-- Final `INVENTORY_DOMAIN` choice (Q-6: defaults to the host APP_URL domain).
-- A **Google OAuth client ID** to enable `/api/v1/auth/google`.
+Migrations are additive — the `inventory_*` tables can be left in place (harmless) or
+dropped manually. There is no automated down-migration in production.

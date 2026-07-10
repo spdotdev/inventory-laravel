@@ -2,14 +2,16 @@
 
 Working agreement for Claude Code. Read before any task. Canonical spec lives in this
 repo's `docs/` (`docs/planning/project-brief.md`, `docs/specs/data-model.md`,
-`docs/specs/api-contract.md`) — the former `inventory-docs` repo has been retired and
-its contents merged here and into `inventory-android`.
+`docs/specs/api-contract.md`) — canonical for the whole product, including
+`inventory-android`.
 
 ## What this is
-A **Composer package** (`spdotdev/inventory`) — a **headless Laravel API + a marketing
-landing page** for a private, multi-user, multi-household **inventory** app. It is
-**installed into a host Laravel app (sd-admin)**, not run standalone. **Android
-(Kotlin/Compose) is the only API client.** Modelled on `spdotdev/scuttle-dev`.
+A **Composer package** (`spdotdev/inventory`) — a **headless Laravel API + a web
+account/household UI + a marketing landing page** for a private, multi-user,
+multi-household **inventory** app. It is **installed into a host Laravel app
+(sd-admin)**, not run standalone. **Android (Kotlin/Compose) is the only API client**;
+the web UI is a session-guarded Blade surface on the same domain. Modelled on
+`spdotdev/scuttle-dev`.
 
 The product is general-purpose inventory; freezer/fridge/pantry are *example* storage
 location types, not the brand.
@@ -21,7 +23,10 @@ location types, not the brand.
 - **MySQL** on the host app's default connection; **Redis** (host) for cache/queue
 - Dev/testing via `orchestra/testbench`
 - Quality gates: Larastan (max level), Laravel Pint, PHPUnit (critical paths only)
-- Deploy: rides the host app (sd-admin) on DigitalOcean EU (AMS3/FRA1) — no separate deploy
+- Deploy: rides the host app (sd-admin) on DigitalOcean EU — no separate deploy. **Live
+  in production** at `inventory.scuttle.dev`; see `docs/deploy-runbook.md`
+- Live updates: Laravel **Reverb** (Pusher protocol) on the host; model observers
+  broadcast `household.changed` on private `inventory.household.{id}` channels
 
 ## Package shape (mirror scuttle-dev)
 ```
@@ -60,10 +65,10 @@ public/                               landing assets (publishable)
 ## Scope guardrails — deliberately cut; refuse to add
 No expiry/reminders, no recipes, no shopping list, no activity/audit log, no GDPR
 machinery (private for now — flag if it goes public).
-**Phase 2 unlocked 2026-07-10** (user decision): the web account/household UI
-(Filament/web surface) and product attributes (starting with `low_stock_threshold`)
-are now committed work — see `ROADMAP.md`. The API stays headless and versioned;
-the web surface is additive on the same domain, never a breaking change to `/api/v1`.
+**Phase 2 unlocked 2026-07-10** (user decision) and since shipped: the web
+account/household UI (thin Blade, session guard) and `low_stock_threshold`. The API
+stays headless and versioned; the web surface is additive on the same domain, never a
+breaking change to `/api/v1`.
 
 ## Data model & API
 Canonical and authoritative in `docs/specs/`. Do not duplicate the schema or
@@ -83,14 +88,17 @@ Frost palette (icy-blue #7dd3fc, Plus Jakarta Sans). Blade view + publishable as
   (email/password + Google), stock floor at 0, cascade deletes, join-by-code. No trivial tests.
 
 ## Status
-Functionally-complete MVP, CI-green. All of the build order below is implemented: the
-package skeleton + provider + host-based route groups, landing page, `inventory_*` schema +
-models, `household.member` tenancy middleware, auth (Sanctum + Google), households
-(create/list/invite/join/leave) + search, locations/shelves/products CRUD + add/remove/move
-+ image upload, password reset, client-error intake, the admin API, an MCP server, and the
-artisan `inventory:household:*` commands. Gated by Pint + Larastan + PHPUnit (SQLite for the
-fast job, a real MySQL service job too). Forward-looking work is in [`ROADMAP.md`](ROADMAP.md);
-shipped history in [`BACKLOG.md`](BACKLOG.md).
+**Live in production** at `inventory.scuttle.dev` (rides sd-admin's deploy). All of the
+build order below is implemented: the package skeleton + provider + host-based route
+groups, landing page, `inventory_*` schema + models, `household.member` tenancy
+middleware, auth (Sanctum + Google), households (create/list/invite/join/leave) +
+search, locations/shelves/products CRUD + add/remove/move + image upload, password
+reset, client-error intake, the admin API, MCP servers (HTTP `/mcp` + the standalone
+stdio `inventory-mcp`), and the artisan `inventory:household:*` commands — plus Phase 2:
+the session-guarded web UI, `low_stock_threshold`, and Reverb live updates. Gated by
+Pint + Larastan + PHPUnit (SQLite for the fast job, a real MySQL service job too).
+Forward-looking work is in [`ROADMAP.md`](ROADMAP.md); shipped history in
+[`BACKLOG.md`](BACKLOG.md).
 
 ## Build order (historical — all shipped)
 1. Package skeleton + service provider + config + host-based route groups (web + api/v1).
