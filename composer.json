@@ -17,7 +17,8 @@
         "laravel/mcp": "^0.8.2",
         "laravel/pint": "^1.27",
         "orchestra/testbench": "^11.1",
-        "phpunit/phpunit": "^11.5"
+        "phpunit/phpunit": "^11.5",
+        "pusher/pusher-php-server": "^7.2"
     },
     "autoload": {
         "psr-4": {

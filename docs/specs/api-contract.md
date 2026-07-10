@@ -110,6 +110,20 @@ The invite endpoint returns `{ code, link }` where `link` is
 `https://{domain}/join/{code}` — a real page (Frost-styled) that shows the code and
 points at the app, not just an app-only deep link.
 
+## Live updates (broadcasting)
+
+```
+POST /api/v1/broadcasting/auth   { channel_name, socket_id }   -> Pusher-protocol channel auth
+                                                                  (Sanctum bearer, member-gated)
+```
+
+Every mutation of a household's tree (household rename/theme, location/shelf/product
+create/update/delete, stock changes) broadcasts **`household.changed`** on the private
+channel **`inventory.household.{id}`** with payload `{ household_id }`. The ping carries
+NO state — clients re-fetch on receipt (server-authoritative), identical to a manual
+pull-to-refresh. Served by Laravel Reverb (Pusher protocol) on the host; with no
+broadcaster configured the events are silent no-ops.
+
 **Search result** (`SearchResultResource`): each hit carries the display path **and** the
 navigation IDs the client deep-links with:
 

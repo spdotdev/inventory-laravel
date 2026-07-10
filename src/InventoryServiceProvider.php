@@ -8,6 +8,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
@@ -20,7 +21,12 @@ use Spdotdev\Inventory\Console\Commands\PruneClientErrorsCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
+use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Product;
+use Spdotdev\Inventory\Models\Shelf;
+use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Observers\BroadcastHouseholdChange;
 
 class InventoryServiceProvider extends ServiceProvider
 {
@@ -67,6 +73,8 @@ class InventoryServiceProvider extends ServiceProvider
                 : null;
         });
 
+        $this->registerBroadcasting();
+
         // Tenancy gate for /households/{household}/* routes.
         /** @var Router $router */
         $router = $this->app['router'];
@@ -108,6 +116,36 @@ class InventoryServiceProvider extends ServiceProvider
                 PruneClientErrorsCommand::class,
             ]);
         }
+    }
+
+    /**
+     * Live updates (Q-3): every mutation of the household tree broadcasts a
+     * coarse HouseholdChanged ping on a private per-household channel; clients
+     * re-fetch on receipt (server-authoritative — the ping carries no state).
+     * With no broadcaster configured on the host, dispatching is a no-op, so
+     * the package works unchanged without Reverb.
+     */
+    private function registerBroadcasting(): void
+    {
+        foreach ([Household::class, StorageLocation::class, Shelf::class, Product::class] as $model) {
+            $model::observe(BroadcastHouseholdChange::class);
+        }
+
+        // Channel auth endpoint for the Android client: POST api/v1/broadcasting/auth
+        // with the same Sanctum bearer token as the rest of the API.
+        Broadcast::routes([
+            'domain' => config('inventory.domain'),
+            'prefix' => 'api/v1',
+            'middleware' => ['api', 'auth:sanctum'],
+        ]);
+
+        // Same tenancy rule as household.member: members only. Guards must be
+        // explicit — channel auth otherwise resolves the user via the host's
+        // default guard (web) and would 403 every Sanctum-tokened client.
+        Broadcast::channel('inventory.household.{householdId}', function ($user, int $householdId) {
+            return $user instanceof User
+                && $user->households()->whereKey($householdId)->exists();
+        }, ['guards' => ['sanctum', 'inventory']]);
     }
 
     /**

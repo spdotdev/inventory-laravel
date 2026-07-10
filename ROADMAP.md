@@ -60,6 +60,13 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   this release), API auth guard intact. Production had been on v0.1.0 since the MVP —
   this picked up ~60 commits of fixes and Phase 2.
 
+- [x] **Live updates backend (Q-3, user decision 2026-07-10: full Reverb)** — shipped
+  2026-07-10. `HouseholdChanged` broadcast (model observers → every surface pings),
+  private `inventory.household.{id}` channel, Sanctum-gated `/api/v1/broadcasting/auth`.
+  Host side: Reverb container + nginx websocket proxying live in sd-admin; server
+  needs `BROADCAST_CONNECTION=reverb` + `REVERB_*` env keys (manual, .env is
+  server-only) before events actually flow.
+
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
   placeholder while the app stays debug-only; revisit when there is something public
