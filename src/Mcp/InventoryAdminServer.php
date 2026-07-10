@@ -15,6 +15,12 @@ use Spdotdev\Inventory\Mcp\Tools\ListHouseholdsTool;
 use Spdotdev\Inventory\Mcp\Tools\ListUsersTool;
 use Spdotdev\Inventory\Mcp\Tools\SearchUsersTool;
 
+/**
+ * The EMBEDDED (HTTP, in-process, Eloquent-backed) admin MCP surface. The same seven
+ * tools also ship as a standalone stdio server — https://github.com/spdotdev/inventory-mcp
+ * — which calls the REST admin API instead. Keep the two tool sets in sync when either
+ * changes; inventory-mcp's test suite pins its side of the surface.
+ */
 #[Name('Inventory Admin')]
 #[Version('1.0.0')]
 #[Instructions('Admin tools for managing inventory users and households. All operations are destructive — deletions cascade.')]
