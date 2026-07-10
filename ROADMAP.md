@@ -42,12 +42,14 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   Nullable unsigned int on `inventory_products` (null = off, floor 1); validated in
   ProductRequest, exposed in ProductResource; `/api/v1` backward compatible. The
   Android "running low" dashboard tile shipped the same day.
-- [ ] **Web account/household UI** — sign-up, household create/manage, invite
-  code/link/QR on the inventory domain (detailed proposal in
-  [`BACKLOG.md`](BACKLOG.md) → Ideas). Scoping decisions to settle first: web session
-  guard alongside the Sanctum token guard on the same `inventory_users`; thin web
-  layer reusing the domain logic vs Filament. The headless `/api/v1` contract is
-  untouched either way.
+- [ ] **Web account/household UI** — 🛠 scoped 2026-07-10 (user decisions): **thin
+  Blade + web routes** (no Filament/Livewire), scope = **onboarding AND full
+  inventory CRUD** (sign-up/sign-in incl. Google, household create/manage/invite
+  code+link+QR, members, plus locations/shelves/products management in the browser).
+  Web session guard on `inventory_users` alongside the Sanctum token guard; reuse
+  the domain services; Frost look consistent with the app. The headless `/api/v1`
+  contract stays untouched. Build order: auth + session guard → household
+  onboarding/invite → inventory CRUD pages.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
