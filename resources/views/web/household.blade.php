@@ -5,6 +5,13 @@
 <p class="sub"><a href="{{ route('inventory.web.households') }}">← All households</a></p>
 
 <div class="card">
+  <form method="GET" action="{{ route('inventory.web.search', $household) }}" class="row">
+    <input class="grow" type="text" name="q" placeholder="Search products in this household…" style="margin-bottom:0">
+    <button type="submit">Search</button>
+  </form>
+</div>
+
+<div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Invite someone</h2>
   <p class="muted" style="margin-bottom:10px">Share the code or the link — anyone with it can join.</p>
   <p class="mono" style="font-size:22px;color:#7dd3fc;letter-spacing:2px;margin-bottom:8px">{{ $household->join_code }}</p>

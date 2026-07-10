@@ -237,6 +237,43 @@ class WebUiTest extends TestCase
         }
     }
 
+    public function test_web_search_finds_products_and_links_their_location(): void
+    {
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $shelf->products()->create(['name' => 'Whole milk', 'quantity' => 3]);
+        $shelf->products()->create(['name' => 'Butter', 'quantity' => 1]);
+
+        $response = $this->actingAs($user, 'inventory')
+            ->get(route('inventory.web.search', $household).'?q=milk')
+            ->assertOk()
+            ->assertSee('Whole milk')
+            ->assertDontSee('Butter');
+
+        // Results link into the location page (the web twin of the API's
+        // nav-ID payload).
+        $response->assertSee(route('inventory.web.locations.show', [$household, $location]), false);
+    }
+
+    public function test_web_search_is_tenancy_scoped_and_matches_wildcards_literally(): void
+    {
+        [$user, $household, , $shelf] = $this->memberSetup();
+        $shelf->products()->create(['name' => '50% yoghurt', 'quantity' => 1]);
+        $shelf->products()->create(['name' => '50 grams flour', 'quantity' => 1]);
+
+        // A literal % must not act as a wildcard (same rule as the API, W11).
+        $this->actingAs($user, 'inventory')
+            ->get(route('inventory.web.search', $household).'?q=50%25')
+            ->assertOk()
+            ->assertSee('50% yoghurt')
+            ->assertDontSee('50 grams flour');
+
+        // Non-members get a 404, never a 403 (tenancy rule).
+        $stranger = $this->user('stranger3@example.test');
+        $this->actingAs($stranger, 'inventory')
+            ->get(route('inventory.web.search', $household).'?q=milk')
+            ->assertNotFound();
+    }
+
     public function test_household_page_renders_the_invite_qr(): void
     {
         [$user, $household] = $this->memberSetup();

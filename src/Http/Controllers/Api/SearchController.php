@@ -8,6 +8,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Spdotdev\Inventory\Http\Resources\SearchResultResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
+use Spdotdev\Inventory\Support\Like;
 
 class SearchController
 {
@@ -20,12 +21,7 @@ class SearchController
     {
         $q = trim((string) $request->query('q', ''));
 
-        // Escape LIKE wildcards so a user-typed % or _ is matched literally (e.g.
-        // "50%" doesn't over-match, a lone "%" doesn't return everything). Bound
-        // params already prevent injection; this is about correct results. The
-        // explicit ESCAPE '!' is portable — SQLite (the fast CI job) doesn't treat
-        // backslash as a LIKE escape by default, unlike MySQL. '!' is escaped first.
-        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $q);
+        $escaped = Like::escape($q);
 
         $products = Product::query()
             ->whereHas('shelf.location', fn (Builder $query) => $query->where('household_id', $household->getKey()))

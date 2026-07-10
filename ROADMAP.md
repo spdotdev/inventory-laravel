@@ -49,7 +49,10 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   the same atomic stock actions as the API (extracted to Product::addStock/removeStock)
   and identical tenancy (member-gated, 404 never 403; scoped bindings). `/api/v1`
   untouched. Follow-ups: QR on the invite page shipped 2026-07-10 (bacon/bacon-qr-code,
-  inline SVG via Support\InviteQr). Still open: Google sign-in on the web
+  inline SVG via Support\InviteQr). Global product search shipped 2026-07-10 —
+  `/app/households/{household}/search`, the Blade twin of the API SearchController
+  (same tenancy gate, LIKE escaping via the new shared `Support\Like`, 50-row bound),
+  results linking into location pages. Still open: Google sign-in on the web
   (needs a GCP redirect-flow client + secret — external config).
 - [x] **Deployed to production 2026-07-10** (user decision) — tagged **v0.1.5** and bumped
   sd-admin's lock from v0.1.0 (sd-admin 5df2444 → CI → auto-deploy to d051). Verified live:

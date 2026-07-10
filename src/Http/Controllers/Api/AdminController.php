@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\HouseholdUserPivot;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\Like;
 
 class AdminController
 {
@@ -51,10 +52,7 @@ class AdminController
     {
         $query = (string) $request->input('q', '');
 
-        // Escape LIKE wildcards so a literal % / _ in the operator's query is
-        // matched literally rather than acting as a wildcard (correct results).
-        // Explicit ESCAPE '!' is portable across SQLite (CI) + MySQL; '!' first.
-        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $query);
+        $escaped = Like::escape($query);
 
         $users = User::query()
             ->withCount('households')

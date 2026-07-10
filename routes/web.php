@@ -8,6 +8,7 @@ use Spdotdev\Inventory\Http\Controllers\Web\WebAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocationController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebProductController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebSearchController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebShelfController;
 
 // Marketing landing page + password reset form, served on the configured inventory host.
@@ -37,6 +38,7 @@ Route::domain(config('inventory.domain'))
 
             // Inventory CRUD (stage 2) — same tenancy gate + scoped bindings as /api/v1.
             Route::middleware('household.member')->scopeBindings()->group(function () {
+                Route::get('/households/{household}/search', WebSearchController::class)->name('inventory.web.search');
                 Route::post('/households/{household}/locations', [WebLocationController::class, 'store'])->name('inventory.web.locations.store');
                 Route::get('/households/{household}/locations/{location}', [WebLocationController::class, 'show'])->name('inventory.web.locations.show');
                 Route::delete('/households/{household}/locations/{location}', [WebLocationController::class, 'destroy'])->name('inventory.web.locations.destroy');
