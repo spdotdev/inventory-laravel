@@ -42,6 +42,11 @@ cleanly, drop the abstraction and write explicit per-resource controllers.
 
 ### 💡 Web account creation + household management on the landing page
 
+> **Shipped 2026-07-10** as the Phase-2 web UI (thin Blade: /login + /register,
+> household onboarding, full inventory CRUD, invite QR, global search) — see
+> [`ROADMAP.md`](ROADMAP.md) → Phase 2. Kept for the original rationale below;
+> still open from it: Google sign-in on the web (external GCP config).
+
 **What.** Brainstorm letting users **register an account and manage households from the
 web** (the landing page / host app), not only the Android client — e.g. sign up, create
 a household, view/copy the join code + link + QR, manage members, sign in with Google.
