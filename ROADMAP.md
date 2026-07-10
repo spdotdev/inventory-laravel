@@ -38,10 +38,10 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 > `inventory:household:create` CLI are all shipped and CI-green. See [`BACKLOG.md`](BACKLOG.md) → Done.
 
 ### PHASE 2 (unlocked 2026-07-10 — user decision; was deferred 2026-07-04)
-- [ ] **`low_stock_threshold` product attribute** — nullable unsigned int on
-  `inventory_products` (null = feature off for that product); validation in the product
-  form requests, exposed in the product API resource; `/api/v1` stays backward
-  compatible (additive field). Unblocks the Android "running low" dashboard tile.
+- [x] **`low_stock_threshold` product attribute** — shipped 2026-07-10 (2ea1534).
+  Nullable unsigned int on `inventory_products` (null = off, floor 1); validated in
+  ProductRequest, exposed in ProductResource; `/api/v1` backward compatible. The
+  Android "running low" dashboard tile shipped the same day.
 - [ ] **Web account/household UI** — sign-up, household create/manage, invite
   code/link/QR on the inventory domain (detailed proposal in
   [`BACKLOG.md`](BACKLOG.md) → Ideas). Scoping decisions to settle first: web session
