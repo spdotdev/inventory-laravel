@@ -48,7 +48,7 @@
 </div>
 
 <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
-      onsubmit="return confirm('Leave {{ $household->name }}?')">
+      onsubmit="return confirm({{ Illuminate\Support\Js::from('Leave '.$household->name.'?') }})">
   @csrf
   @method('DELETE')
   <button type="submit" class="btn-danger">Leave household</button>

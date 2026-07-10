@@ -211,4 +211,29 @@ class WebUiTest extends TestCase
             ->assertNotFound();
         $this->assertSame(1, $product->refresh()->quantity);
     }
+
+    public function test_names_with_quotes_cannot_break_out_of_confirm_dialogs(): void
+    {
+        // Regression (security review): names are interpolated into onsubmit
+        // JS strings; HTML entity-encoding alone is NOT enough there because the
+        // browser decodes entities before the JS engine parses the attribute.
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $payload = "x'); document.title='pwned'; //";
+        $shelf->products()->create(['name' => $payload, 'quantity' => 1]);
+
+        $html = $this->actingAs($user, 'inventory')
+            ->get(route('inventory.web.locations.show', [$household, $location]))
+            ->assertOk()
+            ->getContent();
+
+        // Js::from hex-escapes quotes, so the raw breakout sequence must not
+        // appear inside any onsubmit attribute.
+        foreach (explode('onsubmit=', $html) as $i => $chunk) {
+            if ($i === 0) {
+                continue;
+            }
+            $attr = substr($chunk, 0, strpos($chunk, '>') ?: null);
+            $this->assertStringNotContainsString("');", $attr, 'JS-string breakout in onsubmit');
+        }
+    }
 }

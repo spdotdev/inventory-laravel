@@ -10,7 +10,7 @@
       <h2 class="grow" style="font-size:16px;color:#b8d8f0">{{ $shelf->name }}</h2>
       <form class="inline" method="POST"
             action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
-            onsubmit="return confirm('Delete shelf {{ $shelf->name }} and all its products?')">
+            onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete shelf '.$shelf->name.' and all its products?') }})">
         @csrf @method('DELETE')
         <button type="submit" class="btn-danger">Delete shelf</button>
       </form>
@@ -45,7 +45,7 @@
               <a class="btn btn-quiet" href="{{ route('inventory.web.products.edit', [$household, $shelf, $product]) }}">Edit</a>
               <form class="inline" method="POST"
                     action="{{ route('inventory.web.products.destroy', [$household, $shelf, $product]) }}"
-                    onsubmit="return confirm('Delete {{ $product->name }}?')">
+                    onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete '.$product->name.'?') }})">
                 @csrf @method('DELETE')
                 <button type="submit" class="btn-danger">Delete</button>
               </form>
@@ -75,7 +75,7 @@
 </div>
 
 <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
-      onsubmit="return confirm('Delete {{ $location->name }} with all shelves and products?')">
+      onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete '.$location->name.' with all shelves and products?') }})">
   @csrf @method('DELETE')
   <button type="submit" class="btn-danger">Delete location</button>
 </form>
