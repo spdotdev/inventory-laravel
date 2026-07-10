@@ -24,7 +24,7 @@ class ListHouseholdsTool extends Tool
             'join_code' => $h->join_code,
             'created_at' => $h->created_at,
             'members' => $h->users_count,
-            'locations' => $h->storage_locations_count,
+            'locations' => $h->locations_count,
             'shelves' => $h->shelves_count,
         ])->toArray());
     }

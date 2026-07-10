@@ -1,0 +1,51 @@
+{
+    "comment": "Canonical machine-readable manifest of the Inventory admin MCP tool surface. Two servers must expose exactly these tools: the EMBEDDED HTTP server (this repo, src/Mcp/, wire names kebab-case with a -tool suffix, e.g. list-users-tool) and the STANDALONE stdio server (https://github.com/spdotdev/inventory-mcp, wire names snake_case, e.g. list_users). 'key' is the normalized logical name: strip the -tool suffix, kebab -> snake. Guards: tests/Feature/McpToolManifestTest.php (this repo) and the conformance test in inventory-mcp CI. Change this file and both guards together when the surface grows.",
+    "version": 1,
+    "tools": [
+        {
+            "key": "list_users",
+            "destructive": false,
+            "params": []
+        },
+        {
+            "key": "search_users",
+            "destructive": false,
+            "params": [
+                { "name": "q", "type": "string", "required": true }
+            ]
+        },
+        {
+            "key": "get_user",
+            "destructive": false,
+            "params": [
+                { "name": "id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "delete_user",
+            "destructive": true,
+            "params": [
+                { "name": "id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "list_households",
+            "destructive": false,
+            "params": []
+        },
+        {
+            "key": "get_household",
+            "destructive": false,
+            "params": [
+                { "name": "id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "delete_household",
+            "destructive": true,
+            "params": [
+                { "name": "id", "type": "integer", "required": true }
+            ]
+        }
+    ]
+}

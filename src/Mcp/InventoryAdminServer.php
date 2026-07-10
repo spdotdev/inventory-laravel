@@ -19,7 +19,9 @@ use Spdotdev\Inventory\Mcp\Tools\SearchUsersTool;
  * The EMBEDDED (HTTP, in-process, Eloquent-backed) admin MCP surface. The same seven
  * tools also ship as a standalone stdio server — https://github.com/spdotdev/inventory-mcp
  * — which calls the REST admin API instead. Keep the two tool sets in sync when either
- * changes; inventory-mcp's test suite pins its side of the surface.
+ * changes. The shared surface is pinned by the machine-readable manifest
+ * docs/specs/mcp-tools.json: McpToolManifestTest guards this side, inventory-mcp's
+ * conformance test guards the other. Grow the manifest and both guards together.
  */
 #[Name('Inventory Admin')]
 #[Version('1.0.0')]
