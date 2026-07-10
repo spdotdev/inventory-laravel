@@ -8,6 +8,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\InviteQr;
 
 /**
  * Household onboarding on the web (Phase 2): list/create/join/leave and the
@@ -74,7 +75,8 @@ class WebHouseholdController extends Controller
             'household' => $household,
             'members' => $household->users()->get(),
             'locations' => $household->locations()->withCount('shelves')->get(),
-            'inviteLink' => 'https://'.config('inventory.domain').'/join/'.$household->join_code,
+            'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
+            'inviteQrSvg' => InviteQr::svg($link),
         ]);
     }
 

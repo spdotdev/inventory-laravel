@@ -236,4 +236,18 @@ class WebUiTest extends TestCase
             $this->assertStringNotContainsString("');", $attr, 'JS-string breakout in onsubmit');
         }
     }
+
+    public function test_household_page_renders_the_invite_qr(): void
+    {
+        [$user, $household] = $this->memberSetup();
+
+        $html = $this->actingAs($user, 'inventory')
+            ->get(route('inventory.web.households.show', $household))
+            ->assertOk()
+            ->getContent();
+
+        // Inline SVG QR present, and no stray XML declaration inside the HTML.
+        $this->assertStringContainsString('<svg xmlns', $html);
+        $this->assertStringNotContainsString('<?xml', $html);
+    }
 }

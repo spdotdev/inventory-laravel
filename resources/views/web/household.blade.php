@@ -8,7 +8,9 @@
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Invite someone</h2>
   <p class="muted" style="margin-bottom:10px">Share the code or the link — anyone with it can join.</p>
   <p class="mono" style="font-size:22px;color:#7dd3fc;letter-spacing:2px;margin-bottom:8px">{{ $household->join_code }}</p>
-  <p class="muted" style="word-break:break-all">{{ $inviteLink }}</p>
+  <p class="muted" style="word-break:break-all;margin-bottom:14px">{{ $inviteLink }}</p>
+  {{-- Server-rendered QR (white tile so dark-mode scanners keep contrast) --}}
+  <div style="background:#fff;border-radius:12px;padding:10px;width:fit-content">{!! $inviteQrSvg !!}</div>
 </div>
 
 <div class="card">

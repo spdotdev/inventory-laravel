@@ -48,8 +48,9 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   (create/join/invite code+link/members/leave); locations/shelves/products CRUD with
   the same atomic stock actions as the API (extracted to Product::addStock/removeStock)
   and identical tenancy (member-gated, 404 never 403; scoped bindings). `/api/v1`
-  untouched. Follow-ups (uncommitted): Google sign-in on the web (needs a GCP
-  redirect-flow client + secret), QR on the invite page.
+  untouched. Follow-ups: QR on the invite page shipped 2026-07-10 (bacon/bacon-qr-code,
+  inline SVG via Support\InviteQr). Still open: Google sign-in on the web
+  (needs a GCP redirect-flow client + secret — external config).
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
