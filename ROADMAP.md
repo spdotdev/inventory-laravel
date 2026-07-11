@@ -80,11 +80,15 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   received on the socket ~1.6 s after the mutation. Only the Android UI's reaction
   to the ping remains covered by unit tests rather than a live device.
 
+- [x] **Redesign the landing page** — shipped 2026-07-11 (spec:
+  `docs/superpowers/specs/2026-07-11-landing-page-redesign-design.md`). Hybrid
+  marketing-first one-pager: hero + CSS phone mockups (no images/JS), feature grid,
+  how-it-works, honest "private preview / coming to Google Play" band (no download
+  link), CTAs into the web UI, EN + NL via `inventory::landing.*` +
+  `Accept-Language` negotiation (landing only). Reaches prod with the next
+  package tag + sd-admin lock bump (user-approved).
+
 ### REMAINING (need a decision or external dependency — not autonomous)
-- [ ] **Redesign the landing page** — user decision 2026-07-10: keep the "coming soon"
-  placeholder while the app stays debug-only; revisit when there is something public to
-  show (value prop, screenshots/mockups, install link). The shipped web
-  account/household UI may become the page's real content.
 - [ ] **Google sign-in on the web UI** — needs a GCP redirect-flow OAuth client +
   secret (external config); the API's ID-token flow already works.
 
