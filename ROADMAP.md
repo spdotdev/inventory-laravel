@@ -30,8 +30,8 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 
 ## Active TODOs
 
-> **Backend complete and live in production** (`inventory.scuttle.dev`, v0.1.5,
-> 2026-07-10) — MVP + Phase 2 all shipped and CI-green. See [`BACKLOG.md`](BACKLOG.md)
+> **Backend complete and live in production** (`inventory.scuttle.dev`, v0.1.8,
+> 2026-07-11) — MVP + Phase 2 all shipped and CI-green. See [`BACKLOG.md`](BACKLOG.md)
 > → Done for history. Open items below are decision- or dependency-gated.
 
 ### PHASE 2 (unlocked 2026-07-10 — user decision; was deferred 2026-07-04)
@@ -85,8 +85,9 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   marketing-first one-pager: hero + CSS phone mockups (no images/JS), feature grid,
   how-it-works, honest "private preview / coming to Google Play" band (no download
   link), CTAs into the web UI, EN + NL via `inventory::landing.*` +
-  `Accept-Language` negotiation (landing only). Reaches prod with the next
-  package tag + sd-admin lock bump (user-approved).
+  `Accept-Language` negotiation (landing only). **Deployed 2026-07-11** as
+  v0.1.8 (sd-admin lock bump 7328887, user-approved); verified live — EN + NL
+  negotiation, `Vary: Accept-Language`, /up + /login 200.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [ ] **Google sign-in on the web UI** — needs a GCP redirect-flow OAuth client +
