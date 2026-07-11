@@ -20,4 +20,13 @@ class LandingPageTest extends TestCase
 
         $this->assertSame(array_keys($en), array_keys($nl));
     }
+
+    public function test_mockup_partials_render(): void
+    {
+        $dashboard = view('inventory::landing._mock-dashboard')->render();
+        $location = view('inventory::landing._mock-location')->render();
+
+        $this->assertStringContainsString('Running low', $dashboard);
+        $this->assertStringContainsString('Top shelf', $location);
+    }
 }
