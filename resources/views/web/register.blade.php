@@ -16,6 +16,7 @@
     <input type="password" id="password_confirmation" name="password_confirmation" required>
     <button type="submit" style="width:100%">Create account</button>
   </form>
+  @include('inventory::web.partials.google-signin')
   <p class="muted" style="margin-top:16px">
     Already have an account? <a href="{{ route('inventory.web.login.show') }}">Sign in</a>
   </p>

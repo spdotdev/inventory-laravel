@@ -5,6 +5,7 @@ use Spdotdev\Inventory\Http\Controllers\JoinController;
 use Spdotdev\Inventory\Http\Controllers\LandingController;
 use Spdotdev\Inventory\Http\Controllers\ResetPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebAuthController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebGoogleAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocationController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebProductController;
@@ -24,6 +25,12 @@ Route::domain(config('inventory.domain'))
         Route::middleware('throttle:inventory-auth')->group(function () {
             Route::post('/login', [WebAuthController::class, 'login'])->name('inventory.web.login');
             Route::post('/register', [WebAuthController::class, 'register'])->name('inventory.web.register');
+
+            // Google sign-in (server-side redirect flow); 404s unless the web
+            // client id + secret are configured. GETs — the throttle's
+            // per-identity layer keys by IP here (no email input).
+            Route::get('/auth/google', [WebGoogleAuthController::class, 'redirect'])->name('inventory.web.google.redirect');
+            Route::get('/auth/google/callback', [WebGoogleAuthController::class, 'callback'])->name('inventory.web.google.callback');
         });
         Route::get('/login', [WebAuthController::class, 'showLogin'])->name('inventory.web.login.show');
         Route::get('/register', [WebAuthController::class, 'showRegister'])->name('inventory.web.register.show');

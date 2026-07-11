@@ -44,6 +44,14 @@ return [
         'client_ids' => array_values(array_filter(
             explode(',', (string) env('INVENTORY_GOOGLE_CLIENT_IDS', '')),
         )),
+
+        // Redirect-flow (authorization-code) client for the web UI's
+        // "Continue with Google" button. The feature is enabled only when both
+        // values are set; the /auth/google web routes 404 otherwise.
+        'web' => [
+            'client_id' => env('INVENTORY_GOOGLE_WEB_CLIENT_ID', ''),
+            'client_secret' => env('INVENTORY_GOOGLE_WEB_CLIENT_SECRET', ''),
+        ],
     ],
 
     /*

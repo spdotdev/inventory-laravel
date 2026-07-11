@@ -12,6 +12,7 @@
     <input type="password" id="password" name="password" required>
     <button type="submit" style="width:100%">Sign in</button>
   </form>
+  @include('inventory::web.partials.google-signin')
   <p class="muted" style="margin-top:16px">
     New here? <a href="{{ route('inventory.web.register.show') }}">Create an account</a>
   </p>

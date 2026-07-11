@@ -5,8 +5,8 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Spdotdev\Inventory\Auth\GoogleAccountLinker;
 use Spdotdev\Inventory\Auth\GoogleIdTokenVerifier;
 use Spdotdev\Inventory\Http\Requests\LoginRequest;
 use Spdotdev\Inventory\Http\Requests\RegisterRequest;
@@ -54,7 +54,7 @@ class AuthController
         return $this->tokenResponse($user);
     }
 
-    public function google(Request $request, GoogleIdTokenVerifier $verifier): JsonResponse
+    public function google(Request $request, GoogleIdTokenVerifier $verifier, GoogleAccountLinker $linker): JsonResponse
     {
         /** @var array{id_token: string} $data */
         $data = $request->validate(['id_token' => ['required', 'string']]);
@@ -65,28 +65,7 @@ class AuthController
             return response()->json(['message' => 'Invalid Google token.'], 401);
         }
 
-        // Normalize the Google email the same way register/login do (W13), so the
-        // email fallback links to a case-normalized password account rather than
-        // silently creating a duplicate on case-sensitive storage.
-        $email = Str::lower($claims['email']);
-
-        // Match by google_id, then fall back to email. The email-match links a
-        // Google identity to a pre-existing (e.g. password) account — safe only
-        // because the verifier guarantees a Google-verified email bound to our
-        // own client ID, so the caller provably controls that address.
-        $user = User::query()->where('google_id', $claims['sub'])->first()
-            ?? User::query()->where('email', $email)->first()
-            ?? new User(['name' => $claims['name'] ?? $email, 'email' => $email]);
-
-        $user->google_id = $claims['sub'];
-
-        if ($claims['picture'] !== null && $user->avatar_url === null) {
-            $user->avatar_url = $claims['picture'];
-        }
-
-        $user->save();
-
-        return $this->tokenResponse($user);
+        return $this->tokenResponse($linker->resolve($claims));
     }
 
     public function logout(Request $request): JsonResponse

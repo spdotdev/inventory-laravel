@@ -47,7 +47,14 @@ class InventoryServiceProvider extends ServiceProvider
             /** @var list<string> $clientIds */
             $clientIds = (array) $app['config']->get('inventory.google.client_ids', []);
 
-            return new GoogleTokenInfoVerifier($clientIds);
+            // The web redirect-flow client mints id_tokens too — accept its
+            // audience alongside the Android client IDs.
+            $webClientId = (string) $app['config']->get('inventory.google.web.client_id', '');
+            if ($webClientId !== '') {
+                $clientIds[] = $webClientId;
+            }
+
+            return new GoogleTokenInfoVerifier(array_values(array_unique($clientIds)));
         });
     }
 

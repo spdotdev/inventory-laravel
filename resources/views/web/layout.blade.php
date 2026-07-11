@@ -27,6 +27,9 @@
   .btn-quiet:hover{background:rgba(125,211,252,.08)}
   .btn-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
   .btn-danger:hover{background:rgba(239,68,68,.25)}
+  .or{display:flex;align-items:center;gap:10px;margin:18px 0;color:#7fa8c4;font-size:12px}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:rgba(125,211,252,.18)}
+  .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
   .error{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:20px}
   .flash{background:rgba(125,211,252,.1);border:1px solid rgba(125,211,252,.3);border-radius:10px;padding:12px 14px;font-size:13px;color:#b8e4ff;margin-bottom:20px}
   .mono{font-family:'Space Mono',monospace}
