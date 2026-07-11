@@ -23,12 +23,11 @@
   @media (prefers-color-scheme: light){
     :root{
       --bg-0:#dbeafe; --bg-1:#eef6ff; --fg:#0d2436; --muted:#4d7a9c;
-      --accent:#1ea7e6; --on-accent:#ffffff;
+      --accent:#0369a1; --on-accent:#ffffff;
       --card:rgba(255,255,255,.72); --card-border:rgba(63,125,166,.18);
       --glow:rgba(30,167,230,.18); --warn:#b45309; --bad:#dc2626;
     }
   }
-  html{scroll-behavior:smooth}
   body{
     font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
     color:var(--fg);-webkit-font-smoothing:antialiased;
