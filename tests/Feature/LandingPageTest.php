@@ -39,4 +39,18 @@ class LandingPageTest extends TestCase
             ->assertSee('private preview')
             ->assertDontSee('Check back soon');
     }
+
+    public function test_landing_renders_dutch_for_a_dutch_accept_language(): void
+    {
+        $this->get('http://inventory.test/', ['Accept-Language' => 'nl-NL,nl;q=0.9,en;q=0.5'])
+            ->assertOk()
+            ->assertSee('Weet wat je in huis hebt,');
+    }
+
+    public function test_landing_falls_back_to_english_for_an_unsupported_locale(): void
+    {
+        $this->get('http://inventory.test/', ['Accept-Language' => 'de-DE,de;q=0.9'])
+            ->assertOk()
+            ->assertSee('Know what you have,');
+    }
 }
