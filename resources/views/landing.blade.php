@@ -31,10 +31,10 @@
   body{
     font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
     color:var(--fg);-webkit-font-smoothing:antialiased;
+    background-color:var(--bg-0);
     background:
       radial-gradient(1200px 600px at 50% -10%, var(--glow), transparent 60%),
       linear-gradient(160deg, var(--bg-1), var(--bg-0));
-    background-attachment:fixed;
   }
   a{color:var(--accent);text-decoration:none}
   .btn{
