@@ -147,6 +147,14 @@ class InventoryServiceProvider extends ServiceProvider
             'middleware' => ['api', 'auth:sanctum'],
         ]);
 
+        // Channel auth endpoint for the web UI: POST /broadcasting/auth with the
+        // session guard + web middleware (CSRF), so the Blade pages can subscribe
+        // to the same channel. Distinct path from the api/v1 registration above.
+        Broadcast::routes([
+            'domain' => config('inventory.domain'),
+            'middleware' => ['web', 'auth:inventory'],
+        ]);
+
         // Same tenancy rule as household.member: members only. Guards must be
         // explicit — channel auth otherwise resolves the user via the host's
         // default guard (web) and would 403 every Sanctum-tokened client.

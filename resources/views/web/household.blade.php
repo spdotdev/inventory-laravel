@@ -89,4 +89,6 @@
   @method('DELETE')
   <button type="submit" class="btn-danger">Leave household</button>
 </form>
+
+@include('inventory::web.partials.live-updates', ['household' => $household])
 @endsection

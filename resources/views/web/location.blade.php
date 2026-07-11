@@ -79,4 +79,6 @@
   @csrf @method('DELETE')
   <button type="submit" class="btn-danger">Delete location</button>
 </form>
+
+@include('inventory::web.partials.live-updates', ['household' => $household])
 @endsection

@@ -90,6 +90,16 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-11` — **Live updates on the web UI.** The Blade household + location pages
+  now subscribe to the same private `inventory.household.{id}` Reverb channel as the
+  Android client, via a dependency-free vanilla Pusher-protocol `<script>` partial
+  (`web/partials/live-updates`): handshake → session-authenticated channel auth →
+  debounced `location.reload()` on the `household.changed` ping (thin server-rendered
+  views — re-rendering IS the re-fetch). New session-guarded `POST /broadcasting/auth`
+  (web middleware + `auth:inventory`) beside the Sanctum-gated api/v1 one; the channel
+  callback already allowed the `inventory` guard. Renders nothing when no broadcaster
+  is configured, matching the server side's graceful no-op. Tests: member/stranger/
+  guest web channel auth, client embedded with a broadcaster, absent without one.
 - ✅ `2026-07-11` — **Household JSON export (the Phase-2 "backup/export" TBD).** One
   versioned document (`inventory.household-export.v1`): household meta (no join code —
   it's a credential and exports leave the household), member list, full locations →

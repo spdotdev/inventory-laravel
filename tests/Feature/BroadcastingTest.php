@@ -103,4 +103,59 @@ class BroadcastingTest extends TestCase
             'socket_id' => '123.456',
         ])->assertUnauthorized();
     }
+
+    /** The web UI's session-guarded twin of the api/v1 auth endpoint. */
+    public function test_web_session_channel_auth_allows_members_and_rejects_strangers(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$member, $household] = $this->memberSetup();
+
+        $this->actingAs($member, 'inventory')->postJson('http://inventory.test/broadcasting/auth', [
+            'channel_name' => 'private-inventory.household.'.$household->id,
+            'socket_id' => '123.456',
+        ])->assertOk()->assertJsonStructure(['auth']);
+
+        $stranger = User::create(['name' => 'S', 'email' => 's@example.test', 'password' => bcrypt('secret-password')]);
+        $this->actingAs($stranger, 'inventory')->postJson('http://inventory.test/broadcasting/auth', [
+            'channel_name' => 'private-inventory.household.'.$household->id,
+            'socket_id' => '123.456',
+        ])->assertForbidden();
+
+        auth('inventory')->logout();
+        $this->postJson('http://inventory.test/broadcasting/auth', [
+            'channel_name' => 'private-inventory.household.'.$household->id,
+            'socket_id' => '123.456',
+        ])->assertUnauthorized();
+    }
+
+    /**
+     * The Blade pages embed the live-updates client only when a broadcaster
+     * is configured (this class's defineEnvironment provides pusher).
+     */
+    public function test_household_page_embeds_the_live_updates_client(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$member, $household] = $this->memberSetup();
+
+        $this->actingAs($member, 'inventory')
+            ->get('http://inventory.test/app/households/'.$household->id)
+            ->assertOk()
+            ->assertSee('private-inventory.household.'.$household->id, false)
+            ->assertSee('/broadcasting/auth', false);
+    }
+
+    public function test_live_updates_client_is_absent_without_a_broadcaster(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$member, $household] = $this->memberSetup();
+
+        // The partial reads config at render time, so this takes effect even
+        // though channel registration happened at boot.
+        config()->set('broadcasting.default', 'null');
+
+        $this->actingAs($member, 'inventory')
+            ->get('http://inventory.test/app/households/'.$household->id)
+            ->assertOk()
+            ->assertDontSee('/broadcasting/auth', false);
+    }
 }
