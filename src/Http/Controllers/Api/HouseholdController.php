@@ -11,6 +11,7 @@ use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Http\Resources\HouseholdResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\HouseholdExport;
 
 class HouseholdController
 {
@@ -77,6 +78,21 @@ class HouseholdController
             'code' => $household->join_code,
             'link' => $link,
         ]);
+    }
+
+    /**
+     * Download the household as a versioned JSON document (member-gated, like
+     * every other household route). Pretty-printed: an export exists to be
+     * read and archived by a person, not parsed by the app.
+     */
+    public function export(Request $request, Household $household): JsonResponse
+    {
+        return response()->json(
+            HouseholdExport::build($household),
+            200,
+            ['Content-Disposition' => 'attachment; filename="'.HouseholdExport::filename($household).'"'],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+        );
     }
 
     public function leave(Request $request, Household $household): JsonResponse

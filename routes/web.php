@@ -41,6 +41,7 @@ Route::domain(config('inventory.domain'))
             Route::post('/households', [WebHouseholdController::class, 'store'])->name('inventory.web.households.store');
             Route::post('/households/join', [WebHouseholdController::class, 'join'])->name('inventory.web.households.join');
             Route::get('/households/{household}', [WebHouseholdController::class, 'show'])->name('inventory.web.households.show');
+            Route::get('/households/{household}/export', [WebHouseholdController::class, 'export'])->name('inventory.web.households.export');
             Route::put('/households/{household}', [WebHouseholdController::class, 'update'])->name('inventory.web.households.update');
             Route::delete('/households/{household}/leave', [WebHouseholdController::class, 'leave'])->name('inventory.web.households.leave');
 

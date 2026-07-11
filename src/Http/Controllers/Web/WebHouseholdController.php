@@ -2,6 +2,7 @@
 
 namespace Spdotdev\Inventory\Http\Controllers\Web;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -9,6 +10,7 @@ use Illuminate\View\View;
 use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\HouseholdExport;
 use Spdotdev\Inventory\Support\InviteQr;
 
 /**
@@ -79,6 +81,19 @@ class WebHouseholdController extends Controller
             'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
             'inviteQrSvg' => InviteQr::svg($link),
         ]);
+    }
+
+    /** Download the household as JSON — the web twin of the API export route. */
+    public function export(Request $request, Household $household): JsonResponse
+    {
+        $this->authorizeMember($request, $household);
+
+        return response()->json(
+            HouseholdExport::build($household),
+            200,
+            ['Content-Disposition' => 'attachment; filename="'.HouseholdExport::filename($household).'"'],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+        );
     }
 
     /** Rename + theme (Phase 2). Same validation as the API's PATCH endpoint. */

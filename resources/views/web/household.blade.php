@@ -77,6 +77,12 @@
   </form>
 </div>
 
+<div class="card">
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Your data</h2>
+  <p class="muted" style="margin-bottom:14px">Download everything in this household — locations, shelves, products and members — as a JSON file.</p>
+  <a class="btn btn-quiet" href="{{ route('inventory.web.households.export', $household) }}">Download export</a>
+</div>
+
 <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
       onsubmit="return confirm({{ Illuminate\Support\Js::from('Leave '.$household->name.'?') }})">
   @csrf

@@ -90,6 +90,14 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-11` — **Household JSON export (the Phase-2 "backup/export" TBD).** One
+  versioned document (`inventory.household-export.v1`): household meta (no join code —
+  it's a credential and exports leave the household), member list, full locations →
+  shelves → products tree. Shared `Support\HouseholdExport` builder behind both
+  `GET /api/v1/households/{household}/export` (member-gated, same group as invite) and
+  `GET /app/households/{household}/export` (web twin + "Your data" download card on the
+  household page). Pretty-printed attachment download. Tests: API + web member download,
+  non-member 404 both surfaces, guest redirect, join-code-absent (141 suite green).
 - ✅ `2026-07-04` — **Removed the fail-open `dependency-review` audit job** (wave-3 X6). The wave-3 audit
   flagged that `audit.yml`'s `dependency-review` job lacked the Android job's `continue-on-error` and red-ed
   every `composer.*` PR (Dependency Graph isn't enabled). The obvious "mirror Android" fix would have made it
