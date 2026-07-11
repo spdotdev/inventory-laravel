@@ -90,8 +90,15 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   negotiation, `Vary: Accept-Language`, /up + /login 200.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
-- [ ] **Google sign-in on the web UI** — needs a GCP redirect-flow OAuth client +
-  secret (external config); the API's ID-token flow already works.
+- [x] **Google sign-in on the web UI** — shipped 2026-07-11 (14d28eb, tagged v0.1.9;
+  spec: `docs/superpowers/specs/2026-07-11-web-google-signin-design.md`). Server-side
+  authorization-code flow, no Socialite/JS: /auth/google → Google consent → callback
+  verifies the exchanged id_token through the existing GoogleTokenInfoVerifier (web
+  client id added to the aud allowlist) and links via the extracted
+  Auth\GoogleAccountLinker (shared with the API flow). Fail-closed on
+  `INVENTORY_GOOGLE_WEB_CLIENT_ID/SECRET`. GCP: dedicated "Inventory Web" client
+  (758637503304-6q4tf85…), redirect URI `https://inventory.scuttle.dev/auth/google/callback`.
+  Deploy: sd-admin lock bump committed; push + d051 env keys are user steps (prod).
 
 ### QUALITY
 - [x] **CI live and green** — ci (Pint/Larastan/PHPUnit), audit, secret-scan all pass on
