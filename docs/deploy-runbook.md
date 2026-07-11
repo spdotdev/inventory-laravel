@@ -56,6 +56,13 @@ INVENTORY_DOMAIN=inventory.scuttle.dev
 # Fails closed: empty rejects all Google sign-ins.
 INVENTORY_GOOGLE_CLIENT_IDS=<android-oauth-client-id>
 
+# Web UI "Continue with Google" (server-side redirect flow, v0.1.9+). The
+# "Inventory Web" GCP client; its registered redirect URI must byte-match
+# https://<INVENTORY_DOMAIN>/auth/google/callback. Fails closed: the
+# /auth/google routes 404 and the buttons hide while either value is unset.
+INVENTORY_GOOGLE_WEB_CLIENT_ID=<web-oauth-client-id>
+INVENTORY_GOOGLE_WEB_CLIENT_SECRET=<web-oauth-client-secret>
+
 # Static bearer token for /api/v1/admin/* and /mcp. Empty disables the admin surface.
 INVENTORY_ADMIN_TOKEN=<long-random-string>
 
