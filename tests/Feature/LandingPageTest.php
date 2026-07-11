@@ -29,4 +29,14 @@ class LandingPageTest extends TestCase
         $this->assertStringContainsString('Running low', $dashboard);
         $this->assertStringContainsString('Top shelf', $location);
     }
+
+    public function test_landing_renders_the_marketing_page_in_english_by_default(): void
+    {
+        $this->get('http://inventory.test/')
+            ->assertOk()
+            ->assertSee('Know what you have,')
+            ->assertSee('Create a free account')
+            ->assertSee('private preview')
+            ->assertDontSee('Check back soon');
+    }
 }

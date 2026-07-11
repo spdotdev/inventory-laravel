@@ -12,7 +12,7 @@ class SkeletonTest extends TestCase
         $this->get('http://inventory.test/')
             ->assertOk()
             ->assertSee('Inventory')
-            ->assertSee('Coming to Android');
+            ->assertSee('private preview');
     }
 
     public function test_api_health_endpoint_responds_under_v1(): void
