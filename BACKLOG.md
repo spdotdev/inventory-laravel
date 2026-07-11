@@ -100,6 +100,9 @@ demand, keep the landing page marketing-only.
   callback already allowed the `inventory` guard. Renders nothing when no broadcaster
   is configured, matching the server side's graceful no-op. Tests: member/stranger/
   guest web channel auth, client embedded with a broadcaster, absent without one.
+  **Deployed 2026-07-11 as v0.1.10** (sd-admin c159ee7 → CI → deploy, user-authorized);
+  verified live: health ok, web+API export routes and /broadcasting/auth all answer
+  with their auth boundaries (302/401), not 404.
 - ✅ `2026-07-11` — **Household JSON export (the Phase-2 "backup/export" TBD).** One
   versioned document (`inventory.household-export.v1`): household meta (no join code —
   it's a credential and exports leave the household), member list, full locations →
@@ -108,6 +111,7 @@ demand, keep the landing page marketing-only.
   `GET /app/households/{household}/export` (web twin + "Your data" download card on the
   household page). Pretty-printed attachment download. Tests: API + web member download,
   non-member 404 both surfaces, guest redirect, join-code-absent (141 suite green).
+  **Deployed 2026-07-11 as v0.1.10** (same release as the web live updates above).
 - ✅ `2026-07-04` — **Removed the fail-open `dependency-review` audit job** (wave-3 X6). The wave-3 audit
   flagged that `audit.yml`'s `dependency-review` job lacked the Android job's `continue-on-error` and red-ed
   every `composer.*` PR (Dependency Graph isn't enabled). The obvious "mirror Android" fix would have made it

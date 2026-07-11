@@ -21,7 +21,7 @@ Markers: 🟡 TBD · 🔲 TODO · 🛠 in progress · ✅ done (shipped work mov
 | 1 — Auth | ✅ shipped 2026-06-23 | Sanctum register/login/logout + Google sign-in (verify Android ID token). |
 | 2 — MVP API | ✅ shipped 2026-06-23 | Households (create/list/invite/join/leave) + search; locations/shelves/products CRUD + add/remove/move. |
 | 3 — CLI + polish | ✅ shipped 2026-06-24 | Artisan commands (household create, …); quality gates green (Pint/Larastan/PHPUnit). |
-| 4 — Phase 2 | ✅ shipped 2026-07-10 | **Unlocked 2026-07-10** (user decision): web account/household UI ✅, `low_stock_threshold` ✅, Reverb live updates ✅, **production deploy (v0.1.5)** ✅. Household JSON export (API + web) ✅ shipped 2026-07-11; further attributes stay 🟡 TBD. |
+| 4 — Phase 2 | ✅ shipped 2026-07-10 | **Unlocked 2026-07-10** (user decision): web account/household UI ✅, `low_stock_threshold` ✅, Reverb live updates ✅, **production deploy (v0.1.5)** ✅. Household JSON export (API + web) + web live updates ✅ shipped **and deployed (v0.1.10)** 2026-07-11; further attributes stay 🟡 TBD. |
 
 Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 [`docs/backend-plan.md`](docs/backend-plan.md).
@@ -30,7 +30,7 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 
 ## Active TODOs
 
-> **Backend complete and live in production** (`inventory.scuttle.dev`, v0.1.8,
+> **Backend complete and live in production** (`inventory.scuttle.dev`, v0.1.10,
 > 2026-07-11) — MVP + Phase 2 all shipped and CI-green. See [`BACKLOG.md`](BACKLOG.md)
 > → Done for history. Open items below are decision- or dependency-gated.
 
