@@ -94,6 +94,7 @@ class InventoryServiceProvider extends ServiceProvider
         }
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'inventory');
+        $this->loadTranslationsFrom(__DIR__.'/../lang', 'inventory');
 
         // Package-owned tables (inventory_*) live here; empty until the schema
         // step. loadMigrationsFrom is a no-op while the directory has none.
