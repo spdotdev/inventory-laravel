@@ -37,7 +37,8 @@ class WebLocationController extends Controller
 
     public function destroy(Household $household, StorageLocation $location): RedirectResponse
     {
-        // Hard delete, ON DELETE CASCADE takes shelves + products with it (locked rule).
+        // TODO(Task 6b): must route through HierarchyDeleter — this soft-deletes
+        // the location and orphans its shelves/products.
         $location->delete();
 
         return redirect()

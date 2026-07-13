@@ -5,7 +5,6 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
@@ -46,19 +45,12 @@ class ProductController
 
     public function destroy(Household $household, Shelf $shelf, Product $product): JsonResponse
     {
-        // Best-effort cleanup of the product's stored image so a direct delete
-        // doesn't orphan the file (W15). NOTE: a *cascade* delete (removing the
-        // shelf/location/household) is DB-level (ON DELETE CASCADE) and fires no
-        // Eloquent event, so those images are intentionally left for the disk's
-        // own lifecycle/GC — cleaning them would require app-level tree deletion,
-        // which the hard-delete-cascade rule deliberately avoids.
-        $image = $product->image_url;
-
+        // $product->delete() is a SOFT delete (an UPDATE) — the row survives so
+        // Undo can restore it. The image file must survive with it: the row's
+        // image_url still points at it, so deleting the file here would leave a
+        // restored product with a dead photo. Image cleanup is the eventual hard
+        // purge's job (inventory:deleted:prune) — see that command when it lands.
         $product->delete();
-
-        if ($image !== null) {
-            $this->deleteStoredImage((string) config('inventory.image_disk', 'public'), $image);
-        }
 
         return response()->json(['message' => 'Product deleted.']);
     }

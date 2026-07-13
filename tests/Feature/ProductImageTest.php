@@ -74,11 +74,13 @@ class ProductImageTest extends TestCase
         Storage::disk('public')->assertExists($newPath);
     }
 
-    public function test_deleting_a_product_removes_its_stored_image(): void
+    public function test_deleting_a_product_keeps_its_stored_image(): void
     {
-        // W15: a direct product delete cleans up its image file (best-effort), so
-        // the common delete path doesn't orphan storage. (Cascade deletes via a
-        // shelf/location/household are DB-level and intentionally leave the file.)
+        // Product::delete() is a SOFT delete (an UPDATE) — the row survives with
+        // image_url still populated, so Undo can restore a product with its photo
+        // intact. Deleting the file here would leave a restored product pointing
+        // at a file that no longer exists. Image cleanup belongs to the eventual
+        // hard purge (inventory:deleted:prune), not to a soft delete.
         Storage::fake('public');
         $product = $this->memberProduct();
 
@@ -92,7 +94,7 @@ class ProductImageTest extends TestCase
         $deleteUrl = "{$this->base}/households/{$product->shelf->location->household_id}/shelves/{$product->shelf_id}/products/{$product->id}";
         $this->deleteJson($deleteUrl)->assertOk();
 
-        Storage::disk('public')->assertMissing($path);
+        Storage::disk('public')->assertExists($path);
         $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
     }
 

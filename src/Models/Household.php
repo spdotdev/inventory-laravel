@@ -77,10 +77,12 @@ class Household extends Model
      * Shelves across all of the household's locations. Backs scoped binding for
      * the /households/{household}/shelves/{shelf}/... routes.
      *
-     * HasManyThrough applies the FINAL model's global scopes but not the
-     * INTERMEDIATE model's — so without the explicit whereNull, a shelf inside a
-     * soft-deleted location stays reachable and its products keep resolving on a
-     * fridge the user believes they deleted.
+     * Laravel scopes the THROUGH-parent's soft deletes automatically: when the
+     * intermediate model (StorageLocation) uses SoftDeletes,
+     * HasOneOrManyThrough::performJoin() adds a SoftDeletableHasManyThrough
+     * global scope, so a shelf inside a soft-deleted location is already
+     * unreachable here with no explicit whereNull needed —
+     * withTrashedParents() exists precisely to opt back out of that.
      *
      * @return HasManyThrough<Shelf, StorageLocation, $this>
      */
@@ -93,6 +95,6 @@ class Household extends Model
             'location_id',  // FK on shelves
             'id',
             'id',
-        )->whereNull('inventory_storage_locations.deleted_at');
+        );
     }
 }

@@ -6,7 +6,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Models\Household;
-use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
@@ -52,11 +51,14 @@ class SoftDeleteTest extends TestCase
 
     public function test_products_under_a_soft_deleted_location_are_unreachable(): void
     {
-        // HasManyThrough does NOT apply the *intermediate* model's soft-delete
-        // scope. Without an explicit whereNull on the join, Household::shelves()
-        // still resolves a shelf inside a deleted location — so the product
-        // routes (which scope-bind through it) would stay live on a fridge the
-        // user believes they deleted.
+        // Laravel scopes the through-parent's soft deletes automatically
+        // (HasOneOrManyThrough::performJoin() adds a SoftDeletableHasManyThrough
+        // global scope when the intermediate model — StorageLocation — uses
+        // SoftDeletes), so Household::shelves() already excludes a shelf inside a
+        // deleted location with no explicit whereNull. This test guards that: if
+        // someone later adds withTrashedParents() (which opts back out of that
+        // scoping), the product routes would stay live on a fridge the user
+        // believes they deleted.
         $h = $this->memberHousehold();
         $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
@@ -81,6 +83,38 @@ class SoftDeleteTest extends TestCase
             'id' => $location->id,
             'deletion_batch_id' => '11111111-1111-4111-8111-111111111111',
         ]);
+    }
+
+    public function test_deletion_batch_id_is_mass_assignable(): void
+    {
+        // Pins the `deletion_batch_id` entry in each of the three models'
+        // $fillable arrays. test_batch_id_is_persisted_on_a_deleted_row sets it
+        // by property assignment, which bypasses $fillable entirely and so would
+        // not catch a dropped fillable entry — Model::create() (used here, via
+        // each relation's mass-assignment path) would silently drop the value if
+        // `deletion_batch_id` were ever removed from $fillable.
+        $h = $this->memberHousehold();
+        $uuid = '22222222-2222-4222-8222-222222222222';
+
+        $location = $h->locations()->create([
+            'name' => 'Chest',
+            'type' => StorageType::Freezer,
+            'deletion_batch_id' => $uuid,
+        ]);
+        $shelf = $location->shelves()->create([
+            'name' => 'Top',
+            'position' => 0,
+            'deletion_batch_id' => $uuid,
+        ]);
+        $product = $shelf->products()->create([
+            'name' => 'Peas',
+            'quantity' => 2,
+            'deletion_batch_id' => $uuid,
+        ]);
+
+        $this->assertDatabaseHas('inventory_storage_locations', ['id' => $location->id, 'deletion_batch_id' => $uuid]);
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $shelf->id, 'deletion_batch_id' => $uuid]);
+        $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'deletion_batch_id' => $uuid]);
     }
 
     public function test_location_products_relation_reaches_through_shelves(): void

@@ -58,7 +58,13 @@ public/                               landing assets (publishable)
 - **API versioned: `/api/v1`, backward compatible** — a shipped Android build updates
   on the user's schedule, not ours.
 - **Concurrency: last-write-wins.** No version/If-Match/optimistic-locking.
-- **Hard deletes, `ON DELETE CASCADE`** (location → shelves → products). No soft deletes.
+- **Soft deletes on the hierarchy** (locations/shelves/products carry `deleted_at`
+  + `deletion_batch_id`). Reversed 2026-07-13: hard cascade deletes silently
+  destroyed a location's whole subtree with no confirmation and no undo. The
+  `ON DELETE CASCADE` FKs remain — a soft delete is an `UPDATE` and never fires
+  them, and they stay correct for the retention purge. Deleting a non-empty
+  container REQUIRES an explicit strategy; the server never guesses. Households
+  themselves are still hard-deleted when the last member leaves.
 - **No roles/permissions** — all household members equal.
 - Secrets via `.env` only. Validate input at every boundary.
 
