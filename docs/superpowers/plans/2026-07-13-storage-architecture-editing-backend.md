@@ -2480,6 +2480,29 @@ class PruneDeletedTest extends TestCase
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $recent->id]);
     }
 
+    public function test_it_deletes_the_stored_image_of_a_purged_product(): void
+    {
+        // Soft delete deliberately KEEPS the image (the row is restorable, so the
+        // photo must outlive it). That makes the purge the only place the file can
+        // ever be reclaimed — without this, every image ever uploaded leaks.
+        Storage::fake('public');
+        config()->set('inventory.deleted_retention_days', 30);
+
+        $h = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $product = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer])
+            ->shelves()->create(['name' => 'Top', 'position' => 0])
+            ->products()->create(['name' => 'Peas', 'quantity' => 1, 'image_url' => 'products/peas.jpg']);
+
+        Storage::disk('public')->put('products/peas.jpg', 'x');
+        $product->delete();
+        Product::withTrashed()->whereKey($product->id)->update(['deleted_at' => now()->subDays(31)]);
+
+        $this->artisan('inventory:deleted:prune')->assertExitCode(0);
+
+        Storage::disk('public')->assertMissing('products/peas.jpg');
+        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+    }
+
     public function test_retention_of_zero_disables_pruning(): void
     {
         config()->set('inventory.deleted_retention_days', 0);
@@ -2551,6 +2574,17 @@ class PruneDeletedCommand extends Command
         }
 
         $cutoff = now()->subDays($days);
+
+        // Delete the stored images FIRST, while the rows still exist to tell us
+        // where they are. Soft delete deliberately leaves the file alone — the row
+        // is restorable, so the image has to outlive it — which makes the purge
+        // the only place the file can ever be reclaimed. Skip this and every image
+        // ever uploaded leaks on disk forever.
+        $doomed = Product::onlyTrashed()->where('deleted_at', '<', $cutoff)->whereNotNull('image_url')->get();
+
+        foreach ($doomed as $product) {
+            $this->deleteStoredImage($product);
+        }
 
         // Children first. A location's forceDelete would ON DELETE CASCADE its
         // subtree anyway, but a shelf soft-deleted on its own (parent still
