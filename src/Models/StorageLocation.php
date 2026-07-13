@@ -15,6 +15,7 @@ use Spdotdev\Inventory\Enums\StorageType;
  * @property int $household_id
  * @property string $name
  * @property StorageType $type
+ * @property int $position
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
  */
@@ -29,7 +30,13 @@ class StorageLocation extends Model
         'household_id',
         'name',
         'type',
+        'position',
         'deletion_batch_id',
+    ];
+
+    /** @var array<string, mixed> */
+    protected $attributes = [
+        'position' => 0,
     ];
 
     /**
@@ -39,6 +46,7 @@ class StorageLocation extends Model
     {
         return [
             'type' => StorageType::class,
+            'position' => 'integer',
         ];
     }
 

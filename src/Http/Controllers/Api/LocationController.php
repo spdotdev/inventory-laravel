@@ -4,7 +4,12 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
+use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Http\Resources\LocationResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\StorageLocation;
@@ -18,7 +23,11 @@ class LocationController
 {
     public function index(Household $household): AnonymousResourceCollection
     {
-        return LocationResource::collection($household->locations()->orderBy('name')->get());
+        // Manual order wins; name is only the tie-break for locations that have
+        // never been dragged (they all sit at position 0).
+        return LocationResource::collection(
+            $household->locations()->orderBy('position')->orderBy('name')->get(),
+        );
     }
 
     public function store(LocationRequest $request, Household $household): JsonResponse
@@ -45,5 +54,37 @@ class LocationController
         $location->delete();
 
         return response()->json(['message' => 'Location deleted.']);
+    }
+
+    /**
+     * Rewrite every location's position from the ids the client sends, in one
+     * transaction — a half-applied drag is worse than a rejected one.
+     */
+    public function reorder(ReorderRequest $request, Household $household): AnonymousResourceCollection
+    {
+        Gate::authorize('restructure', $household);
+
+        $ids = $request->ids();
+        $owned = $household->locations()->whereKey($ids)->pluck('id')->all();
+
+        // Every id must be a live location of THIS household. Anything else —
+        // another household's id, a deleted id, a typo — rejects the whole call.
+        if (count($owned) !== count($ids)) {
+            throw ValidationException::withMessages([
+                'ids' => ['The list must contain every location in this household, and only those.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($ids, $household) {
+            foreach ($ids as $position => $id) {
+                $household->locations()->whereKey($id)->update(['position' => $position]);
+            }
+        });
+
+        // Query-builder updates fire no Eloquent events, so the observer never
+        // sees this. Ping explicitly or other members' lists go stale.
+        HouseholdChanged::dispatch((int) $household->getKey());
+
+        return $this->index($household);
     }
 }

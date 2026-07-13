@@ -81,6 +81,11 @@ Route::domain(config('inventory.domain'))
                 // populates image_url; the Android client posts a single "image" part.
                 Route::post('households/{household}/shelves/{shelf}/products/{product}/image', [ProductController::class, 'image'])->name('inventory.api.products.image');
 
+                // Literal segments must precede the apiResource, or `reorder` is
+                // captured as {location} / {shelf}. Same rule as households/join.
+                Route::patch('households/{household}/locations/reorder', [LocationController::class, 'reorder'])->name('inventory.api.locations.reorder');
+                Route::patch('households/{household}/locations/{location}/shelves/reorder', [ShelfController::class, 'reorder'])->name('inventory.api.shelves.reorder');
+
                 // Nested resource CRUD (apiResource = index/store/show/update/destroy).
                 Route::apiResource('households.locations', LocationController::class)->shallow(false);
                 Route::apiResource('households.locations.shelves', ShelfController::class)->shallow(false);
