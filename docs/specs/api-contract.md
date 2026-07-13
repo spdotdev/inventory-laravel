@@ -188,9 +188,20 @@ DELETE /locations/{location}/shelves/{shelf}
 - `deletion_batch_id` (**required**, uuid) — client-minted, since only the client knows
   whether several deletes in a row are one user gesture. Stamped on every row this one
   delete touches, so the whole gesture is restorable as a unit. Missing or non-uuid -> 422.
-- `strategy` is **required** only when the container is non-empty (a location holding
-  *any* shelf, including one holding only an empty Unsorted shelf; a shelf holding
-  products) — omit it for an empty one:
+- `strategy` is **required** only when the container is non-empty — a location holding
+  any **non-system** shelf (whatever it holds — its own fate as a shelf still needs
+  deciding), or holding a system **Unsorted** shelf that itself holds products; a shelf
+  holding products — and **not** required for an empty one. An empty, auto-created
+  Unsorted shelf on its own does **not** count as "non-empty": it is a disposable
+  implementation detail the user never created and never sees (see
+  `StorageLocation::shelvesWithContents()`), so its mere existence must not force a
+  strategy prompt. This is exactly `LocationResource.shelf_count` below — the client MUST
+  ask for a strategy iff `shelf_count > 0`, since that field and this rule are read from
+  the same server-side query and are guaranteed to agree. A location deleted this way with
+  no strategy leaves any such empty Unsorted shelf live but orphaned under the (now
+  soft-deleted) location — harmless, invisible via the household-scoped listing routes,
+  and reclaimed for real by the retention purge's cascade if the location is never
+  restored:
   - **Location** `strategy`: `move_contents` (reparent the location's shelves into
     `target_location_id`, required with this strategy — products hang off the shelf and
     ride along unmoved) | `delete_contents` (soft-delete the shelves and their products
@@ -261,9 +272,22 @@ restored" or "nothing to restore," which the server never reveals.
 
 ```
 { id, name, type,               # type: freezer | fridge | pantry | other
-  position }                    # server-assigned manual order; index is
+  position,                    # server-assigned manual order; index is
                                 # orderBy('position').orderBy('name'), so an
                                 # undragged location falls back to name order
+  shelf_count,                  # live shelf count, EXCLUDING an empty system
+                                # Unsorted shelf (see *Deleting a location or
+                                # shelf* above) — the client MUST decide
+                                # "ask for a delete strategy?" from
+                                # shelf_count > 0 alone; that is exactly the
+                                # server's own rule, so a strategy-less delete
+                                # sent when shelf_count == 0 always succeeds
+  product_count }               # live product count across every shelf in the
+                                # location (including the Unsorted one, if any).
+                                # index() eager-loads both via withCount() to
+                                # avoid an N+1 across many locations — the
+                                # delete-confirmation dialog needs them to show
+                                # "N shelves · N products" before the user picks
 ```
 
 **Shelf resource** (`ShelfResource`):

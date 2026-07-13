@@ -20,6 +20,16 @@ use Spdotdev\Inventory\Enums\StorageType;
  * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property-read int|null $shelf_count Only set when the query eager-loads it
+ *   via withCount('shelvesWithContents as shelf_count') (see
+ *   LocationController::index()); null otherwise. LocationResource reads this
+ *   with a ?? fallback to shelvesWithContents()->count() — the docblock exists
+ *   so PHPStan can catch a typo'd property name (e.g. shelf_count) that would
+ *   otherwise silently fall through to that fallback with no static-analysis
+ *   error. See ShelfResource's $products_count docblock for the same pattern.
+ * @property-read int|null $products_count Only set when the query eager-loads
+ *   it via withCount('products') (see LocationController::index()); null
+ *   otherwise. LocationResource reads this with the same ??-fallback pattern.
  */
 class StorageLocation extends Model
 {
@@ -87,6 +97,32 @@ class StorageLocation extends Model
             'id',
             'id',
         );
+    }
+
+    /**
+     * Shelves that count as this location genuinely "having contents": every
+     * non-system shelf (its own fate — move or delete — still needs deciding
+     * on a location delete, whatever it holds) PLUS the system Unsorted shelf
+     * only when it actually holds products. An EMPTY Unsorted shelf alone does
+     * NOT count — it's a disposable, invisible implementation detail (see
+     * unsortedShelf() above) that the user never created and never sees,
+     * so prompting them for a delete strategy over it would be confusing.
+     *
+     * This is the single source of truth for "does deleting this location
+     * require a strategy?" — DeleteLocationRequest::locationHasContents() and
+     * LocationResource's shelf_count both read through this method, and must
+     * never diverge from it: the Android client decides whether to ask the
+     * user for a strategy from shelf_count > 0 alone, and a mismatch between
+     * that decision and this server-side check is exactly what would turn a
+     * strategy-less delete into a 422 the client had no way to predict.
+     *
+     * @return HasMany<Shelf, $this>
+     */
+    public function shelvesWithContents(): HasMany
+    {
+        return $this->shelves()->where(function ($query) {
+            $query->where('is_system', false)->orWhereHas('products');
+        });
     }
 
     /**

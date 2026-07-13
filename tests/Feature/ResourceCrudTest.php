@@ -45,6 +45,96 @@ class ResourceCrudTest extends TestCase
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $id]);
     }
 
+    public function test_location_index_exposes_shelf_and_product_counts(): void
+    {
+        // The Android client needs both BEFORE it can render its
+        // delete-confirmation dialog ("2 locations · 3 shelves · 17
+        // products") and decide whether to prompt for a delete strategy at
+        // all — see LocationResource::toArray() and
+        // StorageLocation::shelvesWithContents().
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $first = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $second = $location->shelves()->create(['name' => 'Bottom', 'position' => 1]);
+        $first->products()->create(['name' => 'Peas', 'quantity' => 2]);
+        $first->products()->create(['name' => 'Corn', 'quantity' => 1]);
+        $second->products()->create(['name' => 'Carrots', 'quantity' => 3]);
+
+        $this->getJson("{$this->base}/households/{$h->id}/locations")
+            ->assertOk()
+            ->assertJsonPath('data.0.shelf_count', 2)
+            ->assertJsonPath('data.0.product_count', 3);
+    }
+
+    public function test_location_counts_exclude_soft_deleted_shelves_and_products(): void
+    {
+        // HasManyThrough's scoping of the INTERMEDIATE model's (Shelf) soft
+        // deletes is easy to get backwards — this branch has already been
+        // bitten by it once (see Household::shelves()). Pin it explicitly for
+        // StorageLocation::products() (a HasManyThrough via Shelf) and the
+        // shelf_count aggregate too: a soft-deleted shelf must vanish from
+        // both counts, taking any (still-live) products on it out of scope,
+        // and a soft-deleted product on an otherwise-live shelf must vanish
+        // from product_count on its own.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+
+        $live = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $live->products()->create(['name' => 'Peas', 'quantity' => 1]);
+        $live->products()->create(['name' => 'Corn', 'quantity' => 1])->delete();
+
+        $trashedShelf = $location->shelves()->create(['name' => 'Bottom', 'position' => 1]);
+        $trashedShelf->products()->create(['name' => 'Carrots', 'quantity' => 5]);
+        $trashedShelf->delete();
+
+        $this->getJson("{$this->base}/households/{$h->id}/locations")
+            ->assertOk()
+            ->assertJsonPath('data.0.shelf_count', 1) // only $live survives
+            ->assertJsonPath('data.0.product_count', 1); // only the surviving Peas
+    }
+
+    public function test_location_index_does_not_n_plus_one_on_counts(): void
+    {
+        // LocationController::index() must fold shelf_count/product_count for
+        // every location into the single locations query via withCount(),
+        // not one extra query per location. Mirrors
+        // test_shelf_index_does_not_n_plus_one_on_product_counts, but scales
+        // the NUMBER OF LOCATIONS listed (not shelves within one location),
+        // since that's the axis LocationController::index() iterates over —
+        // hence two households (one location vs five), not one household with
+        // a lonely and a crowded location.
+        $lonelyHousehold = $this->memberHousehold('lonely@example.test', 'AAAA-1111');
+        $lonelyHousehold->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer])
+            ->shelves()->create(['name' => 'Top', 'position' => 0])
+            ->products()->create(['name' => 'Peas', 'quantity' => 1]);
+
+        $crowdedHousehold = $this->memberHousehold('crowded@example.test', 'BBBB-2222');
+        foreach (range(1, 5) as $i) {
+            $crowdedHousehold->locations()->create(['name' => "Location {$i}", 'type' => StorageType::Freezer])
+                ->shelves()->create(['name' => 'Top', 'position' => 0])
+                ->products()->create(['name' => 'Peas', 'quantity' => 1]);
+        }
+
+        Sanctum::actingAs(User::where('email', 'lonely@example.test')->firstOrFail());
+        DB::enableQueryLog();
+        $this->getJson("{$this->base}/households/{$lonelyHousehold->id}/locations")->assertOk();
+        $queriesForOneLocation = count(DB::getQueryLog());
+        DB::flushQueryLog();
+        DB::disableQueryLog();
+
+        Sanctum::actingAs(User::where('email', 'crowded@example.test')->firstOrFail());
+        DB::enableQueryLog();
+        $this->getJson("{$this->base}/households/{$crowdedHousehold->id}/locations")->assertOk();
+        $queriesForFiveLocations = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertSame(
+            $queriesForOneLocation,
+            $queriesForFiveLocations,
+            'Query count must not scale with location count — an N+1 fetching each location\'s counts separately would grow it.',
+        );
+    }
+
     public function test_shelf_and_product_crud(): void
     {
         $h = $this->memberHousehold();

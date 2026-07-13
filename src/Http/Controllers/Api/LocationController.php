@@ -25,10 +25,20 @@ class LocationController
 {
     public function index(Household $household): AnonymousResourceCollection
     {
+        // withCount() folds both tallies into the single locations query via
+        // subselects, so LocationResource can expose shelf_count/product_count
+        // to every row here without an N+1 (see LocationResource::toArray()).
+        // 'shelvesWithContents as shelf_count' reuses the exact relation
+        // DeleteLocationRequest::locationHasContents() queries, so the two can
+        // never drift apart; 'products' is StorageLocation's HasManyThrough
+        // across all of a location's shelves.
+        //
         // Manual order wins; name is only the tie-break for locations that have
         // never been dragged (they all sit at position 0).
         return LocationResource::collection(
-            $household->locations()->orderBy('position')->orderBy('name')->get(),
+            $household->locations()
+                ->withCount(['shelvesWithContents as shelf_count', 'products'])
+                ->orderBy('position')->orderBy('name')->get(),
         );
     }
 

@@ -218,6 +218,89 @@ class LocationDeleteStrategyTest extends TestCase
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
     }
 
+    public function test_a_location_holding_only_an_empty_unsorted_shelf_needs_no_strategy(): void
+    {
+        // Decision pinned in StorageLocation::shelvesWithContents(): an empty,
+        // auto-created Unsorted shelf is disposable and invisible to the
+        // user, so its mere existence must not force a delete-strategy
+        // prompt — this is exactly the shelf_count == 0 case the Android
+        // client relies on (see LocationResource).
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $unsorted = $location->unsortedShelf();
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+        // Left alone — untouched, not part of the batch — exactly like an
+        // empty Unsorted shelf orphaned by a failed delete (see
+        // HierarchyDeleter's class docblock): harmless, and invisible via
+        // Household::shelves()'s soft-delete scoping on the now-dead parent.
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);
+    }
+
+    public function test_a_location_holding_a_stocked_unsorted_shelf_needs_a_strategy(): void
+    {
+        // The carve-out above is for an EMPTY Unsorted shelf only — one that
+        // genuinely holds products is real content, and deleting the
+        // location still has to decide that product's fate.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $unsorted = $location->unsortedShelf();
+        $unsorted->products()->create(['name' => 'Orphan peas', 'quantity' => 1]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [
+            'deletion_batch_id' => $this->batch,
+        ])->assertStatus(422)->assertJsonValidationErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_an_empty_regular_shelf_still_needs_a_strategy(): void
+    {
+        // The Unsorted-shelf carve-out is narrow: an ordinary, user-created
+        // empty shelf still needs a strategy decision (move it or delete it
+        // with the location), unlike the invisible system Unsorted shelf.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [
+            'deletion_batch_id' => $this->batch,
+        ])->assertStatus(422)->assertJsonValidationErrors('strategy');
+    }
+
+    public function test_a_client_that_trusts_shelf_count_zero_never_gets_a_422(): void
+    {
+        // This is the whole point of exposing shelf_count on LocationResource:
+        // the Android client reads it from the index response and skips the
+        // strategy prompt when it's 0. If that ever drifted from
+        // DeleteLocationRequest::locationHasContents()'s own rule, a location
+        // with only an empty Unsorted shelf would report shelf_count == 0 yet
+        // still 422 on a strategy-less delete — silently breaking every such
+        // delete on day one. Drive it through the SAME two calls a real
+        // client makes: list, read shelf_count, delete accordingly.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $location->unsortedShelf(); // the one case that used to force a strategy
+
+        $shelfCount = $this->getJson("{$this->base}/households/{$h->id}/locations")
+            ->assertOk()
+            ->json('data.0.shelf_count');
+
+        $this->assertSame(0, $shelfCount, "the client's whole decision hinges on this being 0");
+
+        $payload = ['deletion_batch_id' => $this->batch];
+        if ($shelfCount > 0) {
+            $payload['strategy'] = 'delete_contents'; // a real client would ask the user here
+        }
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", $payload)
+            ->assertOk(); // NOT 422 — this is the whole point of the change
+    }
+
     public function test_move_contents_to_a_location_in_another_household_is_rejected(): void
     {
         $h = $this->memberHousehold();

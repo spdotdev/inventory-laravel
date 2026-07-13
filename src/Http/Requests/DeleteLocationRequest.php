@@ -8,8 +8,11 @@ use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
 use Spdotdev\Inventory\Models\StorageLocation;
 
 /**
- * Deleting a location that still holds shelves REQUIRES an explicit strategy.
- * See DeleteShelfRequest — same reasoning, one level up.
+ * Deleting a location that still holds contents REQUIRES an explicit strategy
+ * — see StorageLocation::shelvesWithContents() for exactly what counts (a
+ * non-system shelf of any kind, or a system Unsorted shelf that holds
+ * products; an empty Unsorted shelf alone does not). See DeleteShelfRequest —
+ * same reasoning, one level up.
  */
 class DeleteLocationRequest extends FormRequest
 {
@@ -39,7 +42,19 @@ class DeleteLocationRequest extends FormRequest
     {
         $location = $this->route('location');
 
-        return $location instanceof StorageLocation && $location->shelves()->exists();
+        // Delegates to StorageLocation::shelvesWithContents() — see its
+        // docblock. An empty system Unsorted shelf alone does NOT require a
+        // strategy: it's disposable and invisible to the user, and
+        // HierarchyDeleter::deleteLocation() leaves it live-but-orphaned under
+        // the now-deleted location when no strategy runs, exactly like the
+        // "harmless, disposable, reused/recreated on demand" empty Unsorted
+        // shelf left behind by a failed delete (see that class's docblock) —
+        // it is swept up for real by the retention purge's ON DELETE CASCADE
+        // if the location is never restored. This method MUST stay in
+        // lockstep with LocationResource's shelf_count: the Android client
+        // decides whether to send a strategy from shelf_count > 0 alone, and
+        // any divergence here would turn that into an unpredictable 422.
+        return $location instanceof StorageLocation && $location->shelvesWithContents()->exists();
     }
 
     public function strategy(): ?LocationDeleteStrategy
