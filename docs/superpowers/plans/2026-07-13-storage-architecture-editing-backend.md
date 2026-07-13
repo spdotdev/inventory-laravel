@@ -583,18 +583,25 @@ class ReorderTest extends TestCase
 
     public function test_reorder_is_all_or_nothing(): void
     {
-        // A partial write would leave a half-sorted list, which is worse than
-        // no write at all — the user cannot tell which half took.
+        // A partial write would leave a half-sorted list, which is worse than no
+        // write at all — the user cannot tell which half took.
+        //
+        // The starting positions MUST be non-zero and distinct, and the bad id
+        // must come first. Otherwise a broken implementation that writes as it
+        // goes would set position 0 on a row already at 0, and the assertion
+        // would pass while the guard did nothing.
         $h = $this->memberHousehold();
-        $a = $h->locations()->create(['name' => 'Aaa', 'type' => StorageType::Fridge]);
-        $b = $h->locations()->create(['name' => 'Bbb', 'type' => StorageType::Pantry]);
+        $a = $h->locations()->create(['name' => 'Aaa', 'type' => StorageType::Fridge, 'position' => 5]);
+        $b = $h->locations()->create(['name' => 'Bbb', 'type' => StorageType::Pantry, 'position' => 7]);
 
         $this->patchJson("{$this->base}/households/{$h->id}/locations/reorder", [
-            'ids' => [$a->id, 99999],
+            'ids' => [$b->id, $a->id, 99999],
         ])->assertStatus(422);
 
-        $this->assertDatabaseHas('inventory_storage_locations', ['id' => $a->id, 'position' => 0]);
-        $this->assertDatabaseHas('inventory_storage_locations', ['id' => $b->id, 'position' => 0]);
+        // Untouched: had the write run item-by-item before validating, $b would
+        // now be at 0 and $a at 1.
+        $this->assertDatabaseHas('inventory_storage_locations', ['id' => $a->id, 'position' => 5]);
+        $this->assertDatabaseHas('inventory_storage_locations', ['id' => $b->id, 'position' => 7]);
     }
 }
 ```
@@ -1998,6 +2005,183 @@ deleted.
 Makes location_id writable on a shelf, since move_contents IS a reparent.
 Household scoping is enforced in the controller because a Rule::exists
 cannot see the household."
+```
+
+---
+
+## Task 6b: Route the web UI's deletes through `HierarchyDeleter`
+
+**This task is not optional and must not be reordered after Task 7.** Task 1 silently breaks the web UI, and this is the repair.
+
+`WebLocationController::destroy()` calls `$location->delete()` directly — its own comment says *"Hard delete, ON DELETE CASCADE takes shelves + products with it (locked rule)."* Once `SoftDeletes` is on the model, that call becomes an `UPDATE`, so **the foreign-key cascade never fires**. The location disappears from every surface while its shelves and products stay alive in the database: unreachable (Task 1 made `Household::shelves()` skip them), unstamped with any batch id, and never purged, because their own `deleted_at` is null. Permanent invisible orphans, growing forever. `WebShelfController::destroy()` has the identical bug one level down.
+
+The web UI has no strategy picker and is not getting one. It keeps its current semantics — *delete the thing and everything in it* — but now goes through `HierarchyDeleter` so the result is soft, batched, and restorable.
+
+**Files:**
+- Modify: `src/Http/Controllers/Web/WebLocationController.php`, `src/Http/Controllers/Web/WebShelfController.php`
+- Test: `tests/Feature/WebDeleteCascadeTest.php`
+
+**Interfaces:**
+- Consumes: `HierarchyDeleter::deleteShelf` / `::deleteLocation` (Tasks 5–6).
+- Produces: nothing new. The web routes keep their paths, verbs, and redirects.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `tests/Feature/WebDeleteCascadeTest.php`:
+
+```php
+<?php
+
+namespace Spdotdev\Inventory\Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spdotdev\Inventory\Enums\StorageType;
+use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Tests\TestCase;
+
+class WebDeleteCascadeTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_deleting_a_location_on_the_web_takes_its_contents_with_it(): void
+    {
+        // Regression guard for the trap soft deletes introduced: $location->delete()
+        // is now an UPDATE, so the ON DELETE CASCADE never fires. Without routing
+        // through HierarchyDeleter, the shelf and product below would survive —
+        // alive in the table, unreachable through any relation, and never purged,
+        // because their own deleted_at stays null.
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $this->actingAs($user, 'inventory');
+
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}")
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_deleting_a_shelf_on_the_web_takes_its_products_with_it(): void
+    {
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $this->actingAs($user, 'inventory');
+
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}/shelves/{$shelf->id}")
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_a_web_delete_is_restorable_as_one_batch(): void
+    {
+        // The web UI mints its batch id server-side (it has no client to do it),
+        // but the result must still be one restorable unit.
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $this->actingAs($user, 'inventory');
+
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}")
+            ->assertRedirect();
+
+        $batch = \Spdotdev\Inventory\Models\StorageLocation::withTrashed()
+            ->findOrFail($location->id)
+            ->deletion_batch_id;
+
+        $this->assertNotNull($batch);
+
+        // Every row killed by that one gesture carries the same id.
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $shelf->id, 'deletion_batch_id' => $batch]);
+    }
+}
+```
+
+- [ ] **Step 2: Run the test to verify it fails**
+
+Run: `./vendor/bin/phpunit tests/Feature/WebDeleteCascadeTest.php`
+Expected: FAIL — `assertSoftDeleted('inventory_shelves', ...)` fails because the shelf was never touched. That failure **is** the orphan bug.
+
+- [ ] **Step 3: Fix `WebLocationController::destroy`**
+
+```php
+use Illuminate\Support\Str;
+use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
+use Spdotdev\Inventory\Support\HierarchyDeleter;
+
+    public function destroy(Request $request, Household $household, StorageLocation $location): RedirectResponse
+    {
+        $this->authorizeMember($request, $household);
+
+        // MUST go through HierarchyDeleter. A bare $location->delete() is now a
+        // soft delete, which does NOT fire the ON DELETE CASCADE — the shelves and
+        // products would survive as unreachable, un-purgeable orphans.
+        //
+        // The web UI has no strategy picker, so it keeps its historical semantics:
+        // deleting a location deletes what is in it. The difference is that it is
+        // now soft and batched, so it can be restored.
+        HierarchyDeleter::deleteLocation(
+            $household,
+            $location,
+            (string) Str::uuid(),
+            LocationDeleteStrategy::DeleteContents,
+            null,
+        );
+
+        return redirect()
+            ->route('inventory.web.locations.index', $household)
+            ->with('status', __('Location deleted.'));
+    }
+```
+
+Keep the existing redirect target and `with('status', ...)` exactly as they are — read them off the current file rather than trusting the snippet above, which shows the shape, not the route name.
+
+- [ ] **Step 4: Fix `WebShelfController::destroy` the same way**
+
+Use `HierarchyDeleter::deleteShelf(...)` with `ShelfDeleteStrategy::DeleteProducts` and a `(string) Str::uuid()` batch id. Preserve its existing redirect and status message.
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+Run: `./vendor/bin/phpunit tests/Feature/WebDeleteCascadeTest.php`
+Expected: PASS, 3 tests.
+
+- [ ] **Step 6: Run the full gate**
+
+Run: `make test && make stan && make style`
+Expected: all PASS. `WebUiTest` may assert on hard deletion — switch any `assertDatabaseMissing` on the hierarchy to `assertSoftDeleted`.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/Http/Controllers/Web tests/Feature/WebDeleteCascadeTest.php tests/Feature/WebUiTest.php
+git commit -m "fix: route the web UI's deletes through HierarchyDeleter
+
+Soft deletes silently broke the web UI. Its destroy() actions called
+\$model->delete() directly and relied on ON DELETE CASCADE to take the subtree
+with them — but a soft delete is an UPDATE, so the cascade never fires. The
+location vanished from every surface while its shelves and products stayed
+alive: unreachable, unstamped, and never purged, because their own deleted_at
+was null. Permanent invisible orphans.
+
+The web UI keeps its semantics (deleting a location deletes what is in it);
+the deletion is now soft, batched and restorable."
 ```
 
 ---
