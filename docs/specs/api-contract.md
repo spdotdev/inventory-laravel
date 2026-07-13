@@ -159,11 +159,13 @@ PATCH  /locations/{location}/shelves/reorder        { ids: [int] }
 
 `reorder` rewrites every sibling's `position` from the client's ordered id list, in one
 all-or-nothing transaction. `ids` must be **complete**: exactly the set of live ids of
-that parent (every household location, resp. every shelf of that location) — not a
-subset, not a superset, no foreign or soft-deleted ids. Any gap is a **422** with no
-row touched; a half-applied reorder is worse than a rejected one. Broadcasts
-`household.changed` on success (a query-builder `update()` fires no Eloquent events, so
-this is an explicit dispatch, not the observer).
+that parent — every household location, resp. every **non-system** shelf of that
+location (the **Unsorted** shelf, `is_system: true`, is excluded: it's never draggable
+and always sorts last, so the client never sends its id and it doesn't count toward
+completeness) — not a subset, not a superset, no foreign or soft-deleted ids. Any gap
+is a **422** with no row touched; a half-applied reorder is worse than a rejected one.
+Broadcasts `household.changed` on success (a query-builder `update()` fires no Eloquent
+events, so this is an explicit dispatch, not the observer).
 
 `add`/`remove` apply an **atomic** quantity delta (1 ≤ `amount` ≤ 1,000,000); `remove`
 floors at 0. `amount`/`quantity` are capped at 1,000,000 — an over-cap value is a **422**,
@@ -268,8 +270,17 @@ restored" or "nothing to restore," which the server never reveals.
 ```
 { id, name,
   position,                    # server-assigned order (max+1 on create); index is
-                               # orderBy('position'), so the client's tab/pager order is stable
-  location_id }                # parent location; client field is required
+                               # orderBy('is_system').orderBy('position'), so the
+                               # client's tab/pager order is stable and Unsorted
+                               # always sorts last regardless of its position value
+  location_id,                 # parent location; client field is required
+  is_system,                   # true only for the lazily-created "Unsorted" shelf (see
+                               # *Deleting a location or shelf*): unrenameable, unmovable,
+                               # excluded from reorder — the client localises its label
+                               # off this flag, not off `name`
+  product_count }              # live product count; index() eager-loads it (withCount)
+                               # to avoid an N+1 across many shelves — the delete-strategy
+                               # dialog needs it to show "N products" before the user picks
 ```
 
 ### Product shape
@@ -282,13 +293,16 @@ Response (`ProductResource`):
   description | null,          # free-form notes
   code | null,                 # free-form product code / barcode
   is_mandatory,                # bool; a mandatory item at quantity 0 = "missing"
+  is_starred,                  # bool, default false; user-toggled favorite/pin — no
+                               # server-side sort/filter semantics, storage + passthrough
+                               # only (added 2026-07-13)
   image_url | null }           # absolute URL of the product photo; null until one is uploaded
 ```
 
 Create body (`POST …/products`): `name` (required, ≤50) + optional `quantity` (≥0),
-`description`, `code` (≤100), `is_mandatory`. Update body (`PUT/PATCH …/products/{id}`):
-the same fields, all optional. `image_url` is **not** settable via create/update — it is
-managed solely by the image-upload endpoint below.
+`description`, `code` (≤100), `is_mandatory`, `is_starred`. Update body (`PUT/PATCH
+…/products/{id}`): the same fields, all optional. `image_url` is **not** settable via
+create/update — it is managed solely by the image-upload endpoint below.
 
 **Product image upload.** `POST …/products/{product}/image` — `multipart/form-data` with a
 single `image` part (JPEG / PNG / WebP, ≤ `INVENTORY_IMAGE_MAX_KB`, default 5 MB). The file

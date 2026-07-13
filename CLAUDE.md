@@ -62,10 +62,12 @@ public/                               landing assets (publishable)
   + `deletion_batch_id`). Reversed 2026-07-13: hard cascade deletes silently
   destroyed a location's whole subtree with no confirmation and no undo. The
   `ON DELETE CASCADE` FKs remain — a soft delete is an `UPDATE` and never fires
-  them, and they stay correct for the retention purge. Deleting a non-empty
-  container REQUIRES an explicit strategy; the server never guesses. Households
-  themselves are still hard-deleted when the last member leaves.
-- **No roles/permissions** — all household members equal.
+  them, and they stay correct for the retention purge (`inventory:deleted:prune`).
+  Deleting a non-empty container REQUIRES an explicit strategy; the server never
+  guesses. Households themselves are still hard-deleted when the last member leaves.
+- **Roles/permissions: coming.** `HouseholdPolicy@restructure` is the seam — today
+  it grants any member (all members still equal in practice). Owner/Admin/Member
+  land in the roles spec; change that method body, not the call sites.
 - Secrets via `.env` only. Validate input at every boundary.
 
 ## Scope guardrails — deliberately cut; refuse to add

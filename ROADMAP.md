@@ -22,6 +22,7 @@ Markers: 🟡 TBD · 🔲 TODO · 🛠 in progress · ✅ done (shipped work mov
 | 2 — MVP API | ✅ shipped 2026-06-23 | Households (create/list/invite/join/leave) + search; locations/shelves/products CRUD + add/remove/move. |
 | 3 — CLI + polish | ✅ shipped 2026-06-24 | Artisan commands (household create, …); quality gates green (Pint/Larastan/PHPUnit). |
 | 4 — Phase 2 | ✅ shipped 2026-07-10 | **Unlocked 2026-07-10** (user decision): web account/household UI ✅, `low_stock_threshold` ✅, Reverb live updates ✅, **production deploy (v0.1.5)** ✅. Household JSON export (API + web) + web live updates ✅ shipped **and deployed (v0.1.10)** 2026-07-11; further attributes stay 🟡 TBD. |
+| 5 — Storage architecture editing (backend) | ✅ backend shipped 2026-07-13 | Soft delete + client-minted `deletion_batch_id` + batch restore (undo), required delete *strategies* for a non-empty location/shelf (move/delete/unsort), manual drag `position` + bulk reorder for locations/shelves, the lazily-created per-location **Unsorted** system shelf, a `HouseholdPolicy@restructure` seam ahead of roles, per-product `is_starred`, and `inventory:deleted:prune` retention. Spec: `docs/superpowers/specs/2026-07-13-storage-architecture-editing-design.md`; plan: `docs/superpowers/plans/2026-07-13-storage-architecture-editing-backend.md`. **Not yet deployed to prod**; the Android UI (nav rework, edit mode, delete-strategy dialog, tabs⇄list toggle) is a separate, not-yet-scheduled phase. |
 
 Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 [`docs/backend-plan.md`](docs/backend-plan.md).
@@ -88,6 +89,50 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   `Accept-Language` negotiation (landing only). **Deployed 2026-07-11** as
   v0.1.8 (sd-admin lock bump 7328887, user-approved); verified live — EN + NL
   negotiation, `Vary: Accept-Language`, /up + /login 200.
+
+### PHASE 5 — storage architecture editing, backend (2026-07-13, spec-driven)
+- [x] **Soft delete + batch restore (undo)** — shipped 2026-07-13 (`93d8b75`, review-fix
+  `04a9bb6`). Locations/shelves/products gain `deleted_at` + `deletion_batch_id`;
+  `ON DELETE CASCADE` FKs are kept but a soft delete is an `UPDATE` and never fires
+  them. `deletion_batch_id` is **client-minted** so the client (which alone knows
+  whether several deletes are one gesture) can undo it as a unit via
+  `POST .../restore/{batch}` (`989a601`, broadcast-coverage `43461a1`, review-fix
+  `49b98da` — refuses with **409** when a restored row's parent is still dead under a
+  different batch, never a misleading 200 or a leaky 404).
+- [x] **`HouseholdPolicy@restructure` seam** — shipped 2026-07-13 (`0cdf472`). Every
+  structural mutation (create/update/delete/reorder on locations & shelves) now
+  authorizes through this one policy method. Today it grants any member — "all
+  members are equal" still holds in practice — but it exists so Owner/Admin/Member
+  roles, when decided, are a change to this one method body, not every call site.
+- [x] **Manual reorder** — shipped 2026-07-13 (`740e727`, review-fix `cbdd79b`).
+  `position` on locations (shelves already had it); `PATCH .../locations/reorder` and
+  `PATCH .../locations/{l}/shelves/reorder` take a **complete** ordered id list and
+  rewrite `position` in one all-or-nothing transaction — a partial list is a 422, not
+  a silent partial reorder.
+- [x] **Delete strategies + the Unsorted system shelf** — shipped 2026-07-13
+  (Unsorted shelf `d2abb3d`, review-fix `e86c509`; shelf-delete strategy `a693cd9`,
+  review-fix `fcd4b15`; location-delete strategy `26995cc`, review-fix `60e8596`; web
+  UI parity `e59f446`, `cde6b66`). Deleting a location/shelf that still holds
+  something now REQUIRES an explicit strategy (`move_contents`/`delete_contents` for
+  locations; `move_products`/`unsort_products`/`delete_products` for shelves) — the
+  server never guesses. `unsort_products` lands on a lazily-created, per-location
+  **Unsorted** shelf (`is_system: true`): unrenameable, unmovable, excluded from
+  reorder, always sorted last.
+- [x] **`inventory:deleted:prune`** — shipped 2026-07-13 (`ae26982`, review-fix
+  `2f9ff83`). Hard-deletes soft-deleted rows (and reclaims their orphaned product
+  images) past `INVENTORY_DELETED_RETENTION_DAYS` (default 30; `0` disables) —
+  schedule it in the host app, same pattern as `inventory:client-errors:prune`.
+- [x] **Product `is_starred`** — shipped 2026-07-13 (`d847929`). A plain user-toggled
+  favorite/pin flag; no server-side sort/filter semantics, storage + passthrough only.
+- [x] **Docs reconciled to the above** — this task (2026-07-13). `CLAUDE.md`'s
+  "no soft deletes" / "no roles" LOCKED rules rewritten to match; `docs/specs/`
+  gained the new columns/endpoints; config + command docs picked up
+  `deleted_retention_days` / `inventory:deleted:prune`.
+
+**Deliberately out of scope here** (by the design doc, `docs/superpowers/specs/2026-07-13-storage-architecture-editing-design.md`):
+all Android-side work — nav rework, edit mode, tabs⇄list toggle, collapsible groups,
+the household edit page, the delete-strategy dialog as rendered — tracked separately
+in the Android plan. Production deploy of this backend work is also still pending.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [x] **Google sign-in on the web UI** — shipped 2026-07-11 (14d28eb, tagged v0.1.9;
