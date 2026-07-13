@@ -216,6 +216,44 @@ so this is enforced in the controller). Rejected with 422 on a **system** shelf
 `move_contents` never reparents it — moving it as-is into a location that already has its
 own would leave two live Unsorted shelves there.
 
+### Restoring a deletion batch
+
+```
+POST /households/{household}/restore/{batch}        -> 200 { message, restored: int }
+```
+
+The deletes above stamp every row they touch with `deletion_batch_id` — the whole gesture
+is undoable as one unit through this single endpoint. Every location/shelf/product row
+stamped with `deletion_batch_id = {batch}` is restored (`deleted_at` and
+`deletion_batch_id` both cleared) in a single all-or-nothing transaction. `restored` is
+the total row count restored across all three tables. `batch` is keyed at the
+**household** level, not by resource id — a soft-deleted resource is filtered out of
+scoped route-model binding, so a restore route keyed by e.g. `{shelf}` could never be
+reached once the row is trashed.
+
+`batch` is client-minted (the client is the only party that knows whether several deletes
+in a row are one user gesture) and therefore **guessable**. Restoring is scoped to rows
+reachable from the caller's own household: locations by `household_id`; shelves/products
+by walking down from that household's own location/shelf ids, since neither table carries
+a `household_id` column. A guessed batch id belonging to another household's rows never
+restores anything.
+
+**409, never 404.** All of the following produce the same `409 { message }`, with nothing
+written:
+
+- an unknown batch id;
+- a batch belonging to a different household;
+- a batch already restored (the first restore clears `deletion_batch_id`, so a replay finds
+  nothing to match);
+- a batch where any row's **parent is still soft-deleted under a different, later batch** —
+  e.g. a shelf deleted alone (batch A), then its location deleted with `delete_contents`
+  (batch B, which skips the already-trashed shelf and only stamps the location): restoring
+  A alone would resurrect the shelf under a location that is still dead. The server never
+  guesses here; the parent must be restored first (restore its own batch), then the child.
+
+This is deliberate: 404 would let a caller distinguish "wrong household" from "already
+restored" or "nothing to restore," which the server never reveals.
+
 **Location resource** (`LocationResource`):
 
 ```

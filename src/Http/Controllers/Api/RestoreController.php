@@ -65,13 +65,57 @@ class RestoreController
             ], 409);
         }
 
-        DB::transaction(function () use ($locationIds, $shelfIds, $productIds) {
+        // C-1: "parents before children" below only orders the WRITES within
+        // this one batch — it says nothing about a parent killed by a
+        // DIFFERENT, later batch that is still dead. E.g. delete a shelf
+        // (batch A), then delete its location with delete_contents (batch
+        // B) — HierarchyDeleter's $location->shelves() is scoped by the
+        // SoftDeletes global scope, so the already-trashed shelf is skipped
+        // and keeps batch A while only the location is stamped B. Restoring
+        // A alone would resurrect the shelf (and its products) under a
+        // location that is still very much dead: a "200 Restored" that
+        // restores nothing visible, and a live row the retention purge would
+        // later CASCADE-kill permanently once it force-deletes the still-
+        // trashed location. The server never guesses here — if any row in
+        // this batch has a parent that is dead and NOT itself part of this
+        // same batch (i.e. not something this call is about to restore too),
+        // the whole restore is refused. Checked BEFORE any write, inside the
+        // transaction, so a blocked restore leaves nothing partially done.
+        $blocked = DB::transaction(function () use ($locationIds, $shelfIds, $productIds): bool {
+            $shelfParentLocationIds = Shelf::withTrashed()->whereKey($shelfIds)->pluck('location_id');
+
+            $shelfParentStillDead = StorageLocation::withTrashed()
+                ->whereIn('id', $shelfParentLocationIds)
+                ->whereNotIn('id', $locationIds)
+                ->whereNotNull('deleted_at')
+                ->exists();
+
+            $productParentShelfIds = Product::withTrashed()->whereKey($productIds)->pluck('shelf_id');
+
+            $productParentStillDead = Shelf::withTrashed()
+                ->whereIn('id', $productParentShelfIds)
+                ->whereNotIn('id', $shelfIds)
+                ->whereNotNull('deleted_at')
+                ->exists();
+
+            if ($shelfParentStillDead || $productParentStillDead) {
+                return true;
+            }
+
             // Parents first, so a restored shelf never lands under a still-deleted
-            // location.
+            // location within THIS batch's own writes.
             StorageLocation::withTrashed()->whereKey($locationIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
             Shelf::withTrashed()->whereKey($shelfIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
             Product::withTrashed()->whereKey($productIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
+
+            return false;
         });
+
+        if ($blocked) {
+            return response()->json([
+                'message' => 'Cannot restore: a parent of one of these rows is still deleted under a different batch. Restore the parent first.',
+            ], 409);
+        }
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
