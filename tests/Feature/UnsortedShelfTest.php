@@ -6,7 +6,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Models\Household;
-use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
 
@@ -16,7 +15,11 @@ class UnsortedShelfTest extends TestCase
 
     private string $base = 'http://inventory.test/api/v1';
 
-    /** @return array{Household, StorageLocation} */
+    // Returns [Household, the StorageLocation created within it]. No
+    // StorageLocation import here: `tests/` isn't in phpstan.neon's analysed
+    // paths, so an @return array-shape docblock buys no static-analysis value
+    // in this file — only Pint's fully_qualified_strict_types fixer would
+    // insist on the import back in if the type were named in a PHPDoc tag.
     private function memberLocation(): array
     {
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
@@ -45,10 +48,17 @@ class UnsortedShelfTest extends TestCase
     {
         [$h, $location] = $this->memberLocation();
         $unsorted = $location->unsortedShelf();
-        $top = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        // Position 5 — NOT 0 — is deliberate: the Unsorted shelf is also at
+        // position 0 (irrelevant per its own doc comment), so if this real
+        // shelf shared that position the assertion below would only pass
+        // because of the DB's rowid tie-break, not because of is_system
+        // ordering. A distinct, higher position makes the assertion fail
+        // unless orderBy('is_system') is actually doing the work.
+        $top = $location->shelves()->create(['name' => 'Top', 'position' => 5]);
 
-        // is_system sorts after position, so Unsorted stays at the bottom no
-        // matter what positions the real shelves hold.
+        // is_system is the PRIMARY sort key (false < true), so Unsorted lands
+        // after every real shelf no matter what position those shelves hold —
+        // position is only the tie-break within each is_system group.
         $this->getJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves")
             ->assertOk()
             ->assertJsonPath('data.0.id', $top->id)

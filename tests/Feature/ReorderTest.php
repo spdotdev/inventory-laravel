@@ -192,6 +192,46 @@ class ReorderTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('ids');
     }
 
+    public function test_shelf_reorder_succeeds_when_an_unsorted_shelf_exists_and_is_omitted(): void
+    {
+        // The Unsorted shelf is never draggable — the Android client only ever
+        // sends the real, non-system shelves. The completeness check must not
+        // demand the system shelf's id, or every reorder from a location that
+        // has ever had an Unsorted shelf created would 422.
+        $h = $this->memberHousehold();
+        $loc = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $top = $loc->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $bot = $loc->shelves()->create(['name' => 'Bottom', 'position' => 1]);
+        $unsorted = $loc->unsortedShelf();
+
+        $this->patchJson("{$this->base}/households/{$h->id}/locations/{$loc->id}/shelves/reorder", [
+            'ids' => [$bot->id, $top->id],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $bot->id, 'position' => 0]);
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $top->id, 'position' => 1]);
+        // Untouched — its position is meaningless, and it was never in the payload.
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $unsorted->id, 'position' => 0]);
+    }
+
+    public function test_shelf_reorder_rejects_a_payload_containing_the_unsorted_shelf(): void
+    {
+        // The client should never send the Unsorted shelf's id. If it does
+        // (bug, stale cache, tampered request), the server must reject it
+        // rather than silently accept a position for a shelf that isn't
+        // draggable and always sorts last regardless of what's written here.
+        $h = $this->memberHousehold();
+        $loc = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $top = $loc->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $unsorted = $loc->unsortedShelf();
+
+        $this->patchJson("{$this->base}/households/{$h->id}/locations/{$loc->id}/shelves/reorder", [
+            'ids' => [$unsorted->id, $top->id],
+        ])->assertStatus(422)->assertJsonValidationErrors('ids');
+
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $top->id, 'position' => 0]);
+    }
+
     public function test_shelf_reorder_broadcasts_to_the_household(): void
     {
         // Same contract as locations: the query-builder write fires no Eloquent

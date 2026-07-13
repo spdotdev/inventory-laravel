@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Spdotdev\Inventory\Enums\StorageType;
 
 /**
@@ -95,19 +96,39 @@ class StorageLocation extends Model
      * sees an Unsorted shelf at all. Creating one up-front for every location
      * would put an empty system shelf in front of every user to serve a case
      * most of them never hit.
+     *
+     * The find-then-create below is a check-then-insert, so it is wrapped in a
+     * transaction that locks THIS location's row first. Two concurrent
+     * "delete shelf, keep products" requests against the same location would
+     * otherwise both SELECT-miss the where('is_system', true) check and both
+     * INSERT, producing two live Unsorted shelves with products split across
+     * them. lockForUpdate() serializes that: the second transaction blocks
+     * here until the first commits its Unsorted shelf, then its own re-check
+     * finds that row instead of duplicating it.
+     *
+     * A unique index on (location_id, is_system) does NOT substitute for
+     * this: it collides with the rule that an empty Unsorted shelf may be
+     * soft-deleted and later recreated, and adding deleted_at to the index
+     * doesn't help on MySQL either — NULL deleted_at values compare as
+     * distinct, so two live rows (both deleted_at = NULL) would still both
+     * satisfy a unique constraint that includes it.
      */
     public function unsortedShelf(): Shelf
     {
-        $existing = $this->shelves()->where('is_system', true)->first();
+        return DB::transaction(function () {
+            self::query()->whereKey($this->getKey())->lockForUpdate()->first();
 
-        if ($existing !== null) {
-            return $existing;
-        }
+            $existing = $this->shelves()->where('is_system', true)->first();
 
-        return $this->shelves()->create([
-            'name' => 'Unsorted',
-            'is_system' => true,
-            'position' => 0, // irrelevant: is_system sorts it last regardless
-        ]);
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            return $this->shelves()->create([
+                'name' => 'Unsorted',
+                'is_system' => true,
+                'position' => 0, // irrelevant: is_system sorts it last regardless
+            ]);
+        });
     }
 }

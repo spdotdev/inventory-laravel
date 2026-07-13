@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Models\Household;
@@ -74,6 +75,48 @@ class ResourceCrudTest extends TestCase
 
         $this->assertLessThan($second, $first);
         $this->assertLessThan($third, $second);
+    }
+
+    public function test_shelf_index_does_not_n_plus_one_on_product_counts(): void
+    {
+        // ShelfController::index() uses withCount('products') so the per-shelf
+        // product tally is folded into the single shelves query via a
+        // subselect. If that call is ever dropped, ShelfResource's
+        // ->products_count ?? ->products()->count() fallback still returns the
+        // right numbers — the suite stays green while index() silently
+        // degrades to 1+N queries. Assert query count stays FLAT as shelf
+        // count grows, which only holds when withCount is doing its job; an
+        // N+1 implementation makes the second measurement scale with N.
+        $h = $this->memberHousehold();
+
+        // Build BOTH fixtures before measuring anything — the inserts below
+        // must never land inside an enabled query log window, or they inflate
+        // the "five shelves" count with unrelated writes and the comparison
+        // is meaningless.
+        $lonely = $h->locations()->create(['name' => 'One shelf', 'type' => StorageType::Freezer]);
+        $lonely->shelves()->create(['name' => 'Solo', 'position' => 0])
+            ->products()->create(['name' => 'Peas', 'quantity' => 1]);
+
+        $crowded = $h->locations()->create(['name' => 'Five shelves', 'type' => StorageType::Freezer]);
+        foreach (range(1, 5) as $i) {
+            $crowded->shelves()->create(['name' => "Shelf {$i}", 'position' => $i])
+                ->products()->create(['name' => "Product {$i}", 'quantity' => 1]);
+        }
+
+        DB::enableQueryLog();
+        $this->getJson("{$this->base}/households/{$h->id}/locations/{$lonely->id}/shelves")->assertOk();
+        $queriesForOneShelf = count(DB::getQueryLog());
+        DB::flushQueryLog();
+
+        $this->getJson("{$this->base}/households/{$h->id}/locations/{$crowded->id}/shelves")->assertOk();
+        $queriesForFiveShelves = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        $this->assertSame(
+            $queriesForOneShelf,
+            $queriesForFiveShelves,
+            'Query count must not scale with shelf count — an N+1 fetching each shelf\'s product count separately would grow it.',
+        );
     }
 
     public function test_add_and_remove_floor_quantity_at_zero(): void

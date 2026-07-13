@@ -16,6 +16,12 @@ use Illuminate\Support\Carbon;
  * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property-read int|null $products_count Only set when the query eager-loads
+ *   it via withCount('products') (see ShelfController::index()); null
+ *   otherwise. ShelfResource reads this with a ?? fallback to
+ *   products()->count() — the docblock exists so PHPStan can catch a typo'd
+ *   property name (e.g. product_count) that would otherwise silently fall
+ *   through to that fallback with no static-analysis error.
  */
 class Shelf extends Model
 {

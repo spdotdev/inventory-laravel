@@ -32,6 +32,8 @@ class LocationController
 
     public function store(LocationRequest $request, Household $household): JsonResponse
     {
+        Gate::authorize('restructure', $household);
+
         $location = $household->locations()->create($request->validated());
 
         return (new LocationResource($location))->response()->setStatusCode(201);
@@ -44,6 +46,8 @@ class LocationController
 
     public function update(LocationRequest $request, Household $household, StorageLocation $location): LocationResource
     {
+        Gate::authorize('restructure', $household);
+
         $location->update($request->validated());
 
         return new LocationResource($location);
@@ -51,6 +55,8 @@ class LocationController
 
     public function destroy(Household $household, StorageLocation $location): JsonResponse
     {
+        Gate::authorize('restructure', $household);
+
         $location->delete();
 
         return response()->json(['message' => 'Location deleted.']);
