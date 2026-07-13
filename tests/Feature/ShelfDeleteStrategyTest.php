@@ -70,6 +70,48 @@ class ShelfDeleteStrategyTest extends TestCase
         $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $this->batch]);
     }
 
+    public function test_an_explicit_null_strategy_on_an_empty_shelf_succeeds(): void
+    {
+        // Regression guard for the Critical-1 wire-format bug: Android's
+        // kotlinx-serialization config (explicitNulls=true, encodeDefaults=false)
+        // means a DTO property with no default is ALWAYS encoded, even when
+        // it holds null — so a strategy-less delete from the client puts
+        // {"strategy":null,"target_shelf_id":null,...} on the wire, not an
+        // omitted key. 'nullable' on both fields must treat that identically
+        // to omission when the shelf has no products to decide the fate of.
+        [$h, $l, $s] = $this->shelfWithProduct();
+        Product::query()->delete();
+
+        $this->deleteJson($this->url($h, $l, $s), [
+            'strategy' => null,
+            'target_shelf_id' => null,
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $this->batch]);
+    }
+
+    public function test_an_explicit_null_strategy_on_an_occupied_shelf_is_still_rejected(): void
+    {
+        // The other half of the same guard: 'nullable' must NOT let a null
+        // strategy slip past Rule::requiredIf when the shelf actually holds
+        // products — RequiredIf compiles to a plain 'required' rule, which
+        // Laravel always evaluates regardless of 'nullable'. The server must
+        // still refuse to guess.
+        [$h, $l, $s, $p] = $this->shelfWithProduct();
+
+        $this->deleteJson($this->url($h, $l, $s), [
+            'strategy' => null,
+            'target_shelf_id' => null,
+            'deletion_batch_id' => $this->batch,
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $p->id, 'shelf_id' => $s->id]);
+    }
+
     public function test_move_products_reassigns_them_to_the_target_shelf(): void
     {
         [$h, $l, $s, $p] = $this->shelfWithProduct();

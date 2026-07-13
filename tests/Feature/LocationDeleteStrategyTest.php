@@ -241,6 +241,50 @@ class LocationDeleteStrategyTest extends TestCase
         $this->assertNotSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);
     }
 
+    public function test_an_explicit_null_strategy_on_an_empty_location_succeeds(): void
+    {
+        // Regression guard for the Critical-1 wire-format bug: Android's
+        // kotlinx-serialization config (explicitNulls=true, encodeDefaults=false)
+        // means a DTO property with no default is ALWAYS encoded, even when
+        // it holds null — so a strategy-less delete from the client puts
+        // {"strategy":null,"target_location_id":null,...} on the wire, not an
+        // omitted key. 'nullable' on both fields must treat that identically
+        // to omission when the location has no contents to decide the fate of.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Empty', 'type' => StorageType::Other]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [
+            'strategy' => null,
+            'target_location_id' => null,
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_an_explicit_null_strategy_on_a_stocked_location_is_still_rejected(): void
+    {
+        // The other half of the same guard: 'nullable' must NOT let a null
+        // strategy slip past Rule::requiredIf when the location actually
+        // holds contents — RequiredIf compiles to a plain 'required' rule,
+        // which Laravel always evaluates regardless of 'nullable'. The server
+        // must still refuse to guess.
+        $h = $this->memberHousehold();
+        $location = $this->stockedLocation($h);
+        $shelf = $location->shelves()->firstOrFail();
+        $product = $shelf->products()->firstOrFail();
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [
+            'strategy' => null,
+            'target_location_id' => null,
+            'deletion_batch_id' => $this->batch,
+        ])->assertStatus(422)->assertJsonValidationErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $shelf->id, 'location_id' => $location->id]);
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id, 'shelf_id' => $shelf->id]);
+    }
+
     public function test_a_location_holding_a_stocked_unsorted_shelf_needs_a_strategy(): void
     {
         // The carve-out above is for an EMPTY Unsorted shelf only — one that

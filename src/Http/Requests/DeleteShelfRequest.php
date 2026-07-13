@@ -25,8 +25,17 @@ class DeleteShelfRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'strategy' => [Rule::requiredIf(fn () => $this->shelfHasProducts()), Rule::enum(ShelfDeleteStrategy::class)],
+            // 'nullable' lets the Android client OMIT-or-null these two fields
+            // uniformly without a 422 on the (integer|enum) type rule below —
+            // see DeleteLocationRequest for the full reasoning, one level up.
+            // Rule::requiredIf is unaffected by 'nullable': it compiles to a
+            // plain 'required' rule when its condition is true, which
+            // Laravel always evaluates regardless of 'nullable' — so an
+            // explicit null strategy on a shelf that DOES have products still
+            // 422s. The server never guesses.
+            'strategy' => ['nullable', Rule::requiredIf(fn () => $this->shelfHasProducts()), Rule::enum(ShelfDeleteStrategy::class)],
             'target_shelf_id' => [
+                'nullable',
                 Rule::requiredIf(fn () => $this->input('strategy') === ShelfDeleteStrategy::MoveProducts->value),
                 'integer',
             ],

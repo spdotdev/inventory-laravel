@@ -27,8 +27,18 @@ class DeleteLocationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'strategy' => [Rule::requiredIf(fn () => $this->locationHasContents()), Rule::enum(LocationDeleteStrategy::class)],
+            // 'nullable' lets the Android client OMIT-or-null these two fields
+            // uniformly without a 422 on the (integer|enum) type rule below —
+            // Kotlinx serialization with explicitNulls=true always encodes a
+            // no-default property, even when it holds null. Rule::requiredIf
+            // is unaffected: it compiles to a plain 'required' rule when its
+            // condition is true, which Laravel's validator always evaluates
+            // regardless of 'nullable' (see Validator::isNotNullIfMarkedAsNullable) —
+            // so an explicit null strategy on a container that DOES have
+            // contents still 422s. The server never guesses.
+            'strategy' => ['nullable', Rule::requiredIf(fn () => $this->locationHasContents()), Rule::enum(LocationDeleteStrategy::class)],
             'target_location_id' => [
+                'nullable',
                 Rule::requiredIf(fn () => $this->input('strategy') === LocationDeleteStrategy::MoveContents->value),
                 'integer',
             ],
