@@ -16,6 +16,7 @@ use Spdotdev\Inventory\Enums\StorageType;
  * @property string $name
  * @property StorageType $type
  * @property int $position
+ * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
  */
@@ -31,12 +32,14 @@ class StorageLocation extends Model
         'name',
         'type',
         'position',
+        'is_system',
         'deletion_batch_id',
     ];
 
     /** @var array<string, mixed> */
     protected $attributes = [
         'position' => 0,
+        'is_system' => false,
     ];
 
     /**
@@ -47,6 +50,7 @@ class StorageLocation extends Model
         return [
             'type' => StorageType::class,
             'position' => 'integer',
+            'is_system' => 'boolean',
         ];
     }
 
@@ -82,5 +86,28 @@ class StorageLocation extends Model
             'id',
             'id',
         );
+    }
+
+    /**
+     * This location's Unsorted shelf, created on first use.
+     *
+     * Lazy on purpose: a household that never deletes a non-empty shelf never
+     * sees an Unsorted shelf at all. Creating one up-front for every location
+     * would put an empty system shelf in front of every user to serve a case
+     * most of them never hit.
+     */
+    public function unsortedShelf(): Shelf
+    {
+        $existing = $this->shelves()->where('is_system', true)->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return $this->shelves()->create([
+            'name' => 'Unsorted',
+            'is_system' => true,
+            'position' => 0, // irrelevant: is_system sorts it last regardless
+        ]);
     }
 }

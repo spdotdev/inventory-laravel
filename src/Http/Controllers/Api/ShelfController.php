@@ -23,7 +23,11 @@ class ShelfController
 {
     public function index(Household $household, StorageLocation $location): AnonymousResourceCollection
     {
-        return ShelfResource::collection($location->shelves()->orderBy('position')->get());
+        // is_system first in the sort => Unsorted (is_system = true = 1) always
+        // lands after the real shelves, whatever positions they hold.
+        return ShelfResource::collection(
+            $location->shelves()->withCount('products')->orderBy('is_system')->orderBy('position')->get(),
+        );
     }
 
     public function store(ShelfRequest $request, Household $household, StorageLocation $location): JsonResponse
@@ -50,13 +54,37 @@ class ShelfController
 
     public function update(ShelfRequest $request, Household $household, StorageLocation $location, Shelf $shelf): ShelfResource
     {
-        $shelf->update($request->validated());
+        Gate::authorize('restructure', $household);
+
+        $data = $request->validated();
+
+        // The Unsorted shelf is a fixed concept the client localises off
+        // is_system. Letting a user rename it to "Bananas" would leave the app
+        // showing a translated label that matches nothing in the database.
+        if ($shelf->is_system && array_key_exists('name', $data)) {
+            throw ValidationException::withMessages([
+                'name' => ['The Unsorted shelf cannot be renamed.'],
+            ]);
+        }
+
+        $shelf->update($data);
 
         return new ShelfResource($shelf);
     }
 
     public function destroy(Household $household, StorageLocation $location, Shelf $shelf): JsonResponse
     {
+        Gate::authorize('restructure', $household);
+
+        // Deleting an occupied Unsorted shelf would strand the very products it
+        // exists to protect. Empty, it is disposable — unsortedShelf() rebuilds
+        // it on demand.
+        if ($shelf->is_system && $shelf->products()->exists()) {
+            throw ValidationException::withMessages([
+                'shelf' => ['The Unsorted shelf still holds products. Move them first.'],
+            ]);
+        }
+
         $shelf->delete();
 
         return response()->json(['message' => 'Shelf deleted.']);

@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property int $location_id
  * @property string $name
  * @property int $position
+ * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
  */
@@ -27,12 +28,14 @@ class Shelf extends Model
         'location_id',
         'name',
         'position',
+        'is_system',
         'deletion_batch_id',
     ];
 
     /** @var array<string, mixed> */
     protected $attributes = [
         'position' => 0,
+        'is_system' => false,
     ];
 
     /**
@@ -42,6 +45,7 @@ class Shelf extends Model
     {
         return [
             'position' => 'integer',
+            'is_system' => 'boolean',
         ];
     }
 
