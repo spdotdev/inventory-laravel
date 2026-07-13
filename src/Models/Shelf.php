@@ -16,6 +16,12 @@ use Illuminate\Support\Carbon;
  * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property int|null $restore_parent_id The location_id this shelf lived under
+ *                                       before a location-delete's move_contents strategy reparented it here.
+ *                                       Null unless a move is pending undo — RestoreController writes it back to
+ *                                       location_id and clears it. Not to be confused with deletion_batch_id: a
+ *                                       moved shelf is never soft-deleted, so it carries deletion_batch_id too
+ *                                       (otherwise restore could never find it — see HierarchyDeleter).
  * @property-read int|null $products_count Only set when the query eager-loads
  *   it via withCount('products') (see ShelfController::index()); null
  *   otherwise. ShelfResource reads this with a ?? fallback to
@@ -36,6 +42,7 @@ class Shelf extends Model
         'position',
         'is_system',
         'deletion_batch_id',
+        'restore_parent_id',
     ];
 
     /** @var array<string, mixed> */

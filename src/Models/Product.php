@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\DB;
  * @property int|null $low_stock_threshold
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property int|null $restore_parent_id The shelf_id this product lived under
+ *                                       before a move_products/unsort_products strategy reassigned it. Null
+ *                                       unless a move is pending undo — RestoreController writes it back to
+ *                                       shelf_id and clears it. Not to be confused with deletion_batch_id: a
+ *                                       moved product is never soft-deleted, so it carries deletion_batch_id too
+ *                                       (otherwise restore could never find it — see HierarchyDeleter).
  */
 class Product extends Model
 {
@@ -40,6 +46,7 @@ class Product extends Model
         'quantity',
         'low_stock_threshold',
         'deletion_batch_id',
+        'restore_parent_id',
     ];
 
     /**

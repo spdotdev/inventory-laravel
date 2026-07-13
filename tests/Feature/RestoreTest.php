@@ -345,6 +345,101 @@ class RestoreTest extends TestCase
         );
     }
 
+    public function test_undo_of_unsort_products_returns_the_products_to_the_restored_shelf(): void
+    {
+        // C2: unsort_products MOVES the products onto the location's Unsorted
+        // shelf rather than killing them — only the source shelf itself is
+        // soft-deleted. Before this fix, restore cleared deleted_at/
+        // deletion_batch_id on the shelf ALONE: the shelf came back EMPTY,
+        // its products left behind on Unsorted with no link back, while the
+        // caller got a 200 and believed Undo had worked.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$shelf->id}", [
+            'strategy' => 'unsort_products',
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $unsorted = $location->shelves()->where('is_system', true)->firstOrFail();
+        $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'shelf_id' => $unsorted->id, 'deleted_at' => null]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$this->batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 2); // the shelf (soft-deleted) + the product (moved)
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertDatabaseHas('inventory_products', [
+            'id' => $product->id,
+            'shelf_id' => $shelf->id,
+            'restore_parent_id' => null,
+            'deletion_batch_id' => null,
+        ]);
+    }
+
+    public function test_undo_of_move_products_returns_them_to_the_restored_shelf(): void
+    {
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $target = $location->shelves()->create(['name' => 'Bottom', 'position' => 1]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$shelf->id}", [
+            'strategy' => 'move_products',
+            'target_shelf_id' => $target->id,
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'shelf_id' => $target->id, 'deleted_at' => null]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$this->batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 2); // the shelf (soft-deleted) + the product (moved)
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertDatabaseHas('inventory_products', [
+            'id' => $product->id,
+            'shelf_id' => $shelf->id,
+            'restore_parent_id' => null,
+            'deletion_batch_id' => null,
+        ]);
+    }
+
+    public function test_undo_of_location_move_contents_returns_the_shelves_to_the_restored_location(): void
+    {
+        $h = $this->memberHousehold();
+        $source = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $target = $h->locations()->create(['name' => 'Pantry', 'type' => StorageType::Pantry]);
+        $shelf = $source->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$source->id}", [
+            'strategy' => 'move_contents',
+            'target_location_id' => $target->id,
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $shelf->id, 'location_id' => $target->id, 'deleted_at' => null]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$this->batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 2); // the location (soft-deleted) + the shelf (moved)
+
+        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $source->id]);
+        $this->assertDatabaseHas('inventory_shelves', [
+            'id' => $shelf->id,
+            'location_id' => $source->id,
+            'restore_parent_id' => null,
+            'deletion_batch_id' => null,
+        ]);
+        // The product never changed identity (it hangs off the shelf) — still
+        // on the same shelf, which is back under the restored source location.
+        $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'shelf_id' => $shelf->id, 'deleted_at' => null]);
+    }
+
     public function test_the_delete_undo_delete_purge_sequence_never_permanently_destroys_products(): void
     {
         // C1's full four-step reproduction, verbatim:

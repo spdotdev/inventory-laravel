@@ -15,6 +15,9 @@ use Spdotdev\Inventory\Models\StorageLocation;
 /**
  * Executes a structural delete as one transaction, stamping every row it kills
  * with the caller's batch id so the whole gesture can be restored as a unit.
+ * Rows a strategy MOVES rather than kills are stamped too — same batch id,
+ * plus restore_parent_id recording where they came from — so Undo can put
+ * them back (see RestoreController).
  *
  * Everything INSIDE the transaction is a query-builder write — which fires NO
  * Eloquent events, and therefore never reaches the BroadcastHouseholdChange
@@ -81,15 +84,35 @@ class HierarchyDeleter
             ? (int) Shelf::withoutEvents(fn () => $shelf->location->unsortedShelf())->getKey()
             : null;
 
-        DB::transaction(function () use ($shelf, $batchId, $strategy, $moveToShelfId, $unsortedShelfId) {
+        // The shelf's own id, captured before the transaction reassigns its
+        // products elsewhere: it is every moved product's ORIGINAL parent,
+        // needed below to stamp restore_parent_id (C2) so Undo can put them
+        // back on THIS shelf specifically, not wherever the strategy sent them.
+        $originalShelfId = (int) $shelf->getKey();
+
+        DB::transaction(function () use ($shelf, $batchId, $strategy, $moveToShelfId, $unsortedShelfId, $originalShelfId) {
             $now = now();
 
+            // move_products / unsort_products both REPARENT the products
+            // rather than kill them — they stay live. C2: stamp the batch id
+            // (so a live row can still be located as part of this batch) and
+            // restore_parent_id (so RestoreController knows to put shelf_id
+            // back to $originalShelfId, not merely clear a soft-delete that
+            // never happened).
             if ($moveToShelfId !== null) {
-                $shelf->products()->update(['shelf_id' => $moveToShelfId]);
+                $shelf->products()->update([
+                    'shelf_id' => $moveToShelfId,
+                    'deletion_batch_id' => $batchId,
+                    'restore_parent_id' => $originalShelfId,
+                ]);
             }
 
             if ($unsortedShelfId !== null) {
-                $shelf->products()->update(['shelf_id' => $unsortedShelfId]);
+                $shelf->products()->update([
+                    'shelf_id' => $unsortedShelfId,
+                    'deletion_batch_id' => $batchId,
+                    'restore_parent_id' => $originalShelfId,
+                ]);
             }
 
             if ($strategy === ShelfDeleteStrategy::DeleteProducts) {
@@ -186,18 +209,42 @@ class HierarchyDeleter
             }
         }
 
-        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId, $sourceUnsortedShelfIds, $targetUnsortedShelfId) {
+        // The location's own id, captured before the transaction reparents its
+        // shelves elsewhere: it is every moved shelf's ORIGINAL parent, needed
+        // below to stamp restore_parent_id (C2) so Undo can put them back on
+        // THIS location specifically.
+        $originalLocationId = (int) $location->getKey();
+
+        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId, $originalLocationId, $sourceUnsortedShelfIds, $targetUnsortedShelfId) {
             $now = now();
 
             if ($moveToLocationId !== null) {
                 // Reparent only the location's non-system shelves. Products
                 // hang off the shelf and never change identity, so they ride
-                // along without being touched.
-                $location->shelves()->where('is_system', false)->update(['location_id' => $moveToLocationId]);
+                // along without being touched. C2: stamp the batch id (so a
+                // live row can still be located as part of this batch) and
+                // restore_parent_id (so RestoreController knows to put
+                // location_id back to $originalLocationId on Undo).
+                $location->shelves()->where('is_system', false)->update([
+                    'location_id' => $moveToLocationId,
+                    'deletion_batch_id' => $batchId,
+                    'restore_parent_id' => $originalLocationId,
+                ]);
 
                 if ($sourceUnsortedShelfIds !== []) {
                     if ($targetUnsortedShelfId !== null) {
-                        Product::query()->whereIn('shelf_id', $sourceUnsortedShelfIds)->update(['shelf_id' => $targetUnsortedShelfId]);
+                        // Per source shelf, not a single bulk update: each
+                        // rescued product's restore_parent_id must point back
+                        // at the SPECIFIC source Unsorted shelf it came from
+                        // (C2), not merely at "the" source shelf — there can
+                        // be more than one (see C1 above).
+                        foreach ($sourceUnsortedShelfIds as $sourceUnsortedShelfId) {
+                            Product::query()->where('shelf_id', $sourceUnsortedShelfId)->update([
+                                'shelf_id' => $targetUnsortedShelfId,
+                                'deletion_batch_id' => $batchId,
+                                'restore_parent_id' => $sourceUnsortedShelfId,
+                            ]);
+                        }
                     }
 
                     // Now empty (or already was) — dies with this batch
