@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
@@ -119,6 +120,33 @@ class HouseholdTest extends TestCase
         $this->assertDatabaseMissing('inventory_storage_locations', ['id' => $location->id]);
         $this->assertDatabaseMissing('inventory_shelves', ['id' => $shelf->id]);
         $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+    }
+
+    /**
+     * ON DELETE CASCADE drops the row, but it has no idea image_url points at
+     * a file on disk — left alone, that file leaks forever. This is the
+     * ReclaimHouseholdProductImages observer's job (see its docblock); it must
+     * run BEFORE the cascade, while the tree can still be walked to find it.
+     */
+    public function test_last_member_leaving_reclaims_the_products_stored_images(): void
+    {
+        Storage::fake('public');
+        $user = $this->actingAsUser();
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => 'freezer']);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        Storage::disk('public')->put('inventory/products/peas.jpg', 'fake-image-bytes');
+        $product->update(['image_url' => 'http://inventory.test/storage/inventory/products/peas.jpg']);
+        Storage::disk('public')->assertExists('inventory/products/peas.jpg');
+
+        $this->deleteJson("http://inventory.test/api/v1/households/{$household->id}/leave")
+            ->assertOk();
+
+        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+        Storage::disk('public')->assertMissing('inventory/products/peas.jpg');
     }
 
     public function test_leaving_with_other_members_remaining_keeps_the_household(): void
