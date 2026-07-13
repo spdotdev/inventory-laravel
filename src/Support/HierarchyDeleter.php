@@ -24,8 +24,12 @@ use Spdotdev\Inventory\Models\StorageLocation;
  * observer. That is deliberate (one deterministic ping beats N model events),
  * but it means this class MUST dispatch HouseholdChanged itself. It does,
  * once, after commit — see the resolution of the Unsorted shelf's id below,
- * which is hoisted ABOVE the transaction for exactly this reason: it goes
- * through Eloquent's create(), which DOES fire events.
+ * which is hoisted ABOVE the transaction. unsortedShelf() never broadcasts on
+ * its own (see its docblock) regardless of who calls it or how, so hoisting it
+ * above the transaction is purely about failing BEFORE any row of this delete
+ * is touched, not about event suppression — an orphaned empty Unsorted shelf
+ * left behind by a failed delete is harmless, disposable, reused/recreated on
+ * demand.
  */
 class HierarchyDeleter
 {
@@ -60,28 +64,13 @@ class HierarchyDeleter
         }
 
         // Resolved to a plain id BEFORE the transaction opens, mirroring the
-        // move-target handling above. unsortedShelf() is a find-or-create that
-        // goes through Eloquent's create() on a miss, which fires the
-        // `created` model event -> BroadcastHouseholdChange -> an in-flight
-        // HouseholdChanged::dispatch() while our own transaction is still
-        // open. If the transaction later rolled back, that broadcast would
-        // already be irreversibly sent — every other member's client would be
-        // told the tree changed when it did not. Doing this here means any
-        // failure surfaces before a single row of THIS delete is touched; an
-        // orphaned empty Unsorted shelf left behind by a failed delete is
-        // harmless — it is disposable and gets reused/recreated on demand.
-        //
-        // Shelf::withoutEvents(...) additionally suppresses that `created`
-        // event's own broadcast (scoped to just this call — every OTHER
-        // caller of unsortedShelf(), e.g. a plain reorder, still gets the
-        // normal ping for a shelf appearing). Without this, a first-use
-        // unsort delete would broadcast TWICE for one user gesture: once for
-        // the Unsorted shelf being created, once for the delete itself. This
-        // class already promises its own single, deterministic ping after
-        // commit — that ping is sufficient for every client to know to
-        // refetch, so the incidental creation doesn't need a second one.
+        // move-target handling above. unsortedShelf() never broadcasts on its
+        // own (see its docblock), so this hoist is purely about failing
+        // before a single row of THIS delete is touched; an orphaned empty
+        // Unsorted shelf left behind by a failed delete is harmless — it is
+        // disposable and gets reused/recreated on demand.
         $unsortedShelfId = $strategy === ShelfDeleteStrategy::UnsortProducts
-            ? (int) Shelf::withoutEvents(fn () => $shelf->location->unsortedShelf())->getKey()
+            ? (int) $shelf->location->unsortedShelf()->getKey()
             : null;
 
         // The shelf's own id, captured before the transaction reassigns its
@@ -154,11 +143,9 @@ class HierarchyDeleter
         // The source location's own Unsorted shelves (if it has any — see
         // below for why this is plural) and the id of the target's Unsorted
         // shelf they may need to merge into. Both resolved to plain ids ABOVE
-        // the transaction; the target one through Eloquent (unsortedShelf()
-        // find-or-creates, firing the `created` observer) for the identical
-        // reason documented on deleteShelf()'s own Unsorted-shelf resolution
-        // above: doing it INSIDE the transaction would let a rollback have
-        // already broadcast a lie.
+        // the transaction; the target one through unsortedShelf(), which
+        // never broadcasts on its own (see its docblock) — this hoist is
+        // purely about failing before a single row of THIS delete is touched.
         //
         // C1: gathered as EVERY is_system shelf of the source, not
         // ->first(). In a correctly-maintained tree there is at most one —
@@ -204,7 +191,7 @@ class HierarchyDeleter
                 $hasProducts = Product::query()->whereIn('shelf_id', $sourceUnsortedShelfIds)->exists();
 
                 if ($hasProducts) {
-                    $targetUnsortedShelfId = (int) Shelf::withoutEvents(fn () => $target->unsortedShelf())->getKey();
+                    $targetUnsortedShelfId = (int) $target->unsortedShelf()->getKey();
                 }
             }
         }

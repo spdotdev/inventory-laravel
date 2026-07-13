@@ -35,6 +35,20 @@ class PruneDeletedCommand extends Command
         $disk = (string) config('inventory.image_disk', 'public');
 
         foreach ($doomed as $product) {
+            // M-5: $doomed was listed once, above. A restore can land in the gap
+            // between that listing and this loop reaching the row — re-check
+            // deleted_at fresh, right before unlinking, or a product restored in
+            // that window loses its photo anyway, which the soft-delete/restore
+            // contract explicitly forbids. refresh() bypasses the SoftDeletes
+            // scope (it re-queries by id directly), so it sees a since-cleared
+            // deleted_at even though $product was hydrated from the trashed-only
+            // query above.
+            $product->refresh();
+
+            if ($product->deleted_at === null || $product->deleted_at->gte($cutoff)) {
+                continue;
+            }
+
             ProductImage::delete($disk, $product->image_url);
         }
 

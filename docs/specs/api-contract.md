@@ -189,7 +189,8 @@ DELETE /locations/{location}/shelves/{shelf}
   whether several deletes in a row are one user gesture. Stamped on every row this one
   delete touches, so the whole gesture is restorable as a unit. Missing or non-uuid -> 422.
 - `strategy` is **required** only when the container is non-empty (a location holding
-  shelves; a shelf holding products) — omit it for an empty one:
+  *any* shelf, including one holding only an empty Unsorted shelf; a shelf holding
+  products) — omit it for an empty one:
   - **Location** `strategy`: `move_contents` (reparent the location's shelves into
     `target_location_id`, required with this strategy — products hang off the shelf and
     ride along unmoved) | `delete_contents` (soft-delete the shelves and their products

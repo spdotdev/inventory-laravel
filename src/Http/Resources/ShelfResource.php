@@ -16,6 +16,17 @@ class ShelfResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Hoisted to a plain local read so PHPStan actually checks the
+        // property name: Larastan exempts a property read from undefined-
+        // property checking only when it sits directly inside a `??` or
+        // `isset()` guard, which is the idiomatic way to probe a
+        // conditionally-set attribute — but that exemption also swallows a
+        // typo (e.g. product_count) with no static-analysis error. Reading it
+        // here first, as a plain read PHPStan DOES check, then falling back
+        // separately below, keeps the typo catchable without losing the
+        // fallback for show()/store()/update().
+        $count = $this->products_count;
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -30,19 +41,7 @@ class ShelfResource extends JsonResource
             // across many shelves; show()/store()/update() render a single shelf
             // so the fallback ->count() there is cheap and always correct even
             // when the count wasn't preloaded.
-            //
-            // NOTE on the @property-read docblock on Shelf::$products_count:
-            // it documents the attribute and protects any *direct* (non-??-
-            // guarded) read of it elsewhere in the codebase, but it CANNOT make
-            // PHPStan catch a typo (e.g. product_count) right here — PHPStan/
-            // Larastan deliberately exempt property reads guarded by ?? or
-            // isset() from undefined-property checking on Eloquent models, since
-            // that is the idiomatic way to probe a conditionally-set attribute
-            // (verified empirically; see task-4 fix report, Finding 4). Dropping
-            // the ?? fallback to regain that check would break show()/store()/
-            // update(), which never eager-load the count. This gap is structural
-            // and not closeable without giving up the fallback.
-            'product_count' => $this->products_count ?? $this->products()->count(),
+            'product_count' => $count ?? $this->products()->count(),
         ];
     }
 }

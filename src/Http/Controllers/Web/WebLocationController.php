@@ -34,7 +34,10 @@ class WebLocationController extends Controller
         return view('inventory::web.location', [
             'household' => $household,
             'location' => $location,
-            'shelves' => $location->shelves()->with('products')->orderBy('position')->get(),
+            // is_system first, matching ShelfController::index — otherwise this
+            // surface can show Unsorted FIRST, breaking "Unsorted always sorts
+            // last" for the one client that reads this order.
+            'shelves' => $location->shelves()->with('products')->orderBy('is_system')->orderBy('position')->get(),
         ]);
     }
 

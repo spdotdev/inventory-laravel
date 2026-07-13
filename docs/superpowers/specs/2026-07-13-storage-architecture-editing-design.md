@@ -112,7 +112,7 @@ have asked.
 |---|---|
 | `move_contents` + `target_location_id` | The location's shelves are **reparented** into the target location; location soft-deleted. |
 | `delete_contents` | Shelves and products soft-deleted in the same batch; location soft-deleted. |
-| *(omitted)* | Allowed only if the location has no shelves (or only an empty Unsorted). Otherwise `422`. |
+| *(omitted)* | Allowed only if the location has no shelves at all. Otherwise `422` — the safe reading wins here: even a location holding only an empty Unsorted shelf still requires an explicit strategy. |
 
 There is deliberately **no `unsort` strategy at the location level**: "unsorted" means
 *off-shelf but still in this location*, and the location is the thing being deleted. If a
@@ -141,7 +141,10 @@ deletes** — the shelf and the twelve products that went with it share one batc
 This matters: deleting three shelves is three requests, and if the *server* minted the id
 they would land in three different batches and Undo would restore only one of them. One
 user gesture is one batch, so the id must come from the side that knows where the gesture
-starts. The server rejects a batch id that is already present on a *live* (non-deleted) row.
+starts. (M-9: an earlier draft of this section claimed the server rejects a batch id
+already present on a live row — no such guard exists, and none is needed: a strategy that
+moves rather than deletes a row now legitimately stamps `deletion_batch_id` on the live row
+it moves, precisely so Undo can still find it.)
 
 `POST /households/{h}/restore/{batch_id}` clears `deleted_at` for the whole batch, restoring
 the operation as a unit. It fails with `409` if a restore would conflict (e.g. the parent
