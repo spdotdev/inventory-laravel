@@ -4,10 +4,13 @@ namespace Spdotdev\Inventory\Support;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
 use Spdotdev\Inventory\Enums\ShelfDeleteStrategy;
 use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
+use Spdotdev\Inventory\Models\StorageLocation;
 
 /**
  * Executes a structural delete as one transaction, stamping every row it kills
@@ -97,6 +100,73 @@ class HierarchyDeleter
             }
 
             $shelf->newQuery()->whereKey($shelf->getKey())->update([
+                'deleted_at' => $now,
+                'deletion_batch_id' => $batchId,
+            ]);
+        });
+
+        HouseholdChanged::dispatch((int) $household->getKey());
+    }
+
+    /**
+     * Delete a location, doing what the caller asked with its contents.
+     *
+     * There is deliberately no "unsort" branch here (see LocationDeleteStrategy):
+     * unsorted means off-shelf but still IN this location, and the location is
+     * the thing being deleted. Only move-elsewhere or delete-with-it are coherent.
+     *
+     * @throws ValidationException when the move target is invalid
+     */
+    public static function deleteLocation(
+        Household $household,
+        StorageLocation $location,
+        string $batchId,
+        ?LocationDeleteStrategy $strategy,
+        ?int $targetLocationId,
+    ): void {
+        // Resolved to an id, not a model, so the closure below cannot be handed a
+        // half-validated StorageLocation: non-null here means "validated, move there".
+        $moveToLocationId = null;
+
+        if ($strategy === LocationDeleteStrategy::MoveContents) {
+            // Must be a live location of the SAME household, and not the location
+            // we are about to delete (which would strand the shelves on a corpse).
+            $target = $household->locations()->whereKey($targetLocationId)->first();
+
+            if ($target === null || (int) $target->getKey() === (int) $location->getKey()) {
+                throw ValidationException::withMessages([
+                    'target_location_id' => ['Pick a different location in this household.'],
+                ]);
+            }
+
+            $moveToLocationId = (int) $target->getKey();
+        }
+
+        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId) {
+            $now = now();
+
+            if ($moveToLocationId !== null) {
+                // Reparent the shelves. Products hang off the shelf and never
+                // change identity, so they ride along without being touched.
+                $location->shelves()->update(['location_id' => $moveToLocationId]);
+            }
+
+            if ($strategy === LocationDeleteStrategy::DeleteContents) {
+                // Read, not write — safe to run pre-commit (see class docblock).
+                $shelfIds = $location->shelves()->pluck('id')->all();
+
+                Product::query()->whereIn('shelf_id', $shelfIds)->update([
+                    'deleted_at' => $now,
+                    'deletion_batch_id' => $batchId,
+                ]);
+
+                $location->shelves()->update([
+                    'deleted_at' => $now,
+                    'deletion_batch_id' => $batchId,
+                ]);
+            }
+
+            $location->newQuery()->whereKey($location->getKey())->update([
                 'deleted_at' => $now,
                 'deletion_batch_id' => $batchId,
             ]);

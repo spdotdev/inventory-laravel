@@ -91,7 +91,9 @@ class RestructureGateCoverageTest extends TestCase
         $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $this->denyRestructure();
 
-        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}")
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [
+            'deletion_batch_id' => '33333333-3333-4333-8333-333333333333',
+        ])
             ->assertStatus(403);
     }
 }

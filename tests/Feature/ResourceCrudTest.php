@@ -39,7 +39,9 @@ class ResourceCrudTest extends TestCase
         $this->getJson("{$this->base}/households/{$h->id}/locations")->assertOk()->assertJsonCount(1, 'data');
         $this->putJson("{$this->base}/households/{$h->id}/locations/{$id}", ['name' => 'Renamed'])
             ->assertOk()->assertJsonPath('data.name', 'Renamed');
-        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$id}")->assertOk();
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$id}", [
+            'deletion_batch_id' => '11111111-1111-4111-8111-111111111111',
+        ])->assertOk();
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $id]);
     }
 

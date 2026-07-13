@@ -71,6 +71,18 @@ class ShelfController
             ]);
         }
 
+        // A Rule::exists in the request cannot see the household, so scope here:
+        // without this a member could reparent a shelf into another household.
+        if (array_key_exists('location_id', $data)) {
+            $targetExists = $household->locations()->whereKey($data['location_id'])->exists();
+
+            if (! $targetExists) {
+                throw ValidationException::withMessages([
+                    'location_id' => ['The selected location is not in this household.'],
+                ]);
+            }
+        }
+
         $shelf->update($data);
 
         return new ShelfResource($shelf);

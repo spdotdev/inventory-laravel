@@ -8,11 +8,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Events\HouseholdChanged;
+use Spdotdev\Inventory\Http\Requests\DeleteLocationRequest;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
 use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Http\Resources\LocationResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\HierarchyDeleter;
 
 /**
  * Storage locations within a household. Scoped route-model binding guarantees
@@ -53,13 +55,22 @@ class LocationController
         return new LocationResource($location);
     }
 
-    public function destroy(Household $household, StorageLocation $location): JsonResponse
+    public function destroy(DeleteLocationRequest $request, Household $household, StorageLocation $location): JsonResponse
     {
         Gate::authorize('restructure', $household);
 
-        $location->delete();
+        HierarchyDeleter::deleteLocation(
+            $household,
+            $location,
+            $request->batchId(),
+            $request->strategy(),
+            $request->targetLocationId(),
+        );
 
-        return response()->json(['message' => 'Location deleted.']);
+        return response()->json([
+            'message' => 'Location deleted.',
+            'deletion_batch_id' => $request->batchId(),
+        ]);
     }
 
     /**
