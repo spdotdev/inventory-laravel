@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 
 /**
  * @property int $id
@@ -69,6 +70,14 @@ class Product extends Model
      * and clamped to $max so a near-cap quantity plus repeated/large adds can't
      * push past the invariant — or the unsignedInteger column ceiling
      * (SQLSTATE 22003 → 500). Portable CASE, not MySQL-only LEAST.
+     *
+     * A query-builder update() fires no Eloquent events, so
+     * BroadcastHouseholdChange never sees this write — broadcastChange()
+     * below dispatches HouseholdChanged explicitly, exactly like every other
+     * query-builder write in this package (see HierarchyDeleter,
+     * LocationController::reorder). Placed here rather than in each caller so
+     * every surface (API, web, and any future one) gets it for free instead of
+     * having to remember.
      */
     public function addStock(int $amount, int $max): void
     {
@@ -78,6 +87,7 @@ class Product extends Model
             ),
         ]);
         $this->refresh();
+        $this->broadcastChange();
     }
 
     /**
@@ -85,6 +95,8 @@ class Product extends Model
      * out-of-stock). Compares BEFORE subtracting (`quantity < N`): the column is
      * BIGINT UNSIGNED, so `quantity - N` with N > quantity underflows and MySQL
      * (strict mode) throws "value out of range". Portable CASE, not GREATEST.
+     *
+     * See addStock()'s docblock for why this dispatches HouseholdChanged itself.
      */
     public function removeStock(int $amount): void
     {
@@ -94,6 +106,7 @@ class Product extends Model
             ),
         ]);
         $this->refresh();
+        $this->broadcastChange();
     }
 
     /**
@@ -102,5 +115,37 @@ class Product extends Model
     public function shelf(): BelongsTo
     {
         return $this->belongsTo(Shelf::class, 'shelf_id');
+    }
+
+    /**
+     * The household this product belongs to, walked through shelf -> location
+     * (a Product carries no household_id of its own). Null if either link is
+     * missing — an orphaned FK, not something to guess at. Public so both
+     * BroadcastHouseholdChange (for ordinary Eloquent-event mutations) and
+     * addStock/removeStock (which bypass those events entirely) share the one
+     * walk instead of keeping two copies to drift.
+     */
+    public function householdId(): ?int
+    {
+        return $this->shelf?->location?->household_id !== null
+            ? (int) $this->shelf->location->household_id
+            : null;
+    }
+
+    /**
+     * The single post-write broadcast point for the query-builder stock
+     * mutations above. Runs after the update has already executed (and, for
+     * every current caller, after it has committed — neither addStock() nor
+     * removeStock() opens a transaction, and no caller wraps them in one), so
+     * a failed update never reaches this line and nothing is broadcast for a
+     * write that didn't happen.
+     */
+    private function broadcastChange(): void
+    {
+        $householdId = $this->householdId();
+
+        if ($householdId !== null) {
+            HouseholdChanged::dispatch($householdId);
+        }
     }
 }

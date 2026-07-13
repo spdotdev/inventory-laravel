@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Product;
+use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
 
@@ -38,14 +40,114 @@ class BroadcastingTest extends TestCase
         $shelf = $location->shelves()->create(['name' => 'Top']);
         $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
         $product->update(['quantity' => 2]);
+        // addStock()/removeStock() write via the query builder (no Eloquent
+        // event) and dispatch this ping themselves — see Product's docblock —
+        // so they count here too, same as every other tree mutation.
+        $product->addStock(1, 100);
+        $product->removeStock(1);
 
         Event::assertDispatched(
             HouseholdChanged::class,
             fn (HouseholdChanged $e) => $e->householdId === (int) $household->id,
         );
         // location create + shelf create + product create + product update
-        // (+ the household create above).
-        Event::assertDispatchedTimes(HouseholdChanged::class, 5);
+        // + stock add + stock remove (+ the household create above).
+        Event::assertDispatchedTimes(HouseholdChanged::class, 7);
+    }
+
+    /** @return array{User, Household, Shelf, Product} */
+    private function productSetup(): array
+    {
+        [$user, $household] = $this->memberSetup();
+        $location = $household->locations()->create(['name' => 'Fridge', 'type' => 'fridge']);
+        $shelf = $location->shelves()->create(['name' => 'Top']);
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 5]);
+
+        return [$user, $household, $shelf, $product];
+    }
+
+    /**
+     * The bug this class' fix closes: addStock()/removeStock() write via the
+     * query builder, which fires no Eloquent event, so BroadcastHouseholdChange
+     * never saw a stock change — every OTHER member's app went stale on the
+     * single most common mutation in the app. Re-fakes AFTER building the tree
+     * so only the stock action's own dispatch is counted; the tree-build
+     * pings are proven separately above.
+     */
+    public function test_stock_add_via_api_dispatches_household_changed_exactly_once(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$user, $household, $shelf, $product] = $this->productSetup();
+        Sanctum::actingAs($user);
+
+        Event::fake([HouseholdChanged::class]);
+
+        $this->postJson(
+            "{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}/add",
+            ['amount' => 3],
+        )->assertOk();
+
+        Event::assertDispatchedTimes(HouseholdChanged::class, 1);
+        Event::assertDispatched(
+            HouseholdChanged::class,
+            fn (HouseholdChanged $e) => $e->householdId === (int) $household->id,
+        );
+    }
+
+    public function test_stock_remove_via_api_dispatches_household_changed_exactly_once(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$user, $household, $shelf, $product] = $this->productSetup();
+        Sanctum::actingAs($user);
+
+        Event::fake([HouseholdChanged::class]);
+
+        $this->postJson(
+            "{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}/remove",
+            ['amount' => 2],
+        )->assertOk();
+
+        Event::assertDispatchedTimes(HouseholdChanged::class, 1);
+        Event::assertDispatched(
+            HouseholdChanged::class,
+            fn (HouseholdChanged $e) => $e->householdId === (int) $household->id,
+        );
+    }
+
+    public function test_stock_add_via_web_dispatches_household_changed_exactly_once(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$user, $household, $shelf, $product] = $this->productSetup();
+
+        Event::fake([HouseholdChanged::class]);
+
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.products.add', [$household, $shelf, $product]))
+            ->assertRedirect();
+
+        Event::assertDispatchedTimes(HouseholdChanged::class, 1);
+        Event::assertDispatched(
+            HouseholdChanged::class,
+            fn (HouseholdChanged $e) => $e->householdId === (int) $household->id,
+        );
+    }
+
+    public function test_stock_remove_via_web_dispatches_household_changed_exactly_once(): void
+    {
+        Event::fake([HouseholdChanged::class]);
+        [$user, $household, $shelf, $product] = $this->productSetup();
+
+        Event::fake([HouseholdChanged::class]);
+
+        $this->actingAs($user, 'inventory')
+            ->post(route('inventory.web.products.remove', [$household, $shelf, $product]))
+            ->assertRedirect();
+
+        Event::assertDispatchedTimes(HouseholdChanged::class, 1);
+        Event::assertDispatched(
+            HouseholdChanged::class,
+            fn (HouseholdChanged $e) => $e->householdId === (int) $household->id,
+        );
     }
 
     /**
