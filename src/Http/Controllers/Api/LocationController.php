@@ -66,10 +66,13 @@ class LocationController
 
         $ids = $request->ids();
         $owned = $household->locations()->whereKey($ids)->pluck('id')->all();
+        $total = $household->locations()->count();
 
-        // Every id must be a live location of THIS household. Anything else —
-        // another household's id, a deleted id, a typo — rejects the whole call.
-        if (count($owned) !== count($ids)) {
+        // Every id must be a live location of THIS household (rejects another
+        // household's id, a deleted id, a typo) AND every live location must be
+        // present (rejects a partial list). Either gap would let positions
+        // collide, since they're assigned by array index 0..n-1.
+        if (count($owned) !== count($ids) || $total !== count($ids)) {
             throw ValidationException::withMessages([
                 'ids' => ['The list must contain every location in this household, and only those.'],
             ]);

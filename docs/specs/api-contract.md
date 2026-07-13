@@ -149,7 +149,18 @@ POST   /products/{product}/add     { amount }        -> increment quantity (atom
 POST   /products/{product}/remove  { amount }        -> decrement (atomic, floor 0)
 POST   /products/{product}/move    { shelf_id }      -> relocate within the household
 POST   /products/{product}/image   (multipart)       -> upload photo, sets image_url
+
+PATCH  /locations/reorder                          { ids: [int] }
+PATCH  /locations/{location}/shelves/reorder        { ids: [int] }
 ```
+
+`reorder` rewrites every sibling's `position` from the client's ordered id list, in one
+all-or-nothing transaction. `ids` must be **complete**: exactly the set of live ids of
+that parent (every household location, resp. every shelf of that location) — not a
+subset, not a superset, no foreign or soft-deleted ids. Any gap is a **422** with no
+row touched; a half-applied reorder is worse than a rejected one. Broadcasts
+`household.changed` on success (a query-builder `update()` fires no Eloquent events, so
+this is an explicit dispatch, not the observer).
 
 `add`/`remove` apply an **atomic** quantity delta (1 ≤ `amount` ≤ 1,000,000); `remove`
 floors at 0. `amount`/`quantity` are capped at 1,000,000 — an over-cap value is a **422**,
@@ -158,7 +169,10 @@ not a 500 (keeps the `unsignedInteger` column from overflowing).
 **Location resource** (`LocationResource`):
 
 ```
-{ id, name, type }             # type: freezer | fridge | pantry | other
+{ id, name, type,               # type: freezer | fridge | pantry | other
+  position }                    # server-assigned manual order; index is
+                                # orderBy('position').orderBy('name'), so an
+                                # undragged location falls back to name order
 ```
 
 **Shelf resource** (`ShelfResource`):

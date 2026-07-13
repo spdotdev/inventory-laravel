@@ -39,7 +39,9 @@ inventory_household_user                      -- membership pivot
 
 inventory_storage_locations
   id, household_id (FK CASCADE), name,
-  type ENUM(freezer|fridge|pantry|other), created_at, updated_at,
+  type ENUM(freezer|fridge|pantry|other), position (unsigned int, default 0 —
+    manual drag order; added 2026-07-13, same contract as inventory_shelves.position),
+  created_at, updated_at,
   deleted_at (nullable — soft delete, added 2026-07-13),
   deletion_batch_id (nullable uuid, indexed — groups every row killed by one
     user gesture so Undo can restore it as a unit; minted client-side)

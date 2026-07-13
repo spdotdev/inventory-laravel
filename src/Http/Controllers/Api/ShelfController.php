@@ -72,8 +72,12 @@ class ShelfController
 
         $ids = $request->ids();
         $owned = $location->shelves()->whereKey($ids)->pluck('id')->all();
+        $total = $location->shelves()->count();
 
-        if (count($owned) !== count($ids)) {
+        // Every id must be a live shelf of THIS location AND every live shelf
+        // must be present — see LocationController::reorder for why a partial
+        // list is just as dangerous as a foreign one.
+        if (count($owned) !== count($ids) || $total !== count($ids)) {
             throw ValidationException::withMessages([
                 'ids' => ['The list must contain every shelf in this location, and only those.'],
             ]);
