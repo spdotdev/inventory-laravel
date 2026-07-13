@@ -84,7 +84,9 @@ class UnsortedShelfTest extends TestCase
         $unsorted = $location->unsortedShelf();
         $unsorted->products()->create(['name' => 'Orphan peas', 'quantity' => 1]);
 
-        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$unsorted->id}")
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$unsorted->id}", [
+            'deletion_batch_id' => '11111111-1111-4111-8111-111111111111',
+        ])
             ->assertStatus(422);
 
         $this->assertNotSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);
@@ -96,7 +98,9 @@ class UnsortedShelfTest extends TestCase
         $unsorted = $location->unsortedShelf();
 
         // Nothing precious about it once empty — it is recreated on demand.
-        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$unsorted->id}")
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$unsorted->id}", [
+            'deletion_batch_id' => '11111111-1111-4111-8111-111111111111',
+        ])
             ->assertOk();
 
         $this->assertSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);

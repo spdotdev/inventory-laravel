@@ -8,12 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Events\HouseholdChanged;
+use Spdotdev\Inventory\Http\Requests\DeleteShelfRequest;
 use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Http\Requests\ShelfRequest;
 use Spdotdev\Inventory\Http\Resources\ShelfResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\HierarchyDeleter;
 
 /**
  * Shelves within a location. Scoped binding chains {shelf} ⊂ {location} ⊂
@@ -74,7 +76,7 @@ class ShelfController
         return new ShelfResource($shelf);
     }
 
-    public function destroy(Household $household, StorageLocation $location, Shelf $shelf): JsonResponse
+    public function destroy(DeleteShelfRequest $request, Household $household, StorageLocation $location, Shelf $shelf): JsonResponse
     {
         Gate::authorize('restructure', $household);
 
@@ -87,9 +89,18 @@ class ShelfController
             ]);
         }
 
-        $shelf->delete();
+        HierarchyDeleter::deleteShelf(
+            $household,
+            $shelf,
+            $request->batchId(),
+            $request->strategy(),
+            $request->targetShelfId(),
+        );
 
-        return response()->json(['message' => 'Shelf deleted.']);
+        return response()->json([
+            'message' => 'Shelf deleted.',
+            'deletion_batch_id' => $request->batchId(),
+        ]);
     }
 
     /**
