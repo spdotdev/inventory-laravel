@@ -9,6 +9,7 @@ use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
 use Spdotdev\Inventory\Http\Controllers\Api\ProductController;
+use Spdotdev\Inventory\Http\Controllers\Api\RestoreController;
 use Spdotdev\Inventory\Http\Controllers\Api\SearchController;
 use Spdotdev\Inventory\Http\Controllers\Api\ShelfController;
 
@@ -71,6 +72,11 @@ Route::domain(config('inventory.domain'))
                 Route::get('households/{household}/export', [HouseholdController::class, 'export'])->name('inventory.api.households.export');
                 Route::delete('households/{household}/leave', [HouseholdController::class, 'leave'])->name('inventory.api.households.leave');
                 Route::get('households/{household}/search', SearchController::class)->name('inventory.api.households.search');
+
+                // Keyed by batch, not by resource id — see RestoreController's
+                // docblock for why a shelf/location/product-scoped restore route
+                // could never be reached once the row is soft-deleted.
+                Route::post('households/{household}/restore/{batch}', RestoreController::class)->name('inventory.api.restore');
 
                 // Stock actions (defined before the resource so the /add|remove|move
                 // suffixes aren't shadowed by the {product} show route).
