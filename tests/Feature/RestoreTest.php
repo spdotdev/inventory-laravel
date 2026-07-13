@@ -3,8 +3,10 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
@@ -93,5 +95,35 @@ class RestoreTest extends TestCase
             ->assertStatus(409);
 
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $foreign->id]);
+    }
+
+    public function test_restore_broadcasts_household_changed_exactly_once(): void
+    {
+        // HierarchyDeleter's writes and the restore's own writes are both
+        // query-builder updates, which fire no Eloquent events — so the
+        // controller must dispatch HouseholdChanged itself. Other members'
+        // screens rely on exactly one ping per gesture to know to refetch.
+        Event::fake([HouseholdChanged::class]);
+
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$shelf->id}", [
+            'strategy' => 'delete_products',
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        Event::fake([HouseholdChanged::class]); // reset: the creates + delete above already pinged
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$this->batch}")
+            ->assertOk();
+
+        Event::assertDispatchedTimes(HouseholdChanged::class, 1);
+        Event::assertDispatched(
+            HouseholdChanged::class,
+            fn (HouseholdChanged $e) => $e->householdId === (int) $h->id,
+        );
     }
 }
