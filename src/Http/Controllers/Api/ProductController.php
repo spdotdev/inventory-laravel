@@ -13,6 +13,7 @@ use Spdotdev\Inventory\Http\Resources\ProductResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
+use Spdotdev\Inventory\Support\ProductImage;
 
 /**
  * Products on a shelf, plus the add/remove/move stock actions. Scoped binding
@@ -102,9 +103,7 @@ class ProductController
         // client (which loads image_url directly) can fetch it. S3 etc. are already absolute.
         $product->update(['image_url' => str_starts_with($url, 'http') ? $url : url($url)]);
 
-        if ($previous !== null) {
-            $this->deleteStoredImage($disk, $previous);
-        }
+        ProductImage::delete($disk, $previous);
 
         return new ProductResource($product);
     }
@@ -128,29 +127,6 @@ class ProductController
         $product->save();
 
         return new ProductResource($product);
-    }
-
-    /**
-     * Best-effort removal of a previously-stored product image so replacing a
-     * photo doesn't orphan the old file. We only know the public URL, so we
-     * recover the disk-relative path from the known `inventory/products/` prefix
-     * and delete it if it still exists. Off-disk / externally-hosted URLs (no
-     * matching prefix) are left untouched.
-     */
-    private function deleteStoredImage(string $disk, string $imageUrl): void
-    {
-        $marker = 'inventory/products/';
-        $pos = strpos($imageUrl, $marker);
-
-        if ($pos === false) {
-            return;
-        }
-
-        $path = substr($imageUrl, $pos);
-
-        if (Storage::disk($disk)->exists($path)) {
-            Storage::disk($disk)->delete($path);
-        }
     }
 
     private function amount(Request $request): int

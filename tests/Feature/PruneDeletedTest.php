@@ -38,6 +38,36 @@ class PruneDeletedTest extends TestCase
         // Soft delete deliberately KEEPS the image (the row is restorable, so the
         // photo must outlive it). That makes the purge the only place the file can
         // ever be reclaimed — without this, every image ever uploaded leaks.
+        //
+        // image_url is shaped exactly like what ProductController::image() writes
+        // (an absolute URL carrying the `inventory/products/` upload-path marker) —
+        // a raw path with no marker is not what production stores, and a test using
+        // one would hide a marker-recovery bug.
+        Storage::fake('public');
+        config()->set('inventory.deleted_retention_days', 30);
+
+        $h = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $product = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer])
+            ->shelves()->create(['name' => 'Top', 'position' => 0])
+            ->products()->create(['name' => 'Peas', 'quantity' => 1, 'image_url' => 'http://inventory.test/storage/inventory/products/peas.jpg']);
+
+        Storage::disk('public')->put('inventory/products/peas.jpg', 'x');
+        $product->delete();
+        Product::withTrashed()->whereKey($product->id)->update(['deleted_at' => now()->subDays(31)]);
+
+        $this->artisan('inventory:deleted:prune')->assertExitCode(0);
+
+        Storage::disk('public')->assertMissing('inventory/products/peas.jpg');
+        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_it_purges_a_product_with_an_unmarked_image_url_without_touching_any_file(): void
+    {
+        // Defensive behaviour, pinned so it can't silently drift again: an
+        // image_url with no `inventory/products/` marker was never written by
+        // ProductController::image(), so it is not a managed file. The purge
+        // must still hard-delete the row, but must NOT treat the arbitrary
+        // string as a disk path and delete whatever happens to live there.
         Storage::fake('public');
         config()->set('inventory.deleted_retention_days', 30);
 
@@ -52,7 +82,7 @@ class PruneDeletedTest extends TestCase
 
         $this->artisan('inventory:deleted:prune')->assertExitCode(0);
 
-        Storage::disk('public')->assertMissing('products/peas.jpg');
+        Storage::disk('public')->assertExists('products/peas.jpg');
         $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
     }
 

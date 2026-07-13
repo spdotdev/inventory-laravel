@@ -3,10 +3,10 @@
 namespace Spdotdev\Inventory\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\ProductImage;
 
 class PruneDeletedCommand extends Command
 {
@@ -32,9 +32,10 @@ class PruneDeletedCommand extends Command
         // the only place the file can ever be reclaimed. Skip this and every image
         // ever uploaded leaks on disk forever.
         $doomed = Product::onlyTrashed()->where('deleted_at', '<', $cutoff)->whereNotNull('image_url')->get();
+        $disk = (string) config('inventory.image_disk', 'public');
 
         foreach ($doomed as $product) {
-            $this->deleteStoredImage($product);
+            ProductImage::delete($disk, $product->image_url);
         }
 
         // Children first. A location's forceDelete would ON DELETE CASCADE its
@@ -47,29 +48,5 @@ class PruneDeletedCommand extends Command
         $this->info("Pruned {$locations} location(s), {$shelves} shelf/shelves, {$products} product(s) deleted more than {$days} day(s) ago.");
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Same path-recovery technique as ProductController::deleteStoredImage
-     * (best-effort cleanup on the configured disk, guarded by an existence
-     * check) — reused here rather than reinvented, since this purge is the
-     * only place a product's image is ever allowed to be deleted. Unlike that
-     * call site, image_url here isn't guaranteed to carry the
-     * `inventory/products/` upload-path marker (e.g. a directly-set path), so
-     * an unmatched string falls back to being used as the disk-relative path
-     * itself instead of being silently skipped.
-     */
-    private function deleteStoredImage(Product $product): void
-    {
-        $disk = (string) config('inventory.image_disk', 'public');
-        $imageUrl = (string) $product->image_url;
-
-        $marker = 'inventory/products/';
-        $pos = strpos($imageUrl, $marker);
-        $path = $pos !== false ? substr($imageUrl, $pos) : $imageUrl;
-
-        if (Storage::disk($disk)->exists($path)) {
-            Storage::disk($disk)->delete($path);
-        }
     }
 }
