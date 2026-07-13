@@ -8,12 +8,14 @@
   <div class="card">
     <div class="row" style="margin-bottom:12px">
       <h2 class="grow" style="font-size:16px;color:#b8d8f0">{{ $shelf->name }}</h2>
-      <form class="inline" method="POST"
-            action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
-            onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete shelf '.$shelf->name.' and all its products?') }})">
-        @csrf @method('DELETE')
-        <button type="submit" class="btn-danger">Delete shelf</button>
-      </form>
+      @unless ($shelf->is_system)
+        <form class="inline" method="POST"
+              action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
+              onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete shelf '.$shelf->name.' and all its products?') }})">
+          @csrf @method('DELETE')
+          <button type="submit" class="btn-danger">Delete shelf</button>
+        </form>
+      @endunless
     </div>
 
     @if ($shelf->products->isNotEmpty())

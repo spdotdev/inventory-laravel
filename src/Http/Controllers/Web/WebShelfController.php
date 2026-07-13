@@ -30,6 +30,16 @@ class WebShelfController extends Controller
 
     public function destroy(Household $household, StorageLocation $location, Shelf $shelf): RedirectResponse
     {
+        // Same rule as the API (ShelfController::destroy): the Unsorted shelf
+        // exists to hold products the user chose to KEEP, so deleting it
+        // while still occupied would strand the very products it protects.
+        // The web UI has no JSON error surface, so flash back an error
+        // instead of the API's 422 — matches the idiom used elsewhere on this
+        // surface (e.g. WebHouseholdController::join's back()->withErrors()).
+        if ($shelf->is_system && $shelf->products()->exists()) {
+            return back()->withErrors(['shelf' => __('The Unsorted shelf still holds products. Move them first.')]);
+        }
+
         // MUST go through HierarchyDeleter — see WebLocationController::destroy
         // for why a bare $shelf->delete() would silently orphan its products.
         //

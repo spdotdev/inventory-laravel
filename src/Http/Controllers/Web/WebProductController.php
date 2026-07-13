@@ -4,6 +4,7 @@ namespace Spdotdev\Inventory\Http\Controllers\Web;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
 use Spdotdev\Inventory\Models\Household;
@@ -64,6 +65,13 @@ class WebProductController extends Controller
 
     public function destroy(Household $household, Shelf $shelf, Product $product): RedirectResponse
     {
+        // Mint a batch-of-one server-side (the web UI has no client to supply
+        // one) so a solo product delete is restorable via the same
+        // batch-keyed restore surface as a shelf/location delete — see the
+        // API's ProductController::destroy for the full reasoning. Image
+        // cleanup on delete is still deliberately NOT done here — see there too.
+        $batchId = (string) Str::uuid();
+        $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
         $product->delete();
 
         return $this->backToLocation($household, $shelf)->with('status', __('Product deleted.'));

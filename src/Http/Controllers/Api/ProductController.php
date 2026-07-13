@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
 use Spdotdev\Inventory\Http\Resources\ProductResource;
@@ -45,6 +46,16 @@ class ProductController
 
     public function destroy(Household $household, Shelf $shelf, Product $product): JsonResponse
     {
+        // A solo product delete has no shelf/location delete to ride along
+        // with, so mint a batch-of-one here: without it the row lands with a
+        // NULL deletion_batch_id, and the batch-keyed restore surface
+        // (POST .../restore/{batch}) has no id to reach it by — permanently
+        // unrestorable, unlike a product caught up in a shelf/location delete.
+        // Stamped via the query builder (no model event) so the delete()
+        // below still fires exactly one `deleted` event/broadcast.
+        $batchId = (string) Str::uuid();
+        $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
+
         // $product->delete() is a SOFT delete (an UPDATE) — the row survives so
         // Undo can restore it. The image file must survive with it: the row's
         // image_url still points at it, so deleting the file here would leave a
@@ -52,7 +63,10 @@ class ProductController
         // purge's job (inventory:deleted:prune) — see that command when it lands.
         $product->delete();
 
-        return response()->json(['message' => 'Product deleted.']);
+        return response()->json([
+            'message' => 'Product deleted.',
+            'deletion_batch_id' => $batchId,
+        ]);
     }
 
     public function add(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource

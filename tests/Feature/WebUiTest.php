@@ -4,6 +4,7 @@ namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
 
@@ -195,6 +196,64 @@ class WebUiTest extends TestCase
             ->delete(route('inventory.web.products.destroy', [$household, $shelf, $product]))
             ->assertRedirect();
         $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_deleting_a_solo_product_on_the_web_mints_its_own_batch_id(): void
+    {
+        // Web-surface twin of the API regression guard for FINDING 1: the web
+        // UI has no client to supply a batch id, so it must mint one
+        // server-side too — otherwise a solo web delete is just as
+        // permanently unrestorable as the pre-fix API one.
+        [$user, $household, , $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.products.destroy', [$household, $shelf, $product]))
+            ->assertRedirect();
+
+        // Product uses SoftDeletes, whose global scope excludes trashed rows
+        // — a plain refresh()/find() would throw ModelNotFoundException now
+        // that the row is soft-deleted, so reach it via withTrashed().
+        $batch = Product::withTrashed()->findOrFail($product->id)->deletion_batch_id;
+        $this->assertNotNull($batch);
+        $this->assertNotSame('', $batch);
+    }
+
+    public function test_the_unsorted_shelf_cannot_be_deleted_via_the_web_while_occupied(): void
+    {
+        // Regression guard for FINDING 2 (Task 6b review): the API refuses to
+        // delete an occupied Unsorted shelf (UnsortedShelfTest covers that),
+        // but the web path had no equivalent guard — an easy way to strand
+        // the very products the shelf exists to protect. Redirects with a
+        // flash rather than a 422, matching this surface's idiom.
+        [$user, $household, $location] = $this->memberSetup();
+        $unsorted = $location->unsortedShelf();
+        $unsorted->products()->create(['name' => 'Orphan peas', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.shelves.destroy', [$household, $location, $unsorted]))
+            ->assertRedirect()
+            ->assertSessionHasErrors('shelf');
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);
+    }
+
+    public function test_the_unsorted_shelf_delete_button_is_not_rendered_on_the_web(): void
+    {
+        // The button was rendered unconditionally for system shelves; a click
+        // would hit the exact guard the previous test proves now exists, but
+        // the button should not even be offered.
+        $user = $this->user('unsorted-view@example.test');
+        $household = Household::query()->create(['name' => 'Home', 'join_code' => 'AAAA-3333']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $location = $household->locations()->create(['name' => 'Fridge', 'type' => 'fridge']);
+        $location->unsortedShelf();
+
+        $this->actingAs($user, 'inventory')
+            ->get(route('inventory.web.locations.show', [$household, $location]))
+            ->assertOk()
+            ->assertSee('Unsorted')
+            ->assertDontSee('Delete shelf');
     }
 
     public function test_web_crud_is_tenancy_gated(): void

@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
@@ -115,6 +116,55 @@ class SoftDeleteTest extends TestCase
         $this->assertDatabaseHas('inventory_storage_locations', ['id' => $location->id, 'deletion_batch_id' => $uuid]);
         $this->assertDatabaseHas('inventory_shelves', ['id' => $shelf->id, 'deletion_batch_id' => $uuid]);
         $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'deletion_batch_id' => $uuid]);
+    }
+
+    public function test_deleting_a_solo_product_via_the_api_mints_its_own_batch_id(): void
+    {
+        // Regression guard for FINDING 1 (Task 6b review): a product deleted
+        // on its own — not swept up in a shelf/location delete — used to land
+        // with deletion_batch_id = NULL. The only restore surface is
+        // batch-keyed (POST .../restore/{batch}), so a NULL batch has no URL
+        // and is permanently unrestorable. Every product delete must mint a
+        // batch-of-one, and the API must hand it back so a client can offer Undo.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $response = $this->deleteJson("{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$product->id}")
+            ->assertOk();
+
+        $batch = $response->json('deletion_batch_id');
+        $this->assertIsString($batch);
+        $this->assertNotSame('', $batch);
+
+        $this->assertDatabaseHas('inventory_products', [
+            'id' => $product->id,
+            'deletion_batch_id' => $batch,
+        ]);
+    }
+
+    public function test_a_solo_deleted_product_does_not_share_a_batch_with_an_unrelated_delete(): void
+    {
+        // Discriminates against a stub fix (e.g. a fixed/shared placeholder
+        // uuid instead of a freshly minted one per delete): two independent
+        // solo product deletes must NOT collide on the same batch id, or a
+        // future batch-restore would resurrect the wrong product alongside it.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $peas = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+        $corn = $shelf->products()->create(['name' => 'Corn', 'quantity' => 1]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$peas->id}")->assertOk();
+        $this->deleteJson("{$this->base}/households/{$h->id}/shelves/{$shelf->id}/products/{$corn->id}")->assertOk();
+
+        $peasBatch = Product::withTrashed()->findOrFail($peas->id)->deletion_batch_id;
+        $cornBatch = Product::withTrashed()->findOrFail($corn->id)->deletion_batch_id;
+
+        $this->assertNotNull($peasBatch);
+        $this->assertNotNull($cornBatch);
+        $this->assertNotSame($peasBatch, $cornBatch);
     }
 
     public function test_location_products_relation_reaches_through_shelves(): void

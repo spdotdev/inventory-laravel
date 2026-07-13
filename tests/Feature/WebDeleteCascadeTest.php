@@ -66,7 +66,7 @@ class WebDeleteCascadeTest extends TestCase
         $household->users()->attach($user->getKey(), ['joined_at' => now()]);
         $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
-        $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
 
         $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}")
             ->assertRedirect();
@@ -77,7 +77,11 @@ class WebDeleteCascadeTest extends TestCase
 
         $this->assertNotNull($batch);
 
-        // Every row killed by that one gesture carries the same id.
+        // Every row killed by that one gesture carries the same id — a
+        // refactor that stamped the product with a second, different uuid
+        // would silently drop it out of the location's restore batch, and
+        // the shelf-only assertion below would not have caught it.
         $this->assertDatabaseHas('inventory_shelves', ['id' => $shelf->id, 'deletion_batch_id' => $batch]);
+        $this->assertDatabaseHas('inventory_products', ['id' => $product->id, 'deletion_batch_id' => $batch]);
     }
 }
