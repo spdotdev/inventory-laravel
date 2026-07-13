@@ -3,8 +3,10 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
@@ -50,7 +52,10 @@ class ShelfDeleteStrategyTest extends TestCase
             ->assertJsonValidationErrors('strategy');
 
         $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
-        $this->assertNotSoftDeleted('inventory_products', ['id' => $p->id]);
+        // Not just "not soft-deleted" — genuinely untouched: still on its
+        // original shelf. A "changed nothing" claim that never checks the
+        // foreign key isn't actually pinning "nothing changed".
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $p->id, 'shelf_id' => $s->id]);
     }
 
     public function test_an_empty_shelf_needs_no_strategy(): void
@@ -58,9 +63,11 @@ class ShelfDeleteStrategyTest extends TestCase
         [$h, $l, $s] = $this->shelfWithProduct();
         Product::query()->delete();
 
-        $this->deleteJson($this->url($h, $l, $s), ['deletion_batch_id' => $this->batch])->assertOk();
+        $this->deleteJson($this->url($h, $l, $s), ['deletion_batch_id' => $this->batch])
+            ->assertOk()
+            ->assertJsonPath('deletion_batch_id', $this->batch);
 
-        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $this->batch]);
     }
 
     public function test_move_products_reassigns_them_to_the_target_shelf(): void
@@ -72,9 +79,11 @@ class ShelfDeleteStrategyTest extends TestCase
             'strategy' => 'move_products',
             'target_shelf_id' => $target->id,
             'deletion_batch_id' => $this->batch,
-        ])->assertOk();
+        ])
+            ->assertOk()
+            ->assertJsonPath('deletion_batch_id', $this->batch);
 
-        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $this->batch]);
         $this->assertDatabaseHas('inventory_products', ['id' => $p->id, 'shelf_id' => $target->id, 'deleted_at' => null]);
     }
 
@@ -85,11 +94,13 @@ class ShelfDeleteStrategyTest extends TestCase
         $this->deleteJson($this->url($h, $l, $s), [
             'strategy' => 'unsort_products',
             'deletion_batch_id' => $this->batch,
-        ])->assertOk();
+        ])
+            ->assertOk()
+            ->assertJsonPath('deletion_batch_id', $this->batch);
 
         $unsorted = $l->shelves()->where('is_system', true)->firstOrFail();
 
-        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $this->batch]);
         $this->assertDatabaseHas('inventory_products', ['id' => $p->id, 'shelf_id' => $unsorted->id, 'deleted_at' => null]);
     }
 
@@ -100,7 +111,9 @@ class ShelfDeleteStrategyTest extends TestCase
         $this->deleteJson($this->url($h, $l, $s), [
             'strategy' => 'delete_products',
             'deletion_batch_id' => $this->batch,
-        ])->assertOk();
+        ])
+            ->assertOk()
+            ->assertJsonPath('deletion_batch_id', $this->batch);
 
         // Same batch id on both rows — that is what lets one Undo bring back the
         // shelf AND its products as a unit.
@@ -126,12 +139,65 @@ class ShelfDeleteStrategyTest extends TestCase
 
     public function test_move_products_to_the_shelf_being_deleted_is_rejected(): void
     {
-        [$h, $l, $s] = $this->shelfWithProduct();
+        [$h, $l, $s, $p] = $this->shelfWithProduct();
 
         $this->deleteJson($this->url($h, $l, $s), [
             'strategy' => 'move_products',
             'target_shelf_id' => $s->id,
             'deletion_batch_id' => $this->batch,
         ])->assertStatus(422)->assertJsonValidationErrors('target_shelf_id');
+
+        // A rejected request must leave the world exactly as it found it — the
+        // shelf and its product both survive, same as the foreign-household
+        // sibling above already checks.
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $p->id, 'shelf_id' => $s->id]);
+    }
+
+    public function test_delete_without_a_batch_id_is_rejected(): void
+    {
+        // Mutation-proof: relaxing 'deletion_batch_id' => ['required', 'uuid']
+        // to ['nullable'] must not slip past the whole suite unnoticed.
+        [$h, $l, $s] = $this->shelfWithProduct();
+        Product::query()->delete();
+
+        $this->deleteJson($this->url($h, $l, $s), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('deletion_batch_id');
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+    }
+
+    public function test_delete_with_a_non_uuid_batch_id_is_rejected(): void
+    {
+        [$h, $l, $s] = $this->shelfWithProduct();
+        Product::query()->delete();
+
+        $this->deleteJson($this->url($h, $l, $s), ['deletion_batch_id' => 'not-a-uuid'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('deletion_batch_id');
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+    }
+
+    public function test_delete_broadcasts_to_the_household_exactly_once(): void
+    {
+        // The BroadcastHouseholdChange observer only fires on Eloquent model
+        // events; HierarchyDeleter's writes are all query-builder writes, so
+        // the class must dispatch explicitly — exactly once. unsort_products
+        // is the strategy that pins this hardest: pre-fix, the lazily-created
+        // Unsorted shelf's own `created` event fired a SECOND, premature
+        // broadcast from inside the still-open transaction.
+        Event::fake([HouseholdChanged::class]);
+        [$h, $l, $s] = $this->shelfWithProduct();
+
+        Event::fake([HouseholdChanged::class]); // reset: the creates above already pinged
+
+        $this->deleteJson($this->url($h, $l, $s), [
+            'strategy' => 'unsort_products',
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        Event::assertDispatchedTimes(HouseholdChanged::class, 1);
     }
 }

@@ -52,7 +52,18 @@ class DeleteShelfRequest extends FormRequest
 
     public function batchId(): string
     {
-        return (string) $this->input('deletion_batch_id');
+        // Deliberately NOT `(string) $this->input(...)`: that would coerce a
+        // missing value into '', and a stamp of '' collapses every deletion
+        // across every household into one shared "batch" for Undo purposes.
+        // Read from validated() (guaranteed a valid uuid by the rule above)
+        // and fail loudly — not silently — if that contract is ever broken.
+        $value = $this->validated('deletion_batch_id');
+
+        if (! is_string($value) || $value === '') {
+            throw new \RuntimeException('deletion_batch_id was not validated as a required uuid.');
+        }
+
+        return $value;
     }
 
     public function targetShelfId(): ?int
