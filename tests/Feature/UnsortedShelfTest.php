@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
 
@@ -121,5 +122,35 @@ class UnsortedShelfTest extends TestCase
             ->assertOk();
 
         $this->assertSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);
+    }
+
+    public function test_unsorted_shelf_restores_a_trashed_one_instead_of_duplicating_it(): void
+    {
+        // C1: a previous Unsorted shelf may be sitting in the trash — soft-
+        // deleted while empty (permitted, see the test above), not yet
+        // purged. A plain find-live-or-create would miss that trashed row
+        // entirely and mint a SECOND is_system shelf, live at the same time
+        // the first merely rests in the trash. Nothing downstream (Undo,
+        // move_contents) is designed to reconcile two live Unsorted shelves
+        // in one location — see
+        // docs/superpowers/sdd/final-review-fixes.md, C1.
+        [$h, $location] = $this->memberLocation();
+        $first = $location->unsortedShelf();
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$first->id}", [
+            'deletion_batch_id' => '11111111-1111-4111-8111-111111111111',
+        ])->assertOk();
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $first->id]);
+
+        $second = $location->unsortedShelf();
+
+        $this->assertSame($first->id, $second->id, 'unsortedShelf() must restore the trashed row, not duplicate it');
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $first->id]);
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $first->id, 'deletion_batch_id' => null]);
+        $this->assertSame(
+            1,
+            Shelf::withTrashed()->where('location_id', $location->id)->where('is_system', true)->count(),
+        );
     }
 }

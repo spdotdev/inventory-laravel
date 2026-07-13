@@ -98,7 +98,24 @@ class RestoreController
                 ->whereNotNull('deleted_at')
                 ->exists();
 
-            if ($shelfParentStillDead || $productParentStillDead) {
+            // C1: a soft-deleted is_system shelf coming back to life must never
+            // create a SECOND live Unsorted shelf in the location it lands in
+            // — the exact state StorageLocation::unsortedShelf() itself now
+            // refuses to produce on its own door (see its docblock). This
+            // closes the same door reached via Undo instead: e.g. an old,
+            // never-purged batch that still references a since-superseded
+            // Unsorted shelf.
+            $systemShelfConflict = Shelf::withTrashed()
+                ->whereKey($shelfIds)
+                ->where('is_system', true)
+                ->get()
+                ->contains(fn (Shelf $shelf): bool => Shelf::query()
+                    ->where('location_id', $shelf->location_id)
+                    ->where('is_system', true)
+                    ->whereKeyNot($shelf->getKey())
+                    ->exists());
+
+            if ($shelfParentStillDead || $productParentStillDead || $systemShelfConflict) {
                 return true;
             }
 
@@ -113,7 +130,7 @@ class RestoreController
 
         if ($blocked) {
             return response()->json([
-                'message' => 'Cannot restore: a parent of one of these rows is still deleted under a different batch. Restore the parent first.',
+                'message' => 'Cannot restore: a parent of one of these rows is still deleted under a different batch, or restoring would create a second live Unsorted shelf. Restore the parent first.',
             ], 409);
         }
 

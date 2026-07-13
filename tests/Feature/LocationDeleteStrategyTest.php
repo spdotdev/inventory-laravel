@@ -122,6 +122,49 @@ class LocationDeleteStrategyTest extends TestCase
         $this->assertDatabaseHas('inventory_shelves', ['id' => $regularShelf->id, 'location_id' => $target->id, 'deleted_at' => null]);
     }
 
+    public function test_move_contents_merges_all_source_unsorted_shelves_into_the_targets(): void
+    {
+        // C1's third site: gathered as EVERY is_system shelf of the source,
+        // not ->first(). Two live is_system shelves in one location shouldn't
+        // arise through normal use any more (StorageLocation::unsortedShelf()
+        // now refuses to produce that state on its own — see its docblock),
+        // but a location could still carry a pre-existing duplicate from
+        // before that fix shipped. ->first() would silently strand whichever
+        // one it didn't pick: live, un-batched, with its products, under a
+        // location this call is about to soft-delete — permanently destroyed
+        // the day the retention purge force-deletes the parent and
+        // ON DELETE CASCADE fires. See
+        // docs/superpowers/sdd/final-review-fixes.md, C1.
+        //
+        // The duplicate is planted directly (bypassing unsortedShelf()'s own
+        // protection) to isolate this call site's own fix.
+        $h = $this->memberHousehold();
+        $source = $h->locations()->create(['name' => 'Fridge', 'type' => StorageType::Fridge]);
+        $target = $h->locations()->create(['name' => 'Pantry', 'type' => StorageType::Pantry]);
+
+        $firstUnsorted = $source->shelves()->create(['name' => 'Unsorted', 'is_system' => true, 'position' => 0]);
+        $secondUnsorted = $source->shelves()->create(['name' => 'Unsorted', 'is_system' => true, 'position' => 0]);
+
+        // A product on EACH duplicate — so whichever one ->first() happens to
+        // pick, the OTHER's product exposes the bug.
+        $firstProduct = $firstUnsorted->products()->create(['name' => 'Peas', 'quantity' => 1]);
+        $secondProduct = $secondUnsorted->products()->create(['name' => 'Carrots', 'quantity' => 1]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$source->id}", [
+            'strategy' => 'move_contents',
+            'target_location_id' => $target->id,
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk();
+
+        $targetUnsorted = $target->shelves()->where('is_system', true)->firstOrFail();
+
+        $this->assertSame(1, $target->shelves()->where('is_system', true)->count());
+        $this->assertDatabaseHas('inventory_products', ['id' => $firstProduct->id, 'shelf_id' => $targetUnsorted->id, 'deleted_at' => null]);
+        $this->assertDatabaseHas('inventory_products', ['id' => $secondProduct->id, 'shelf_id' => $targetUnsorted->id, 'deleted_at' => null]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $firstUnsorted->id, 'deletion_batch_id' => $this->batch]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $secondUnsorted->id, 'deletion_batch_id' => $this->batch]);
+    }
+
     public function test_move_contents_to_the_location_being_deleted_is_rejected(): void
     {
         // The cross-household half of this guard is pinned by
