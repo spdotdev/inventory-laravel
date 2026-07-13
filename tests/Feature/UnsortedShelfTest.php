@@ -78,6 +78,23 @@ class UnsortedShelfTest extends TestCase
         $this->assertDatabaseHas('inventory_shelves', ['id' => $unsorted->id, 'name' => 'Unsorted']);
     }
 
+    public function test_the_unsorted_shelf_cannot_be_reparented(): void
+    {
+        // I-1: PATCH location_id is the other door to the same bug
+        // move_contents' reparenting had to be guarded against — moving the
+        // Unsorted shelf as-is into another location that already has its own
+        // would produce two live is_system shelves there.
+        [$h, $location] = $this->memberLocation();
+        $unsorted = $location->unsortedShelf();
+        $other = $h->locations()->create(['name' => 'Pantry', 'type' => StorageType::Pantry]);
+
+        $this->patchJson("{$this->base}/households/{$h->id}/locations/{$location->id}/shelves/{$unsorted->id}", [
+            'location_id' => $other->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('location_id');
+
+        $this->assertDatabaseHas('inventory_shelves', ['id' => $unsorted->id, 'location_id' => $location->id]);
+    }
+
     public function test_the_unsorted_shelf_cannot_be_deleted_while_occupied(): void
     {
         [$h, $location] = $this->memberLocation();

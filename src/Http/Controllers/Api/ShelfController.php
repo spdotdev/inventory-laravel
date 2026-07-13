@@ -71,6 +71,17 @@ class ShelfController
             ]);
         }
 
+        // Reparenting the Unsorted shelf is exactly the bug HierarchyDeleter's
+        // move_contents strategy guards against one level up — moving it
+        // as-is into a location that already has its own Unsorted shelf
+        // produces two live is_system shelves there. Block the same edit at
+        // this door too.
+        if ($shelf->is_system && array_key_exists('location_id', $data)) {
+            throw ValidationException::withMessages([
+                'location_id' => ['The Unsorted shelf cannot be moved.'],
+            ]);
+        }
+
         // A Rule::exists in the request cannot see the household, so scope here:
         // without this a member could reparent a shelf into another household.
         if (array_key_exists('location_id', $data)) {

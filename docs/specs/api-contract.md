@@ -141,8 +141,8 @@ The nav IDs are **required** — the Android client only makes a result tappable
 ## Resources (all under `/api/v1/households/{household}`)
 
 ```
-       /locations[/{location}]                       CRUD   (type: freezer|fridge|pantry|other)
-       /locations/{location}/shelves[/{shelf}]       CRUD
+       /locations[/{location}]                       CRUD*  (type: freezer|fridge|pantry|other)
+       /locations/{location}/shelves[/{shelf}]       CRUD*
        /shelves/{shelf}/products[/{product}]         CRUD
 
 POST   /products/{product}/add     { amount }        -> increment quantity (atomic)
@@ -153,6 +153,9 @@ POST   /products/{product}/image   (multipart)       -> upload photo, sets image
 PATCH  /locations/reorder                          { ids: [int] }
 PATCH  /locations/{location}/shelves/reorder        { ids: [int] }
 ```
+
+\* Locations and shelves are soft-deleted (see *Deleting a location or shelf* below) — their
+`DELETE` is not a bare CRUD delete, and shelves also accept a reparenting `PATCH`.
 
 `reorder` rewrites every sibling's `position` from the client's ordered id list, in one
 all-or-nothing transaction. `ids` must be **complete**: exactly the set of live ids of
@@ -165,6 +168,53 @@ this is an explicit dispatch, not the observer).
 `add`/`remove` apply an **atomic** quantity delta (1 ≤ `amount` ≤ 1,000,000); `remove`
 floors at 0. `amount`/`quantity` are capped at 1,000,000 — an over-cap value is a **422**,
 not a 500 (keeps the `unsignedInteger` column from overflowing).
+
+### Deleting a location or shelf
+
+Locations and shelves carry `deleted_at` + `deletion_batch_id` (soft delete, not a hard
+`DELETE`). Deleting one that still holds something REQUIRES an explicit strategy — the
+server never guesses, because guessing wrong destroys data:
+
+```
+DELETE /locations/{location}        { deletion_batch_id,                -> 200; soft-deletes
+                                       strategy?, target_location_id? }    the location (+ subtree)
+DELETE /locations/{location}/shelves/{shelf}
+                                     { deletion_batch_id,                -> 200; soft-deletes
+                                       strategy?, target_shelf_id? }       the shelf (+ its products)
+```
+
+- `deletion_batch_id` (**required**, uuid) — client-minted, since only the client knows
+  whether several deletes in a row are one user gesture. Stamped on every row this one
+  delete touches, so the whole gesture is restorable as a unit. Missing or non-uuid -> 422.
+- `strategy` is **required** only when the container is non-empty (a location holding
+  shelves; a shelf holding products) — omit it for an empty one:
+  - **Location** `strategy`: `move_contents` (reparent the location's shelves into
+    `target_location_id`, required with this strategy — products hang off the shelf and
+    ride along unmoved) | `delete_contents` (soft-delete the shelves and their products
+    alongside the location, all in the same batch). There is no `unsort` option at this
+    level: "unsorted" means off-shelf but still *in* the location, and the location is
+    what's being deleted.
+  - **Shelf** `strategy`: `move_products` (reassign to `target_shelf_id`, required with
+    this strategy) | `unsort_products` (reassign to the location's **Unsorted** shelf — a
+    lazily-created, per-location system shelf, `is_system: true`, that holds products
+    whose shelf was deleted but which the user chose to keep; the client localises its
+    label off `is_system`, not off `name`) | `delete_products` (soft-delete alongside the
+    shelf, same batch).
+- `target_location_id` / `target_shelf_id` must be a live resource of the **same
+  household**, and not the container being deleted itself — either violation is a 422 on
+  that field, with nothing touched.
+- A `move_contents` whose location owns an Unsorted shelf never reparents that shelf
+  as-is (it would produce two live Unsorted shelves in the target); its products, if any,
+  are merged into the target's own Unsorted shelf instead, and the now-empty source one is
+  soft-deleted alongside the rest of the batch.
+
+`PATCH /locations/{location}/shelves/{shelf}` additionally accepts a writable
+`location_id`, reparenting the shelf to another location — same household only (a
+foreign-household target is 422; a `Rule::exists` in the request can't see the household,
+so this is enforced in the controller). Rejected with 422 on a **system** shelf
+(`is_system: true`): the Unsorted shelf can't be renamed *or* moved, for the same reason
+`move_contents` never reparents it — moving it as-is into a location that already has its
+own would leave two live Unsorted shelves there.
 
 **Location resource** (`LocationResource`):
 

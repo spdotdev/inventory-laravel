@@ -128,6 +128,16 @@ class HierarchyDeleter
         // half-validated StorageLocation: non-null here means "validated, move there".
         $moveToLocationId = null;
 
+        // The source location's own Unsorted shelf (if it has one) and the id
+        // of the target's Unsorted shelf it may need to merge into. Both
+        // resolved to plain ids ABOVE the transaction; the target one through
+        // Eloquent (unsortedShelf() find-or-creates, firing the `created`
+        // observer) for the identical reason documented on deleteShelf()'s
+        // own Unsorted-shelf resolution above: doing it INSIDE the
+        // transaction would let a rollback have already broadcast a lie.
+        $sourceUnsortedShelfId = null;
+        $targetUnsortedShelfId = null;
+
         if ($strategy === LocationDeleteStrategy::MoveContents) {
             // Must be a live location of the SAME household, and not the location
             // we are about to delete (which would strand the shelves on a corpse).
@@ -140,15 +150,50 @@ class HierarchyDeleter
             }
 
             $moveToLocationId = (int) $target->getKey();
+
+            // The Unsorted shelf is never reparented as-is: a plain
+            // location_id update would carry it into the target still
+            // flagged is_system, and if the target already has its own
+            // Unsorted shelf that leaves TWO live is_system shelves there —
+            // the exact "products split across two Unsorted shelves" state
+            // StorageLocation::unsortedShelf()'s lockForUpdate() exists to
+            // prevent, reached through a different door. So it always stays
+            // behind and dies with the rest of this batch; only its
+            // PRODUCTS (if any) are rescued, into the target's own Unsorted
+            // shelf.
+            $sourceUnsorted = $location->shelves()->where('is_system', true)->first();
+
+            if ($sourceUnsorted !== null) {
+                $sourceUnsortedShelfId = (int) $sourceUnsorted->getKey();
+
+                if ($sourceUnsorted->products()->exists()) {
+                    $targetUnsortedShelfId = (int) Shelf::withoutEvents(fn () => $target->unsortedShelf())->getKey();
+                }
+            }
         }
 
-        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId) {
+        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId, $sourceUnsortedShelfId, $targetUnsortedShelfId) {
             $now = now();
 
             if ($moveToLocationId !== null) {
-                // Reparent the shelves. Products hang off the shelf and never
-                // change identity, so they ride along without being touched.
-                $location->shelves()->update(['location_id' => $moveToLocationId]);
+                // Reparent only the location's non-system shelves. Products
+                // hang off the shelf and never change identity, so they ride
+                // along without being touched.
+                $location->shelves()->where('is_system', false)->update(['location_id' => $moveToLocationId]);
+
+                if ($sourceUnsortedShelfId !== null) {
+                    if ($targetUnsortedShelfId !== null) {
+                        Product::query()->where('shelf_id', $sourceUnsortedShelfId)->update(['shelf_id' => $targetUnsortedShelfId]);
+                    }
+
+                    // Now empty (or already was) — dies with this batch
+                    // instead of dangling, live, under the parent this
+                    // transaction is about to soft-delete.
+                    Shelf::query()->whereKey($sourceUnsortedShelfId)->update([
+                        'deleted_at' => $now,
+                        'deletion_batch_id' => $batchId,
+                    ]);
+                }
             }
 
             if ($strategy === LocationDeleteStrategy::DeleteContents) {
