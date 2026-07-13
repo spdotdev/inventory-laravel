@@ -31,6 +31,7 @@ class ProductRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string'],
             'code' => ['sometimes', 'nullable', 'string', 'max:100'],
             'is_mandatory' => ['sometimes', 'boolean'],
+            'is_starred' => ['sometimes', 'boolean'],
             'quantity' => ['sometimes', 'integer', 'min:0', 'max:'.self::MAX_QUANTITY],
             // NULL disables the low-stock warning for the product; 0 would duplicate
             // the missing-items concept (is_mandatory + qty 0), so the floor is 1.

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $description
  * @property string|null $code
  * @property bool $is_mandatory
+ * @property bool $is_starred
  * @property string|null $image_url
  * @property int $quantity
  * @property int|null $low_stock_threshold
@@ -34,6 +35,7 @@ class Product extends Model
         'description',
         'code',
         'is_mandatory',
+        'is_starred',
         'image_url',
         'quantity',
         'low_stock_threshold',
@@ -48,6 +50,7 @@ class Product extends Model
         return [
             'quantity' => 'integer',
             'is_mandatory' => 'boolean',
+            'is_starred' => 'boolean',
             'low_stock_threshold' => 'integer',
         ];
     }
