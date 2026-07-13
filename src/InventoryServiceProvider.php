@@ -9,6 +9,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
@@ -27,6 +28,7 @@ use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Observers\BroadcastHouseholdChange;
+use Spdotdev\Inventory\Policies\HouseholdPolicy;
 
 class InventoryServiceProvider extends ServiceProvider
 {
@@ -81,6 +83,10 @@ class InventoryServiceProvider extends ServiceProvider
         });
 
         $this->registerBroadcasting();
+
+        // The package's only policy (Spec 2). Grants any member today; when
+        // roles land, this is the one method body that changes.
+        Gate::policy(Household::class, HouseholdPolicy::class);
 
         // Tenancy gate for /households/{household}/* routes.
         /** @var Router $router */
