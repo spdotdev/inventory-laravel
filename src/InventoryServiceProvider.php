@@ -19,6 +19,7 @@ use Spdotdev\Inventory\Console\Commands\AddHouseholdMemberCommand;
 use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
 use Spdotdev\Inventory\Console\Commands\ListHouseholdsCommand;
 use Spdotdev\Inventory\Console\Commands\PruneClientErrorsCommand;
+use Spdotdev\Inventory\Console\Commands\PruneDeletedCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
@@ -128,6 +129,7 @@ class InventoryServiceProvider extends ServiceProvider
                 AddHouseholdMemberCommand::class,
                 RegenerateJoinCodeCommand::class,
                 PruneClientErrorsCommand::class,
+                PruneDeletedCommand::class,
             ]);
         }
     }
