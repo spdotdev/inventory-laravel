@@ -4,6 +4,8 @@ namespace Spdotdev\Inventory\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,9 +18,13 @@ use Illuminate\Support\Facades\DB;
  * @property string|null $image_url
  * @property int $quantity
  * @property int|null $low_stock_threshold
+ * @property Carbon|null $deleted_at
+ * @property string|null $deletion_batch_id
  */
 class Product extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'inventory_products';
 
     /** @var list<string> */
@@ -31,6 +37,7 @@ class Product extends Model
         'image_url',
         'quantity',
         'low_stock_threshold',
+        'deletion_batch_id',
     ];
 
     /**

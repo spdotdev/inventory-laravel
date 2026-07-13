@@ -5,15 +5,21 @@ namespace Spdotdev\Inventory\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $location_id
  * @property string $name
  * @property int $position
+ * @property Carbon|null $deleted_at
+ * @property string|null $deletion_batch_id
  */
 class Shelf extends Model
 {
+    use SoftDeletes;
+
     protected $table = 'inventory_shelves';
 
     /** @var list<string> */
@@ -21,6 +27,7 @@ class Shelf extends Model
         'location_id',
         'name',
         'position',
+        'deletion_batch_id',
     ];
 
     /** @var array<string, mixed> */

@@ -93,7 +93,7 @@ class ProductImageTest extends TestCase
         $this->deleteJson($deleteUrl)->assertOk();
 
         Storage::disk('public')->assertMissing($path);
-        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
     }
 
     public function test_non_image_upload_is_rejected(): void

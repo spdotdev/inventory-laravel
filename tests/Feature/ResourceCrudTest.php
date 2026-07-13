@@ -40,7 +40,7 @@ class ResourceCrudTest extends TestCase
         $this->putJson("{$this->base}/households/{$h->id}/locations/{$id}", ['name' => 'Renamed'])
             ->assertOk()->assertJsonPath('data.name', 'Renamed');
         $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$id}")->assertOk();
-        $this->assertDatabaseMissing('inventory_storage_locations', ['id' => $id]);
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $id]);
     }
 
     public function test_shelf_and_product_crud(): void
@@ -57,7 +57,7 @@ class ResourceCrudTest extends TestCase
         $this->getJson("{$this->base}/households/{$h->id}/shelves/{$shelfId}/products")
             ->assertOk()->assertJsonCount(1, 'data');
         $this->deleteJson("{$this->base}/households/{$h->id}/shelves/{$shelfId}/products/{$productId}")->assertOk();
-        $this->assertDatabaseMissing('inventory_products', ['id' => $productId]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $productId]);
     }
 
     public function test_shelves_created_without_position_get_increasing_order(): void

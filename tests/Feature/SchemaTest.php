@@ -42,13 +42,32 @@ class SchemaTest extends TestCase
         $this->assertSame(0, $product->fresh()->quantity);
     }
 
-    public function test_deleting_a_location_cascades_to_shelves_and_products(): void
+    public function test_soft_deleting_a_location_does_not_cascade_to_shelves_and_products(): void
     {
+        // A soft delete is an UPDATE, not a DELETE, so it never trips the
+        // ON DELETE CASCADE foreign keys — that's what makes it undoable. The
+        // shelf/product rows are left exactly as they were; SoftDeleteTest
+        // covers how they become unreachable via the household/API relations.
         $shelf = $this->makeShelf();
         $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
         $location = $shelf->location;
 
         $location->delete();
+
+        $this->assertDatabaseCount('inventory_shelves', 1);
+        $this->assertDatabaseCount('inventory_products', 1);
+    }
+
+    public function test_force_deleting_a_location_cascades_to_shelves_and_products(): void
+    {
+        // The ON DELETE CASCADE foreign keys are kept specifically for the
+        // eventual hard purge — this pins that forceDelete() (a real DELETE)
+        // still tears down the whole subtree.
+        $shelf = $this->makeShelf();
+        $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+        $location = $shelf->location;
+
+        $location->forceDelete();
 
         $this->assertDatabaseCount('inventory_shelves', 0);
         $this->assertDatabaseCount('inventory_products', 0);

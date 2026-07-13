@@ -146,7 +146,7 @@ class WebUiTest extends TestCase
         $this->actingAs($user, 'inventory')
             ->delete(route('inventory.web.locations.destroy', [$household, $location]))
             ->assertRedirect();
-        $this->assertDatabaseMissing('inventory_storage_locations', ['id' => $location->id]);
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
     }
 
     public function test_product_crud_and_stock_actions_on_the_web(): void
@@ -194,7 +194,7 @@ class WebUiTest extends TestCase
         $this->actingAs($user, 'inventory')
             ->delete(route('inventory.web.products.destroy', [$household, $shelf, $product]))
             ->assertRedirect();
-        $this->assertDatabaseMissing('inventory_products', ['id' => $product->id]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
     }
 
     public function test_web_crud_is_tenancy_gated(): void
