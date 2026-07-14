@@ -178,16 +178,27 @@ Locations and shelves carry `deleted_at` + `deletion_batch_id` (soft delete, not
 server never guesses, because guessing wrong destroys data:
 
 ```
-DELETE /locations/{location}        { deletion_batch_id,                -> 200; soft-deletes
+DELETE /locations/{location}        { deletion_batch_id?,               -> 200; soft-deletes
                                        strategy?, target_location_id? }    the location (+ subtree)
 DELETE /locations/{location}/shelves/{shelf}
-                                     { deletion_batch_id,                -> 200; soft-deletes
+                                     { deletion_batch_id?,               -> 200; soft-deletes
                                        strategy?, target_shelf_id? }       the shelf (+ its products)
 ```
 
-- `deletion_batch_id` (**required**, uuid) — client-minted, since only the client knows
-  whether several deletes in a row are one user gesture. Stamped on every row this one
-  delete touches, so the whole gesture is restorable as a unit. Missing or non-uuid -> 422.
+- `deletion_batch_id` (**optional**, uuid) — client-minted when present, since only the
+  client knows whether several deletes in a row are one user gesture (e.g. deleting three
+  shelves in one screen action); a client-supplied id is always used verbatim and lets
+  those requests share one batch, so Undo restores the whole gesture as a unit, not one
+  item of several. **Back-compat guarantee:** omitted or explicit `null` is accepted — the
+  **server mints its own batch-of-one uuid** in that case, so the row still lands
+  genuinely restorable through `POST .../restore/{batch}` rather than stuck with a `NULL`
+  `deletion_batch_id` (permanently unreachable through the batch-keyed restore surface).
+  This exists because a shipped Android build (v0.1.8) sends a bodyless `DELETE` with no
+  batch id at all, and the API-versioning rule at the top of this doc means that build
+  must keep working unmodified. Present but non-uuid (e.g. an empty string or a garbage
+  value) -> 422; the server never guesses at a malformed id, only fills in a genuinely
+  absent one. The response body always echoes the `deletion_batch_id` that was actually
+  stamped — client-supplied or server-minted — so the caller can use it to restore.
 - `strategy` is **required** only when the container is non-empty — a location holding
   any **non-system** shelf (whatever it holds — its own fate as a shelf still needs
   deciding), or holding a system **Unsorted** shelf that itself holds products; a shelf

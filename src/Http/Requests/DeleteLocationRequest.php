@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
 use Spdotdev\Inventory\Models\StorageLocation;
@@ -42,9 +43,17 @@ class DeleteLocationRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->input('strategy') === LocationDeleteStrategy::MoveContents->value),
                 'integer',
             ],
-            // Client-minted: one user gesture may span several requests (deleting
-            // several locations), and only the client knows they were one gesture.
-            'deletion_batch_id' => ['required', 'uuid'],
+            // OPTIONAL, not required: a client-minted id is preferred (it is
+            // what lets one user gesture spanning several requests — deleting
+            // several locations — share one batch, so Undo restores all of
+            // them as a unit), but the Android build already shipped to
+            // testers (v0.1.8) sends a bodyless DELETE with no batch id at
+            // all. Rejecting that outright would 422 every location delete on
+            // every phone already in the field the moment this backend goes
+            // live — see batchId() below for what happens when the client
+            // omits it. 'nullable' also absorbs an explicit null for the same
+            // wire-format reason as strategy/target_location_id above.
+            'deletion_batch_id' => ['nullable', 'uuid'],
         ];
     }
 
@@ -74,21 +83,40 @@ class DeleteLocationRequest extends FormRequest
         return is_string($value) ? LocationDeleteStrategy::from($value) : null;
     }
 
+    // Memoises a server-minted id so repeated calls within the SAME request
+    // (destroy() calls batchId() twice: once for HierarchyDeleter, once for
+    // the response body) agree — a fresh uuid per call would split one
+    // delete across two different "batches", and the response would then
+    // advertise an id that was never actually stamped on the row.
+    private ?string $mintedBatchId = null;
+
     public function batchId(): string
     {
+        // A client-supplied id always wins — never overridden by a
+        // server-minted one, or multi-item Undo (several location deletes
+        // sharing one gesture) would silently split across batches.
+        //
         // Deliberately NOT `(string) $this->input(...)`: that would coerce a
         // missing value into '', and a stamp of '' collapses every deletion
         // across every household into one shared "batch" for Undo purposes.
-        // Read from validated() (guaranteed a valid uuid by the rule above)
-        // and fail loudly — not silently — if that contract is ever broken.
-        // See DeleteShelfRequest — same fix, same reasoning, one level up.
+        // Read from validated() (guaranteed either absent/null or a valid
+        // uuid by the rule above). See DeleteShelfRequest — same fix, same
+        // reasoning, one level up.
         $value = $this->validated('deletion_batch_id');
 
-        if (! is_string($value) || $value === '') {
-            throw new \RuntimeException('deletion_batch_id was not validated as a required uuid.');
+        if (is_string($value) && $value !== '') {
+            return $value;
         }
 
-        return $value;
+        // Absent (or explicit null — same wire-format reason as strategy):
+        // the shipped Android client (v0.1.8) never sends this field. Mint a
+        // batch-of-one so the row still lands restorable — without it the
+        // row would carry a NULL deletion_batch_id, and the batch-keyed
+        // restore surface (POST .../restore/{batch}) has no id to reach it
+        // by, making it permanently unrestorable. Mirrors
+        // ProductController::destroy()'s identical fix for a solo product
+        // delete, which has no shelf/location delete to ride along with either.
+        return $this->mintedBatchId ??= (string) Str::uuid();
     }
 
     public function targetLocationId(): ?int

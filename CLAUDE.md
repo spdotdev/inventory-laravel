@@ -65,6 +65,14 @@ public/                               landing assets (publishable)
   them, and they stay correct for the retention purge (`inventory:deleted:prune`).
   Deleting a non-empty container REQUIRES an explicit strategy; the server never
   guesses. Households themselves are still hard-deleted when the last member leaves.
+  `deletion_batch_id` on the shelf/location delete endpoints is **optional**, not
+  required: a shipped Android build (v0.1.8) sends a bodyless `DELETE` with no batch
+  id, and the API-versioned/backward-compatible rule above means that build keeps
+  working — the server mints its own batch-of-one uuid when the client omits it, so
+  the row still lands genuinely restorable. A client-supplied id is always used
+  verbatim (never overridden), which is what lets several requests from one user
+  gesture share a batch for Undo. See `docs/specs/api-contract.md` for the full
+  contract.
 - **Roles/permissions: coming.** `HouseholdPolicy@restructure` is the seam — today
   it grants any member (all members still equal in practice). Owner/Admin/Member
   land in the roles spec; change that method body, not the call sites.

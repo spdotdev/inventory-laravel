@@ -196,22 +196,11 @@ class ShelfDeleteStrategyTest extends TestCase
         $this->assertNotSoftDeleted('inventory_products', ['id' => $p->id, 'shelf_id' => $s->id]);
     }
 
-    public function test_delete_without_a_batch_id_is_rejected(): void
-    {
-        // Mutation-proof: relaxing 'deletion_batch_id' => ['required', 'uuid']
-        // to ['nullable'] must not slip past the whole suite unnoticed.
-        [$h, $l, $s] = $this->shelfWithProduct();
-        Product::query()->delete();
-
-        $this->deleteJson($this->url($h, $l, $s), [])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('deletion_batch_id');
-
-        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
-    }
-
     public function test_delete_with_a_non_uuid_batch_id_is_rejected(): void
     {
+        // deletion_batch_id is optional now, but a value that IS present and
+        // non-empty must still be a genuine uuid — a garbage string is still
+        // a 422, not silently treated as "absent".
         [$h, $l, $s] = $this->shelfWithProduct();
         Product::query()->delete();
 
@@ -220,6 +209,79 @@ class ShelfDeleteStrategyTest extends TestCase
             ->assertJsonValidationErrors('deletion_batch_id');
 
         $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+    }
+
+    public function test_bodyless_delete_on_an_empty_shelf_is_accepted_and_restorable(): void
+    {
+        // The Android client already shipped to testers (v0.1.8) sends a
+        // BODYLESS DELETE — no deletion_batch_id key at all. Rejecting that
+        // outright would 422 every shelf delete on every phone already in the
+        // field. The server must instead mint a batch-of-one so the row still
+        // lands genuinely restorable via POST .../restore/{batch}, not merely
+        // "soft-deleted with a NULL deletion_batch_id" (permanently
+        // unreachable through the batch-keyed restore surface).
+        [$h, $l, $s] = $this->shelfWithProduct();
+        Product::query()->delete();
+
+        $response = $this->deleteJson($this->url($h, $l, $s))->assertOk();
+
+        $batch = $response->json('deletion_batch_id');
+        $this->assertIsString($batch);
+        $this->assertNotSame('', $batch);
+
+        // The id returned in the response must be the SAME id stamped on the
+        // row — this is what pins batchId()'s memoisation: if it minted a
+        // fresh uuid on each call, the row's stored id and the response's
+        // advertised id would diverge, and this assertion would fail.
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $batch]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 1);
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+    }
+
+    public function test_bodyless_delete_on_an_occupied_shelf_still_requires_a_strategy(): void
+    {
+        // The other half of the same fix: making deletion_batch_id optional
+        // must NOT relax the strategy requirement. A non-empty shelf still
+        // 422s — the server never guesses whether to move, unsort, or
+        // destroy its products, batch id or no batch id.
+        [$h, $l, $s, $p] = $this->shelfWithProduct();
+
+        $this->deleteJson($this->url($h, $l, $s))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $s->id]);
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $p->id, 'shelf_id' => $s->id]);
+    }
+
+    public function test_two_shelf_deletes_in_one_gesture_share_the_client_batch_id(): void
+    {
+        // Regression guard: if the server ever overrode a client-supplied
+        // batch id with a freshly minted one, two deletes sent by a NEW
+        // client under the SAME batch id would silently land in two
+        // different batches — splitting one Undo gesture (delete these two
+        // shelves) across two restore calls.
+        [$h, $l, $s] = $this->shelfWithProduct();
+        Product::query()->delete();
+        $second = $l->shelves()->create(['name' => 'Bottom', 'position' => 1]);
+
+        $this->deleteJson($this->url($h, $l, $s), ['deletion_batch_id' => $this->batch])
+            ->assertOk()
+            ->assertJsonPath('deletion_batch_id', $this->batch);
+        $this->deleteJson($this->url($h, $l, $second), ['deletion_batch_id' => $this->batch])
+            ->assertOk()
+            ->assertJsonPath('deletion_batch_id', $this->batch);
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $s->id, 'deletion_batch_id' => $this->batch]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $second->id, 'deletion_batch_id' => $this->batch]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$this->batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 2);
     }
 
     public function test_delete_broadcasts_to_the_household_exactly_once(): void

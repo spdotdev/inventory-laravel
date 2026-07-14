@@ -385,23 +385,11 @@ class LocationDeleteStrategyTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('location_id');
     }
 
-    public function test_delete_without_a_batch_id_is_rejected(): void
-    {
-        // Mutation-proof: relaxing 'deletion_batch_id' => ['required', 'uuid']
-        // to ['nullable'] must not slip past the whole suite unnoticed. See
-        // Task 5's identical guard on DeleteShelfRequest.
-        $h = $this->memberHousehold();
-        $location = $h->locations()->create(['name' => 'Empty', 'type' => StorageType::Other]);
-
-        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}", [])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('deletion_batch_id');
-
-        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
-    }
-
     public function test_delete_with_a_non_uuid_batch_id_is_rejected(): void
     {
+        // deletion_batch_id is optional now, but a value that IS present and
+        // non-empty must still be a genuine uuid — a garbage string is still
+        // a 422, not silently treated as "absent".
         $h = $this->memberHousehold();
         $location = $h->locations()->create(['name' => 'Empty', 'type' => StorageType::Other]);
 
@@ -412,6 +400,85 @@ class LocationDeleteStrategyTest extends TestCase
             ->assertJsonValidationErrors('deletion_batch_id');
 
         $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_bodyless_delete_on_an_empty_location_is_accepted_and_restorable(): void
+    {
+        // The Android client already shipped to testers (v0.1.8) sends a
+        // BODYLESS DELETE — no deletion_batch_id key at all. Rejecting that
+        // outright would 422 every location delete on every phone already in
+        // the field. The server must instead mint a batch-of-one so the row
+        // still lands genuinely restorable via POST .../restore/{batch}, not
+        // merely "soft-deleted with a NULL deletion_batch_id" (permanently
+        // unreachable through the batch-keyed restore surface).
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Empty', 'type' => StorageType::Other]);
+
+        $response = $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}")
+            ->assertOk();
+
+        $batch = $response->json('deletion_batch_id');
+        $this->assertIsString($batch);
+        $this->assertNotSame('', $batch);
+
+        // The id returned in the response must be the SAME id stamped on the
+        // row — this is what pins batchId()'s memoisation: if it minted a
+        // fresh uuid on each call, the row's stored id and the response's
+        // advertised id would diverge, and this assertion would fail.
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id, 'deletion_batch_id' => $batch]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 1);
+
+        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_bodyless_delete_on_a_location_whose_shelves_are_all_empty_still_requires_a_strategy(): void
+    {
+        // The critical nuance: locationHasContents() asks about the
+        // location's SHELVES, not its products. A regular (non-system) shelf
+        // with zero products on it is still "content" — its own fate as a
+        // shelf (move it, or die with the location) still needs deciding.
+        // Only an empty system Unsorted shelf is disposable enough to skip
+        // the strategy prompt (see test_a_location_holding_only_an_empty_
+        // unsorted_shelf_needs_no_strategy above).
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$location->id}")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_two_location_deletes_in_one_gesture_share_the_client_batch_id(): void
+    {
+        // Regression guard: if the server ever overrode a client-supplied
+        // batch id with a freshly minted one, two deletes sent by a NEW
+        // client under the SAME batch id would silently land in two
+        // different batches — splitting one Undo gesture (delete these two
+        // locations) across two restore calls.
+        $h = $this->memberHousehold();
+        $first = $h->locations()->create(['name' => 'Empty One', 'type' => StorageType::Other]);
+        $second = $h->locations()->create(['name' => 'Empty Two', 'type' => StorageType::Other]);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$first->id}", [
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk()->assertJsonPath('deletion_batch_id', $this->batch);
+
+        $this->deleteJson("{$this->base}/households/{$h->id}/locations/{$second->id}", [
+            'deletion_batch_id' => $this->batch,
+        ])->assertOk()->assertJsonPath('deletion_batch_id', $this->batch);
+
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $first->id, 'deletion_batch_id' => $this->batch]);
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $second->id, 'deletion_batch_id' => $this->batch]);
+
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$this->batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 2);
     }
 
     public function test_delete_broadcasts_to_the_household_exactly_once(): void
