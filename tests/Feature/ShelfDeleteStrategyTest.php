@@ -165,7 +165,7 @@ class ShelfDeleteStrategyTest extends TestCase
 
     public function test_move_to_a_shelf_in_another_household_is_rejected(): void
     {
-        [$h, $l, $s, $p] = $this->shelfWithProduct();
+        [$h, $l, $s] = $this->shelfWithProduct();
         $other = Household::create(['name' => 'Other', 'join_code' => 'ZZZZ-9999']);
         $foreign = $other->locations()->create(['name' => 'X', 'type' => StorageType::Pantry])
             ->shelves()->create(['name' => 'Y', 'position' => 0]);
