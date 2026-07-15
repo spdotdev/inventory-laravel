@@ -4,10 +4,13 @@ namespace Spdotdev\Inventory\Http\Controllers\Web;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\HierarchyDeleter;
 
 /**
  * Web CRUD for storage locations (Phase 2 stage 2). Tenancy is enforced by the
@@ -31,14 +34,29 @@ class WebLocationController extends Controller
         return view('inventory::web.location', [
             'household' => $household,
             'location' => $location,
-            'shelves' => $location->shelves()->with('products')->orderBy('position')->get(),
+            // is_system first, matching ShelfController::index — otherwise this
+            // surface can show Unsorted FIRST, breaking "Unsorted always sorts
+            // last" for the one client that reads this order.
+            'shelves' => $location->shelves()->with('products')->orderBy('is_system')->orderBy('position')->get(),
         ]);
     }
 
     public function destroy(Household $household, StorageLocation $location): RedirectResponse
     {
-        // Hard delete, ON DELETE CASCADE takes shelves + products with it (locked rule).
-        $location->delete();
+        // MUST go through HierarchyDeleter. A bare $location->delete() is now a
+        // soft delete, which does NOT fire the ON DELETE CASCADE — the shelves
+        // and products would survive as unreachable, un-purgeable orphans.
+        //
+        // The web UI has no strategy picker, so it keeps its historical
+        // semantics: deleting a location deletes what is in it. The difference
+        // is that it is now soft and batched, so it can be restored.
+        HierarchyDeleter::deleteLocation(
+            $household,
+            $location,
+            (string) Str::uuid(),
+            LocationDeleteStrategy::DeleteContents,
+            null,
+        );
 
         return redirect()
             ->route('inventory.web.households.show', $household)

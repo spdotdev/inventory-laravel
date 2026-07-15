@@ -5,14 +5,15 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
 use Spdotdev\Inventory\Http\Resources\ProductResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
+use Spdotdev\Inventory\Support\ProductImage;
 
 /**
  * Products on a shelf, plus the add/remove/move stock actions. Scoped binding
@@ -46,21 +47,27 @@ class ProductController
 
     public function destroy(Household $household, Shelf $shelf, Product $product): JsonResponse
     {
-        // Best-effort cleanup of the product's stored image so a direct delete
-        // doesn't orphan the file (W15). NOTE: a *cascade* delete (removing the
-        // shelf/location/household) is DB-level (ON DELETE CASCADE) and fires no
-        // Eloquent event, so those images are intentionally left for the disk's
-        // own lifecycle/GC — cleaning them would require app-level tree deletion,
-        // which the hard-delete-cascade rule deliberately avoids.
-        $image = $product->image_url;
+        // A solo product delete has no shelf/location delete to ride along
+        // with, so mint a batch-of-one here: without it the row lands with a
+        // NULL deletion_batch_id, and the batch-keyed restore surface
+        // (POST .../restore/{batch}) has no id to reach it by — permanently
+        // unrestorable, unlike a product caught up in a shelf/location delete.
+        // Stamped via the query builder (no model event) so the delete()
+        // below still fires exactly one `deleted` event/broadcast.
+        $batchId = (string) Str::uuid();
+        $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
 
+        // $product->delete() is a SOFT delete (an UPDATE) — the row survives so
+        // Undo can restore it. The image file must survive with it: the row's
+        // image_url still points at it, so deleting the file here would leave a
+        // restored product with a dead photo. Image cleanup is the eventual hard
+        // purge's job (inventory:deleted:prune) — see that command when it lands.
         $product->delete();
 
-        if ($image !== null) {
-            $this->deleteStoredImage((string) config('inventory.image_disk', 'public'), $image);
-        }
-
-        return response()->json(['message' => 'Product deleted.']);
+        return response()->json([
+            'message' => 'Product deleted.',
+            'deletion_batch_id' => $batchId,
+        ]);
     }
 
     public function add(Request $request, Household $household, Shelf $shelf, Product $product): ProductResource
@@ -96,9 +103,7 @@ class ProductController
         // client (which loads image_url directly) can fetch it. S3 etc. are already absolute.
         $product->update(['image_url' => str_starts_with($url, 'http') ? $url : url($url)]);
 
-        if ($previous !== null) {
-            $this->deleteStoredImage($disk, $previous);
-        }
+        ProductImage::delete($disk, $previous);
 
         return new ProductResource($product);
     }
@@ -122,29 +127,6 @@ class ProductController
         $product->save();
 
         return new ProductResource($product);
-    }
-
-    /**
-     * Best-effort removal of a previously-stored product image so replacing a
-     * photo doesn't orphan the old file. We only know the public URL, so we
-     * recover the disk-relative path from the known `inventory/products/` prefix
-     * and delete it if it still exists. Off-disk / externally-hosted URLs (no
-     * matching prefix) are left untouched.
-     */
-    private function deleteStoredImage(string $disk, string $imageUrl): void
-    {
-        $marker = 'inventory/products/';
-        $pos = strpos($imageUrl, $marker);
-
-        if ($pos === false) {
-            return;
-        }
-
-        $path = substr($imageUrl, $pos);
-
-        if (Storage::disk($disk)->exists($path)) {
-            Storage::disk($disk)->delete($path);
-        }
     }
 
     private function amount(Request $request): int

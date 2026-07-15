@@ -11,7 +11,11 @@
   (sd-admin). To avoid colliding with the host app's own tables, **every
   package-owned table is prefixed `inventory_`**.
 - Engine: **MySQL** (the host app's default connection). All FKs `ON DELETE CASCADE`
-  down the location → shelf → product tree. No soft deletes. `quantity` floors at 0.
+  down the location → shelf → product tree; a soft delete is an `UPDATE` and never
+  fires them. **Soft deletes on the hierarchy** (`inventory_storage_locations`,
+  `inventory_shelves`, `inventory_products` carry `deleted_at` +
+  `deletion_batch_id`, added 2026-07-13 so deleting a container is recoverable
+  rather than silently destroying everything inside it). `quantity` floors at 0.
 
 ## Tables
 
@@ -35,20 +39,38 @@ inventory_household_user                      -- membership pivot
 
 inventory_storage_locations
   id, household_id (FK CASCADE), name,
-  type ENUM(freezer|fridge|pantry|other), created_at, updated_at
+  type ENUM(freezer|fridge|pantry|other), position (unsigned int, default 0 —
+    manual drag order; added 2026-07-13, same contract as inventory_shelves.position),
+  is_system (boolean, default false; added 2026-07-13 — unused today, reserved so a
+    future household-level holding area doesn't need another migration against a live
+    table; not yet exposed via the API),
+  created_at, updated_at,
+  deleted_at (nullable — soft delete, added 2026-07-13),
+  deletion_batch_id (nullable uuid, indexed — groups every row killed by one
+    user gesture so Undo can restore it as a unit; minted client-side)
 
 inventory_shelves
-  id, location_id (FK CASCADE), name, position, created_at, updated_at
+  id, location_id (FK CASCADE), name, position,
+  is_system (boolean, default false; added 2026-07-13 — marks the per-location
+    "Unsorted" shelf: lazily created on first use, unrenameable, unmovable, always
+    sorted last; see `api-contract.md` § *Deleting a location or shelf*),
+  created_at, updated_at,
+  deleted_at (nullable — soft delete, added 2026-07-13),
+  deletion_batch_id (nullable uuid, indexed — see inventory_storage_locations)
 
 inventory_products
   id, shelf_id (FK CASCADE), name, quantity (>= 0),
   description (nullable text),
   code (nullable string, max 100 — free-form product code / scanned barcode),
   is_mandatory (boolean, default false — "should always be stocked"; qty 0 = missing),
+  is_starred (boolean, default false — user-toggled favorite/pin; added 2026-07-13,
+    no server-side sort/filter semantics, just storage + passthrough),
   image_url (nullable string — absolute URL, set by POST .../products/{id}/image),
   low_stock_threshold (nullable unsigned int, >= 1 — "running low" warning at
     quantity <= threshold; NULL = feature off for the product; Phase 2, 2026-07-10),
-  created_at, updated_at
+  created_at, updated_at,
+  deleted_at (nullable — soft delete, added 2026-07-13),
+  deletion_batch_id (nullable uuid, indexed — see inventory_storage_locations)
   -- quantity 0 = out of stock; row retained for easy re-add
 
 inventory_client_errors                       -- remote client crash/error intake

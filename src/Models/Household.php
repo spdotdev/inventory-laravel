@@ -77,6 +77,13 @@ class Household extends Model
      * Shelves across all of the household's locations. Backs scoped binding for
      * the /households/{household}/shelves/{shelf}/... routes.
      *
+     * Laravel scopes the THROUGH-parent's soft deletes automatically: when the
+     * intermediate model (StorageLocation) uses SoftDeletes,
+     * HasOneOrManyThrough::performJoin() adds a SoftDeletableHasManyThrough
+     * global scope, so a shelf inside a soft-deleted location is already
+     * unreachable here with no explicit whereNull needed —
+     * withTrashedParents() exists precisely to opt back out of that.
+     *
      * @return HasManyThrough<Shelf, StorageLocation, $this>
      */
     public function shelves(): HasManyThrough

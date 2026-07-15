@@ -21,6 +21,12 @@ class ShelfRequest extends FormRequest
         return [
             'name' => [$required, 'string', 'max:50'],
             'position' => ['sometimes', 'integer', 'min:0'],
+            // Reparenting. No UI gesture exposes this yet, but the location
+            // delete's move_contents strategy IS a reparent, and a future
+            // drag-between-locations should be a client change, not a migration.
+            // Household scoping is enforced in the controller — a Rule::exists
+            // here cannot see the household.
+            'location_id' => ['sometimes', 'integer'],
         ];
     }
 }

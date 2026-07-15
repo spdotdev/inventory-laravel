@@ -96,6 +96,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Soft-deleted row retention
+    |--------------------------------------------------------------------------
+    |
+    | How long a soft-deleted location/shelf/product survives before it is hard
+    | deleted for good. The in-app Undo is only a snackbar long; this window is
+    | what makes a support-grade restore possible days later. 0 disables pruning.
+    |
+    */
+
+    'deleted_retention_days' => (int) env('INVENTORY_DELETED_RETENTION_DAYS', 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Product images
     |--------------------------------------------------------------------------
     |

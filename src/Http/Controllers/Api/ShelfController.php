@@ -4,11 +4,18 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+use Spdotdev\Inventory\Events\HouseholdChanged;
+use Spdotdev\Inventory\Http\Requests\DeleteShelfRequest;
+use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Http\Requests\ShelfRequest;
 use Spdotdev\Inventory\Http\Resources\ShelfResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\HierarchyDeleter;
 
 /**
  * Shelves within a location. Scoped binding chains {shelf} ⊂ {location} ⊂
@@ -18,11 +25,17 @@ class ShelfController
 {
     public function index(Household $household, StorageLocation $location): AnonymousResourceCollection
     {
-        return ShelfResource::collection($location->shelves()->orderBy('position')->get());
+        // is_system first in the sort => Unsorted (is_system = true = 1) always
+        // lands after the real shelves, whatever positions they hold.
+        return ShelfResource::collection(
+            $location->shelves()->withCount('products')->orderBy('is_system')->orderBy('position')->get(),
+        );
     }
 
     public function store(ShelfRequest $request, Household $household, StorageLocation $location): JsonResponse
     {
+        Gate::authorize('restructure', $household);
+
         $data = $request->validated();
 
         // The client only sends `name`, so without this every shelf lands at the
@@ -45,15 +58,109 @@ class ShelfController
 
     public function update(ShelfRequest $request, Household $household, StorageLocation $location, Shelf $shelf): ShelfResource
     {
-        $shelf->update($request->validated());
+        Gate::authorize('restructure', $household);
+
+        $data = $request->validated();
+
+        // The Unsorted shelf is a fixed concept the client localises off
+        // is_system. Letting a user rename it to "Bananas" would leave the app
+        // showing a translated label that matches nothing in the database.
+        if ($shelf->is_system && array_key_exists('name', $data)) {
+            throw ValidationException::withMessages([
+                'name' => ['The Unsorted shelf cannot be renamed.'],
+            ]);
+        }
+
+        // Reparenting the Unsorted shelf is exactly the bug HierarchyDeleter's
+        // move_contents strategy guards against one level up — moving it
+        // as-is into a location that already has its own Unsorted shelf
+        // produces two live is_system shelves there. Block the same edit at
+        // this door too.
+        if ($shelf->is_system && array_key_exists('location_id', $data)) {
+            throw ValidationException::withMessages([
+                'location_id' => ['The Unsorted shelf cannot be moved.'],
+            ]);
+        }
+
+        // A Rule::exists in the request cannot see the household, so scope here:
+        // without this a member could reparent a shelf into another household.
+        if (array_key_exists('location_id', $data)) {
+            $targetExists = $household->locations()->whereKey($data['location_id'])->exists();
+
+            if (! $targetExists) {
+                throw ValidationException::withMessages([
+                    'location_id' => ['The selected location is not in this household.'],
+                ]);
+            }
+        }
+
+        $shelf->update($data);
 
         return new ShelfResource($shelf);
     }
 
-    public function destroy(Household $household, StorageLocation $location, Shelf $shelf): JsonResponse
+    public function destroy(DeleteShelfRequest $request, Household $household, StorageLocation $location, Shelf $shelf): JsonResponse
     {
-        $shelf->delete();
+        Gate::authorize('restructure', $household);
 
-        return response()->json(['message' => 'Shelf deleted.']);
+        // Deleting an occupied Unsorted shelf would strand the very products it
+        // exists to protect. Empty, it is disposable — unsortedShelf() rebuilds
+        // it on demand.
+        if ($shelf->is_system && $shelf->products()->exists()) {
+            throw ValidationException::withMessages([
+                'shelf' => ['The Unsorted shelf still holds products. Move them first.'],
+            ]);
+        }
+
+        HierarchyDeleter::deleteShelf(
+            $household,
+            $shelf,
+            $request->batchId(),
+            $request->strategy(),
+            $request->targetShelfId(),
+        );
+
+        return response()->json([
+            'message' => 'Shelf deleted.',
+            'deletion_batch_id' => $request->batchId(),
+        ]);
+    }
+
+    /**
+     * Rewrite every shelf's position within this location. See
+     * LocationController::reorder — same contract, same all-or-nothing rule.
+     */
+    public function reorder(ReorderRequest $request, Household $household, StorageLocation $location): AnonymousResourceCollection
+    {
+        Gate::authorize('restructure', $household);
+
+        $ids = $request->ids();
+        // The Unsorted shelf is excluded on both sides of this check: it is
+        // never draggable and always sorts last via is_system, so its position
+        // is meaningless and the client never sends its id. Scoping both counts
+        // to non-system shelves means (a) a payload that omits it still passes
+        // completeness, and (b) a payload that DOES include it is rejected —
+        // its id can't be found among non-system $owned, so the counts mismatch.
+        $owned = $location->shelves()->where('is_system', false)->whereKey($ids)->pluck('id')->all();
+        $total = $location->shelves()->where('is_system', false)->count();
+
+        // Every id must be a live, non-system shelf of THIS location AND every
+        // live non-system shelf must be present — see LocationController::reorder
+        // for why a partial list is just as dangerous as a foreign one.
+        if (count($owned) !== count($ids) || $total !== count($ids)) {
+            throw ValidationException::withMessages([
+                'ids' => ['The list must contain every shelf in this location, and only those.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($ids, $location) {
+            foreach ($ids as $position => $id) {
+                $location->shelves()->whereKey($id)->update(['position' => $position]);
+            }
+        });
+
+        HouseholdChanged::dispatch((int) $household->getKey());
+
+        return $this->index($household, $location);
     }
 }

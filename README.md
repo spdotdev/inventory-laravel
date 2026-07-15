@@ -58,6 +58,7 @@ truth):
 | `INVENTORY_RL_JOIN_USER` | `8` | Per-minute join-by-code attempts per user (join-code guessing cap). |
 | `INVENTORY_RL_ERRORS_DEVICE` | `20` | Per-minute client-error-intake posts per device+IP. |
 | `INVENTORY_CLIENT_ERRORS_RETENTION_DAYS` | `30` | Retention for `inventory:client-errors:prune` (schedule it in the host app; `0` = keep forever). |
+| `INVENTORY_DELETED_RETENTION_DAYS` | `30` | Retention for `inventory:deleted:prune`, which hard-deletes soft-deleted locations/shelves/products (and their orphaned images) past this window (schedule it in the host app; `0` = keep forever). |
 | `INVENTORY_IMAGE_DISK` / `INVENTORY_IMAGE_MAX_KB` | `public` / `5120` | Filesystem disk + max upload size for product photos. |
 | `INVENTORY_ANDROID_APP_URL` | _(empty)_ | Install link shown by the `/join/{code}` web fallback. |
 

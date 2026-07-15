@@ -141,24 +141,164 @@ The nav IDs are **required** — the Android client only makes a result tappable
 ## Resources (all under `/api/v1/households/{household}`)
 
 ```
-       /locations[/{location}]                       CRUD   (type: freezer|fridge|pantry|other)
-       /locations/{location}/shelves[/{shelf}]       CRUD
+       /locations[/{location}]                       CRUD*  (type: freezer|fridge|pantry|other)
+       /locations/{location}/shelves[/{shelf}]       CRUD*
        /shelves/{shelf}/products[/{product}]         CRUD
 
 POST   /products/{product}/add     { amount }        -> increment quantity (atomic)
 POST   /products/{product}/remove  { amount }        -> decrement (atomic, floor 0)
 POST   /products/{product}/move    { shelf_id }      -> relocate within the household
 POST   /products/{product}/image   (multipart)       -> upload photo, sets image_url
+
+PATCH  /locations/reorder                          { ids: [int] }
+PATCH  /locations/{location}/shelves/reorder        { ids: [int] }
 ```
+
+\* Locations and shelves are soft-deleted (see *Deleting a location or shelf* below) — their
+`DELETE` is not a bare CRUD delete, and shelves also accept a reparenting `PATCH`.
+
+`reorder` rewrites every sibling's `position` from the client's ordered id list, in one
+all-or-nothing transaction. `ids` must be **complete**: exactly the set of live ids of
+that parent — every household location, resp. every **non-system** shelf of that
+location (the **Unsorted** shelf, `is_system: true`, is excluded: it's never draggable
+and always sorts last, so the client never sends its id and it doesn't count toward
+completeness) — not a subset, not a superset, no foreign or soft-deleted ids. Any gap
+is a **422** with no row touched; a half-applied reorder is worse than a rejected one.
+Broadcasts `household.changed` on success (a query-builder `update()` fires no Eloquent
+events, so this is an explicit dispatch, not the observer).
 
 `add`/`remove` apply an **atomic** quantity delta (1 ≤ `amount` ≤ 1,000,000); `remove`
 floors at 0. `amount`/`quantity` are capped at 1,000,000 — an over-cap value is a **422**,
 not a 500 (keeps the `unsignedInteger` column from overflowing).
 
+### Deleting a location or shelf
+
+Locations and shelves carry `deleted_at` + `deletion_batch_id` (soft delete, not a hard
+`DELETE`). Deleting one that still holds something REQUIRES an explicit strategy — the
+server never guesses, because guessing wrong destroys data:
+
+```
+DELETE /locations/{location}        { deletion_batch_id?,               -> 200; soft-deletes
+                                       strategy?, target_location_id? }    the location (+ subtree)
+DELETE /locations/{location}/shelves/{shelf}
+                                     { deletion_batch_id?,               -> 200; soft-deletes
+                                       strategy?, target_shelf_id? }       the shelf (+ its products)
+```
+
+- `deletion_batch_id` (**optional**, uuid) — client-minted when present, since only the
+  client knows whether several deletes in a row are one user gesture (e.g. deleting three
+  shelves in one screen action); a client-supplied id is always used verbatim and lets
+  those requests share one batch, so Undo restores the whole gesture as a unit, not one
+  item of several. **Back-compat guarantee:** omitted or explicit `null` is accepted — the
+  **server mints its own batch-of-one uuid** in that case, so the row still lands
+  genuinely restorable through `POST .../restore/{batch}` rather than stuck with a `NULL`
+  `deletion_batch_id` (permanently unreachable through the batch-keyed restore surface).
+  This exists because a shipped Android build (v0.1.8) sends a bodyless `DELETE` with no
+  batch id at all, and the API-versioning rule at the top of this doc means that build
+  must keep working unmodified. Present but non-uuid (e.g. an empty string or a garbage
+  value) -> 422; the server never guesses at a malformed id, only fills in a genuinely
+  absent one. The response body always echoes the `deletion_batch_id` that was actually
+  stamped — client-supplied or server-minted — so the caller can use it to restore.
+- `strategy` is **required** only when the container is non-empty — a location holding
+  any **non-system** shelf (whatever it holds — its own fate as a shelf still needs
+  deciding), or holding a system **Unsorted** shelf that itself holds products; a shelf
+  holding products — and **not** required for an empty one. An empty, auto-created
+  Unsorted shelf on its own does **not** count as "non-empty": it is a disposable
+  implementation detail the user never created and never sees (see
+  `StorageLocation::shelvesWithContents()`), so its mere existence must not force a
+  strategy prompt. This is exactly `LocationResource.shelf_count` below — the client MUST
+  ask for a strategy iff `shelf_count > 0`, since that field and this rule are read from
+  the same server-side query and are guaranteed to agree. A location deleted this way with
+  no strategy leaves any such empty Unsorted shelf live but orphaned under the (now
+  soft-deleted) location — harmless, invisible via the household-scoped listing routes,
+  and reclaimed for real by the retention purge's cascade if the location is never
+  restored:
+  - **Location** `strategy`: `move_contents` (reparent the location's shelves into
+    `target_location_id`, required with this strategy — products hang off the shelf and
+    ride along unmoved) | `delete_contents` (soft-delete the shelves and their products
+    alongside the location, all in the same batch). There is no `unsort` option at this
+    level: "unsorted" means off-shelf but still *in* the location, and the location is
+    what's being deleted.
+  - **Shelf** `strategy`: `move_products` (reassign to `target_shelf_id`, required with
+    this strategy) | `unsort_products` (reassign to the location's **Unsorted** shelf — a
+    lazily-created, per-location system shelf, `is_system: true`, that holds products
+    whose shelf was deleted but which the user chose to keep; the client localises its
+    label off `is_system`, not off `name`) | `delete_products` (soft-delete alongside the
+    shelf, same batch).
+- `target_location_id` / `target_shelf_id` must be a live resource of the **same
+  household**, and not the container being deleted itself — either violation is a 422 on
+  that field, with nothing touched.
+- A `move_contents` whose location owns an Unsorted shelf never reparents that shelf
+  as-is (it would produce two live Unsorted shelves in the target); its products, if any,
+  are merged into the target's own Unsorted shelf instead, and the now-empty source one is
+  soft-deleted alongside the rest of the batch.
+
+`PATCH /locations/{location}/shelves/{shelf}` additionally accepts a writable
+`location_id`, reparenting the shelf to another location — same household only (a
+foreign-household target is 422; a `Rule::exists` in the request can't see the household,
+so this is enforced in the controller). Rejected with 422 on a **system** shelf
+(`is_system: true`): the Unsorted shelf can't be renamed *or* moved, for the same reason
+`move_contents` never reparents it — moving it as-is into a location that already has its
+own would leave two live Unsorted shelves there.
+
+### Restoring a deletion batch
+
+```
+POST /households/{household}/restore/{batch}        -> 200 { message, restored: int }
+```
+
+The deletes above stamp every row they touch with `deletion_batch_id` — the whole gesture
+is undoable as one unit through this single endpoint. Every location/shelf/product row
+stamped with `deletion_batch_id = {batch}` is restored (`deleted_at` and
+`deletion_batch_id` both cleared) in a single all-or-nothing transaction. `restored` is
+the total row count restored across all three tables. `batch` is keyed at the
+**household** level, not by resource id — a soft-deleted resource is filtered out of
+scoped route-model binding, so a restore route keyed by e.g. `{shelf}` could never be
+reached once the row is trashed.
+
+`batch` is client-minted (the client is the only party that knows whether several deletes
+in a row are one user gesture) and therefore **guessable**. Restoring is scoped to rows
+reachable from the caller's own household: locations by `household_id`; shelves/products
+by walking down from that household's own location/shelf ids, since neither table carries
+a `household_id` column. A guessed batch id belonging to another household's rows never
+restores anything.
+
+**409, never 404.** All of the following produce the same `409 { message }`, with nothing
+written:
+
+- an unknown batch id;
+- a batch belonging to a different household;
+- a batch already restored (the first restore clears `deletion_batch_id`, so a replay finds
+  nothing to match);
+- a batch where any row's **parent is still soft-deleted under a different, later batch** —
+  e.g. a shelf deleted alone (batch A), then its location deleted with `delete_contents`
+  (batch B, which skips the already-trashed shelf and only stamps the location): restoring
+  A alone would resurrect the shelf under a location that is still dead. The server never
+  guesses here; the parent must be restored first (restore its own batch), then the child.
+
+This is deliberate: 404 would let a caller distinguish "wrong household" from "already
+restored" or "nothing to restore," which the server never reveals.
+
 **Location resource** (`LocationResource`):
 
 ```
-{ id, name, type }             # type: freezer | fridge | pantry | other
+{ id, name, type,               # type: freezer | fridge | pantry | other
+  position,                    # server-assigned manual order; index is
+                                # orderBy('position').orderBy('name'), so an
+                                # undragged location falls back to name order
+  shelf_count,                  # live shelf count, EXCLUDING an empty system
+                                # Unsorted shelf (see *Deleting a location or
+                                # shelf* above) — the client MUST decide
+                                # "ask for a delete strategy?" from
+                                # shelf_count > 0 alone; that is exactly the
+                                # server's own rule, so a strategy-less delete
+                                # sent when shelf_count == 0 always succeeds
+  product_count }               # live product count across every shelf in the
+                                # location (including the Unsorted one, if any).
+                                # index() eager-loads both via withCount() to
+                                # avoid an N+1 across many locations — the
+                                # delete-confirmation dialog needs them to show
+                                # "N shelves · N products" before the user picks
 ```
 
 **Shelf resource** (`ShelfResource`):
@@ -166,8 +306,17 @@ not a 500 (keeps the `unsignedInteger` column from overflowing).
 ```
 { id, name,
   position,                    # server-assigned order (max+1 on create); index is
-                               # orderBy('position'), so the client's tab/pager order is stable
-  location_id }                # parent location; client field is required
+                               # orderBy('is_system').orderBy('position'), so the
+                               # client's tab/pager order is stable and Unsorted
+                               # always sorts last regardless of its position value
+  location_id,                 # parent location; client field is required
+  is_system,                   # true only for the lazily-created "Unsorted" shelf (see
+                               # *Deleting a location or shelf*): unrenameable, unmovable,
+                               # excluded from reorder — the client localises its label
+                               # off this flag, not off `name`
+  product_count }              # live product count; index() eager-loads it (withCount)
+                               # to avoid an N+1 across many shelves — the delete-strategy
+                               # dialog needs it to show "N products" before the user picks
 ```
 
 ### Product shape
@@ -180,13 +329,16 @@ Response (`ProductResource`):
   description | null,          # free-form notes
   code | null,                 # free-form product code / barcode
   is_mandatory,                # bool; a mandatory item at quantity 0 = "missing"
+  is_starred,                  # bool, default false; user-toggled favorite/pin — no
+                               # server-side sort/filter semantics, storage + passthrough
+                               # only (added 2026-07-13)
   image_url | null }           # absolute URL of the product photo; null until one is uploaded
 ```
 
 Create body (`POST …/products`): `name` (required, ≤50) + optional `quantity` (≥0),
-`description`, `code` (≤100), `is_mandatory`. Update body (`PUT/PATCH …/products/{id}`):
-the same fields, all optional. `image_url` is **not** settable via create/update — it is
-managed solely by the image-upload endpoint below.
+`description`, `code` (≤100), `is_mandatory`, `is_starred`. Update body (`PUT/PATCH
+…/products/{id}`): the same fields, all optional. `image_url` is **not** settable via
+create/update — it is managed solely by the image-upload endpoint below.
 
 **Product image upload.** `POST …/products/{product}/image` — `multipart/form-data` with a
 single `image` part (JPEG / PNG / WebP, ≤ `INVENTORY_IMAGE_MAX_KB`, default 5 MB). The file

@@ -9,6 +9,7 @@ use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
 use Spdotdev\Inventory\Http\Controllers\Api\ProductController;
+use Spdotdev\Inventory\Http\Controllers\Api\RestoreController;
 use Spdotdev\Inventory\Http\Controllers\Api\SearchController;
 use Spdotdev\Inventory\Http\Controllers\Api\ShelfController;
 
@@ -72,6 +73,11 @@ Route::domain(config('inventory.domain'))
                 Route::delete('households/{household}/leave', [HouseholdController::class, 'leave'])->name('inventory.api.households.leave');
                 Route::get('households/{household}/search', SearchController::class)->name('inventory.api.households.search');
 
+                // Keyed by batch, not by resource id — see RestoreController's
+                // docblock for why a shelf/location/product-scoped restore route
+                // could never be reached once the row is soft-deleted.
+                Route::post('households/{household}/restore/{batch}', RestoreController::class)->name('inventory.api.restore');
+
                 // Stock actions (defined before the resource so the /add|remove|move
                 // suffixes aren't shadowed by the {product} show route).
                 Route::post('households/{household}/shelves/{shelf}/products/{product}/add', [ProductController::class, 'add'])->name('inventory.api.products.add');
@@ -80,6 +86,11 @@ Route::domain(config('inventory.domain'))
                 // Product photo upload (multipart). Stores on the configured disk and
                 // populates image_url; the Android client posts a single "image" part.
                 Route::post('households/{household}/shelves/{shelf}/products/{product}/image', [ProductController::class, 'image'])->name('inventory.api.products.image');
+
+                // Literal segments must precede the apiResource, or `reorder` is
+                // captured as {location} / {shelf}. Same rule as households/join.
+                Route::patch('households/{household}/locations/reorder', [LocationController::class, 'reorder'])->name('inventory.api.locations.reorder');
+                Route::patch('households/{household}/locations/{location}/shelves/reorder', [ShelfController::class, 'reorder'])->name('inventory.api.shelves.reorder');
 
                 // Nested resource CRUD (apiResource = index/store/show/update/destroy).
                 Route::apiResource('households.locations', LocationController::class)->shallow(false);

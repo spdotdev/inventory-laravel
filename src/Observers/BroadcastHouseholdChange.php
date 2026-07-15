@@ -49,9 +49,11 @@ class BroadcastHouseholdChange
             $model instanceof Shelf => $model->location?->household_id !== null
                 ? (int) $model->location->household_id
                 : null,
-            $model instanceof Product => $model->shelf?->location?->household_id !== null
-                ? (int) $model->shelf->location->household_id
-                : null,
+            // Product::householdId() walks the same shelf -> location chain;
+            // shared here so addStock()/removeStock() (which bypass Eloquent
+            // events and dispatch this same ping themselves) don't carry a
+            // second copy of the walk.
+            $model instanceof Product => $model->householdId(),
             default => null,
         };
     }

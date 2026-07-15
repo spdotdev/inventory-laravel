@@ -9,6 +9,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Mcp\Facades\Mcp;
@@ -18,6 +19,7 @@ use Spdotdev\Inventory\Console\Commands\AddHouseholdMemberCommand;
 use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
 use Spdotdev\Inventory\Console\Commands\ListHouseholdsCommand;
 use Spdotdev\Inventory\Console\Commands\PruneClientErrorsCommand;
+use Spdotdev\Inventory\Console\Commands\PruneDeletedCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
@@ -27,6 +29,8 @@ use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Observers\BroadcastHouseholdChange;
+use Spdotdev\Inventory\Observers\ReclaimHouseholdProductImages;
+use Spdotdev\Inventory\Policies\HouseholdPolicy;
 
 class InventoryServiceProvider extends ServiceProvider
 {
@@ -82,6 +86,16 @@ class InventoryServiceProvider extends ServiceProvider
 
         $this->registerBroadcasting();
 
+        // Households are the one row this package still hard-deletes (see
+        // ReclaimHouseholdProductImages's docblock). Reclaim every product
+        // image under it BEFORE ON DELETE CASCADE takes the rows that point
+        // at them, or the files leak on disk forever.
+        Household::observe(ReclaimHouseholdProductImages::class);
+
+        // The package's only policy (Spec 2). Grants any member today; when
+        // roles land, this is the one method body that changes.
+        Gate::policy(Household::class, HouseholdPolicy::class);
+
         // Tenancy gate for /households/{household}/* routes.
         /** @var Router $router */
         $router = $this->app['router'];
@@ -122,6 +136,7 @@ class InventoryServiceProvider extends ServiceProvider
                 AddHouseholdMemberCommand::class,
                 RegenerateJoinCodeCommand::class,
                 PruneClientErrorsCommand::class,
+                PruneDeletedCommand::class,
             ]);
         }
     }
