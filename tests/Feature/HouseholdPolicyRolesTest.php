@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
@@ -60,5 +61,29 @@ class HouseholdPolicyRolesTest extends TestCase
         $admin = $this->memberWithRole($household, 'admin');
 
         $this->assertSame('admin', $household->roleOf($admin));
+    }
+
+    public function test_role_of_is_memoized_per_instance_and_only_queries_once(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'EEEE-5555']);
+        $admin = $this->memberWithRole($household, 'admin');
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $household->roleOf($admin);
+        $queriesAfterFirstCall = count(DB::getQueryLog());
+
+        $household->roleOf($admin);
+        $queriesAfterSecondCall = count(DB::getQueryLog());
+
+        DB::disableQueryLog();
+
+        $this->assertSame(1, $queriesAfterFirstCall, 'The first roleOf() call should run exactly one query.');
+        $this->assertSame(
+            $queriesAfterFirstCall,
+            $queriesAfterSecondCall,
+            'The second roleOf() call on the same instance should be memoized and run no additional queries.'
+        );
     }
 }

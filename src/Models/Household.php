@@ -66,16 +66,31 @@ class Household extends Model
     }
 
     /**
+     * Per-instance memoization of roleOf() results, keyed by user id. Avoids
+     * repeated queries when multiple policy checks / resource fields read the
+     * same user's role off the same Household instance within one request.
+     *
+     * @var array<int|string, string|null>
+     */
+    private array $roleOfCache = [];
+
+    /**
      * The given user's role in this household, or null if they aren't a member.
      * The one place every policy method and resource reads role from — no other
      * code should query `inventory_household_user.role` directly.
      */
     public function roleOf(User $user): ?string
     {
-        /** @var HouseholdUserPivot|null $pivot */
-        $pivot = $this->users()->wherePivot('user_id', $user->getKey())->first()?->pivot;
+        $key = $user->getKey();
 
-        return $pivot?->role;
+        if (array_key_exists($key, $this->roleOfCache)) {
+            return $this->roleOfCache[$key];
+        }
+
+        /** @var HouseholdUserPivot|null $pivot */
+        $pivot = $this->users()->wherePivot('user_id', $key)->first()?->pivot;
+
+        return $this->roleOfCache[$key] = $pivot?->role;
     }
 
     /**
