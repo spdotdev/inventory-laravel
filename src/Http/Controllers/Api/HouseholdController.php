@@ -99,6 +99,12 @@ class HouseholdController
     {
         $user = $this->user($request);
 
+        // A household can never end up with zero owners — the sole owner has to
+        // transfer ownership before they can leave. See the roles design spec.
+        if ($household->roleOf($user) === 'owner') {
+            abort(409, 'Transfer ownership before leaving this household.');
+        }
+
         $household->users()->detach($user->getKey());
 
         // If that was the last member, the household + its whole location→shelf→

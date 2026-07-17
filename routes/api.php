@@ -8,6 +8,7 @@ use Spdotdev\Inventory\Http\Controllers\Api\ForgotPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
+use Spdotdev\Inventory\Http\Controllers\Api\MemberController;
 use Spdotdev\Inventory\Http\Controllers\Api\ProductController;
 use Spdotdev\Inventory\Http\Controllers\Api\RestoreController;
 use Spdotdev\Inventory\Http\Controllers\Api\SearchController;
@@ -72,6 +73,11 @@ Route::domain(config('inventory.domain'))
                 Route::get('households/{household}/export', [HouseholdController::class, 'export'])->name('inventory.api.households.export');
                 Route::delete('households/{household}/leave', [HouseholdController::class, 'leave'])->name('inventory.api.households.leave');
                 Route::get('households/{household}/search', SearchController::class)->name('inventory.api.households.search');
+
+                Route::get('households/{household}/members', [MemberController::class, 'index'])->name('inventory.api.members.index');
+                Route::patch('households/{household}/members/{user}', [MemberController::class, 'update'])->name('inventory.api.members.update');
+                Route::delete('households/{household}/members/{user}', [MemberController::class, 'destroy'])->name('inventory.api.members.destroy');
+                Route::post('households/{household}/transfer-ownership', [MemberController::class, 'transferOwnership'])->name('inventory.api.households.transfer-ownership');
 
                 // Keyed by batch, not by resource id — see RestoreController's
                 // docblock for why a shelf/location/product-scoped restore route
