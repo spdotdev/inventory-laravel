@@ -26,12 +26,15 @@
     <tr><th>Name</th><th>Email</th><th>Role</th>@can('manageMembers', $household)<th></th>@endcan</tr>
     @foreach ($members as $member)
       <tr>
-        <td>{{ $member->name }}</td>
+        <td>{{ $member->name }}@if ($member->id === auth('inventory')->id()) <span class="muted">(you)</span>@endif</td>
         <td class="muted">{{ $member->email }}</td>
         <td class="mono">{{ ucfirst($member->pivot->role) }}</td>
         @can('manageMembers', $household)
           <td>
-            @if ($member->pivot->role !== 'owner')
+            {{-- No actions on the owner's row (untouchable except via transfer)
+                 or on your own row — self role-changes are surprising; another
+                 admin or a transfer handles those. --}}
+            @if ($member->pivot->role !== 'owner' && $member->id !== auth('inventory')->id())
               <form method="POST" action="{{ route('inventory.web.members.update', [$household, $member]) }}" class="row" style="margin-bottom:0">
                 @csrf @method('PUT')
                 <input type="hidden" name="role" value="{{ $member->pivot->role === 'admin' ? 'member' : 'admin' }}">
@@ -54,7 +57,8 @@
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Transfer ownership</h2>
   <p class="muted" style="margin-bottom:14px">Make another member the owner. You'll become an admin.</p>
-  <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row">
+  <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row"
+        onsubmit="return confirm('Transfer ownership of ' + {{ Illuminate\Support\Js::from($household->name) }} + ' to ' + this.user_id.options[this.user_id.selectedIndex].text + '? You will become an admin and only they can transfer it back.')">
     @csrf
     <select name="user_id" required style="width:220px;margin-bottom:0">
       @foreach ($members as $member)
