@@ -27,7 +27,7 @@ class RestoreTest extends TestCase
         $user = User::create(['name' => 'Stan', 'email' => $email, 'password' => 'secret-password']);
         Sanctum::actingAs($user);
         $household = Household::create(['name' => 'Garage', 'join_code' => $code]);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'admin']);
 
         return $household;
     }
