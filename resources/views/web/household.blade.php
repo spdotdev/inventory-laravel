@@ -23,12 +23,50 @@
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Members</h2>
   <table>
-    <tr><th>Name</th><th>Email</th></tr>
+    <tr><th>Name</th><th>Email</th><th>Role</th>@can('manageMembers', $household)<th></th>@endcan</tr>
     @foreach ($members as $member)
-      <tr><td>{{ $member->name }}</td><td class="muted">{{ $member->email }}</td></tr>
+      <tr>
+        <td>{{ $member->name }}</td>
+        <td class="muted">{{ $member->email }}</td>
+        <td class="mono">{{ ucfirst($member->pivot->role) }}</td>
+        @can('manageMembers', $household)
+          <td>
+            @if ($member->pivot->role !== 'owner')
+              <form method="POST" action="{{ route('inventory.web.members.update', [$household, $member]) }}" class="row" style="margin-bottom:0">
+                @csrf @method('PUT')
+                <input type="hidden" name="role" value="{{ $member->pivot->role === 'admin' ? 'member' : 'admin' }}">
+                <button type="submit" class="btn-quiet">{{ $member->pivot->role === 'admin' ? 'Demote' : 'Promote' }}</button>
+              </form>
+              <form method="POST" action="{{ route('inventory.web.members.remove', [$household, $member]) }}"
+                    onsubmit="return confirm({{ Illuminate\Support\Js::from('Remove '.$member->name.'?') }})" style="margin-bottom:0">
+                @csrf @method('DELETE')
+                <button type="submit" class="btn-danger">Remove</button>
+              </form>
+            @endif
+          </td>
+        @endcan
+      </tr>
     @endforeach
   </table>
 </div>
+
+@can('transferOwnership', $household)
+<div class="card">
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Transfer ownership</h2>
+  <p class="muted" style="margin-bottom:14px">Make another member the owner. You'll become an admin.</p>
+  <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row">
+    @csrf
+    <select name="user_id" required style="width:220px;margin-bottom:0">
+      @foreach ($members as $member)
+        @if ($member->pivot->role !== 'owner')
+          <option value="{{ $member->id }}">{{ $member->name }}</option>
+        @endif
+      @endforeach
+    </select>
+    <button type="submit">Transfer</button>
+  </form>
+</div>
+@endcan
 
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Storage locations</h2>

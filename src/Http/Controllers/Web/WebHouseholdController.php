@@ -6,6 +6,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Models\Household;
@@ -121,6 +124,56 @@ class WebHouseholdController extends Controller
         return redirect()
             ->route('inventory.web.households')
             ->with('status', __('You left :name.', ['name' => $household->name]));
+    }
+
+    public function updateMemberRole(Request $request, Household $household, User $user): RedirectResponse
+    {
+        $this->authorizeMember($request, $household);
+        Gate::authorize('manageMembers', $household);
+
+        $data = $request->validate(['role' => ['required', Rule::in(['admin', 'member'])]]);
+
+        $targetRole = $household->roleOf($user);
+        abort_if($targetRole === null, 404);
+        abort_if($targetRole === 'owner', 403);
+
+        $household->users()->updateExistingPivot($user->getKey(), ['role' => $data['role']]);
+
+        return back()->with('status', 'Member role updated.');
+    }
+
+    public function removeMember(Request $request, Household $household, User $user): RedirectResponse
+    {
+        $this->authorizeMember($request, $household);
+        Gate::authorize('manageMembers', $household);
+
+        $targetRole = $household->roleOf($user);
+        abort_if($targetRole === null, 404);
+        abort_if($targetRole === 'owner', 403);
+
+        $household->users()->detach($user->getKey());
+
+        return back()->with('status', 'Member removed.');
+    }
+
+    public function transferOwnership(Request $request, Household $household): RedirectResponse
+    {
+        $this->authorizeMember($request, $household);
+        Gate::authorize('transferOwnership', $household);
+
+        $data = $request->validate(['user_id' => ['required', 'integer']]);
+        $newOwner = User::findOrFail($data['user_id']);
+        abort_if($household->roleOf($newOwner) === null, 404);
+
+        /** @var User $currentOwner */
+        $currentOwner = $request->user('inventory');
+
+        DB::transaction(function () use ($household, $newOwner, $currentOwner) {
+            $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
+            $household->users()->updateExistingPivot($currentOwner->getKey(), ['role' => 'admin']);
+        });
+
+        return back()->with('status', 'Ownership transferred.');
     }
 
     /** Same tenancy rule as the API's household.member middleware: 404, never 403. */

@@ -59,6 +59,9 @@ Route::domain(config('inventory.domain'))
                 Route::post('/households/{household}/shelves/{shelf}/products/{product}/add', [WebProductController::class, 'add'])->name('inventory.web.products.add');
                 Route::post('/households/{household}/shelves/{shelf}/products/{product}/remove', [WebProductController::class, 'remove'])->name('inventory.web.products.remove');
                 Route::delete('/households/{household}/shelves/{shelf}/products/{product}', [WebProductController::class, 'destroy'])->name('inventory.web.products.destroy');
+                Route::put('/households/{household}/members/{user}', [WebHouseholdController::class, 'updateMemberRole'])->name('inventory.web.members.update');
+                Route::delete('/households/{household}/members/{user}', [WebHouseholdController::class, 'removeMember'])->name('inventory.web.members.remove');
+                Route::post('/households/{household}/transfer-ownership', [WebHouseholdController::class, 'transferOwnership'])->name('inventory.web.households.transfer-ownership');
             });
         });
     });
