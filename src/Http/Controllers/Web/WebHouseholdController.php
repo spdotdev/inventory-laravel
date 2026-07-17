@@ -168,6 +168,12 @@ class WebHouseholdController extends Controller
         /** @var User $currentOwner */
         $currentOwner = $request->user('inventory');
 
+        // Transferring to yourself would run both pivot updates against the same
+        // row inside the transaction below; the second call ('admin') overwrites
+        // the first ('owner'), leaving the household with zero owners. That
+        // violates the hard invariant: a household always has exactly one Owner.
+        abort_if($newOwner->getKey() === $currentOwner->getKey(), 422, "You're already the owner.");
+
         DB::transaction(function () use ($household, $newOwner, $currentOwner) {
             $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
             $household->users()->updateExistingPivot($currentOwner->getKey(), ['role' => 'admin']);

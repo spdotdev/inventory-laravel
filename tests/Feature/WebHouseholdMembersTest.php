@@ -40,4 +40,17 @@ class WebHouseholdMembersTest extends TestCase
             ->put("{$this->web}/households/{$household->id}/members/{$other->id}", ['role' => 'admin'])
             ->assertForbidden();
     }
+
+    public function test_owner_cannot_transfer_ownership_to_themselves_via_the_web_route(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'CCCC-3333']);
+        $owner = User::create(['name' => 'O', 'email' => 'owner@example.test', 'password' => bcrypt('secret-password')]);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+        $this->actingAs($owner, 'inventory')
+            ->post("{$this->web}/households/{$household->id}/transfer-ownership", ['user_id' => $owner->id])
+            ->assertStatus(422);
+
+        $this->assertSame('owner', $household->fresh()->roleOf($owner));
+    }
 }
