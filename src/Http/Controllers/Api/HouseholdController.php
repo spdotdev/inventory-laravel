@@ -5,6 +5,8 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\JoinHouseholdRequest;
 use Spdotdev\Inventory\Http\Requests\StoreHouseholdRequest;
 use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
@@ -34,7 +36,11 @@ class HouseholdController
             'join_code' => Household::generateUniqueJoinCode(),
         ]);
 
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        // The creator is the household's Owner (single-Owner invariant). The
+        // pivot column default is 'member' — omitting the role here shipped a
+        // real bug where every new household had no owner at all and its
+        // creator couldn't restructure their own storage.
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'owner']);
 
         return (new HouseholdResource($household))->response()->setStatusCode(201);
     }
@@ -50,19 +56,34 @@ class HouseholdController
 
         abort_if($household === null, 404, 'Invalid join code.');
 
-        // Idempotent: joining a household you're already in is a no-op.
+        // Idempotent: joining a household you're already in is a no-op. New
+        // joiners land as 'member' (the pivot column default) — never a role
+        // parameter from the request.
         $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now()]]);
+
+        // Heal an owner-less household (single-Owner invariant): normally
+        // impossible, but the artisan command can create a household with no
+        // members, and the roles rollout briefly shipped owner-less creates.
+        // First member to arrive becomes Owner — the backfill's rule.
+        if (! $household->hasOwner()) {
+            $household->users()->updateExistingPivot($user->getKey(), ['role' => 'owner']);
+        }
 
         return (new HouseholdResource($household))->response();
     }
 
     /**
-     * Rename and/or theme a household (Phase 2). Any member may update — all
-     * members are equal (no roles). Color/icon are palette keys; explicit null
-     * clears back to the client-derived default.
+     * Rename and/or theme a household (Phase 2). Owner/Admin only since roles
+     * shipped — the design spec puts "edit household theme" under
+     * `restructure`, and the Android client hides these controls from a plain
+     * Member; the server has to actually enforce what the UI implies.
+     * Color/icon are palette keys; explicit null clears back to the
+     * client-derived default.
      */
     public function update(UpdateHouseholdRequest $request, Household $household): JsonResponse
     {
+        Gate::authorize('restructure', $household);
+
         $household->update($request->validated());
 
         return (new HouseholdResource($household))->response();
@@ -113,6 +134,12 @@ class HouseholdController
         // ON DELETE CASCADE cleans the tree, matching the hard-delete posture.
         if ($household->users()->count() === 0) {
             $household->delete();
+        } else {
+            // Membership changed under the remaining members' feet — detach()
+            // is a pivot write, so no Eloquent model event fires and the
+            // observers stay silent. Ping the household channel explicitly,
+            // same reasoning as the reorder endpoints.
+            HouseholdChanged::dispatch((int) $household->getKey());
         }
 
         return response()->json(['message' => 'Left the household.']);

@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\TransferOwnershipRequest;
 use Spdotdev\Inventory\Http\Requests\UpdateMemberRoleRequest;
 use Spdotdev\Inventory\Http\Resources\HouseholdMemberResource;
@@ -42,6 +43,12 @@ class MemberController
 
         $household->users()->updateExistingPivot($user->getKey(), ['role' => $data['role']]);
 
+        // Pivot writes fire no Eloquent events, so the observers stay silent —
+        // ping the household channel explicitly so the affected member's other
+        // devices refresh their role/capability flags (same reasoning as the
+        // reorder endpoints).
+        HouseholdChanged::dispatch((int) $household->getKey());
+
         return (new HouseholdMemberResource($household->users()->whereKey($user->getKey())->first()))->response();
     }
 
@@ -54,6 +61,8 @@ class MemberController
         abort_if($targetRole === 'owner', 403, 'The owner cannot be removed.');
 
         $household->users()->detach($user->getKey());
+
+        HouseholdChanged::dispatch((int) $household->getKey());
 
         return response()->json(['message' => 'Member removed.']);
     }
@@ -84,6 +93,8 @@ class MemberController
             $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
             $household->users()->updateExistingPivot($currentOwner->getKey(), ['role' => 'admin']);
         });
+
+        HouseholdChanged::dispatch((int) $household->getKey());
 
         return response()->json(['message' => 'Ownership transferred.']);
     }

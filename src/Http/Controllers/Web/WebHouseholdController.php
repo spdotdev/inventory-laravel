@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
@@ -45,7 +46,9 @@ class WebHouseholdController extends Controller
             'name' => $data['name'],
             'join_code' => Household::generateUniqueJoinCode(),
         ]);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        // The creator is the household's Owner (single-Owner invariant) — the
+        // pivot column default is 'member', so the role must be explicit here.
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'owner']);
 
         return redirect()
             ->route('inventory.web.households.show', $household)
@@ -65,6 +68,12 @@ class WebHouseholdController extends Controller
         }
         if (! $household->users()->whereKey($user->getKey())->exists()) {
             $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        }
+
+        // Heal an owner-less household (single-Owner invariant) — same rule as
+        // the API join endpoint: first member to arrive becomes Owner.
+        if (! $household->hasOwner()) {
+            $household->users()->updateExistingPivot($user->getKey(), ['role' => 'owner']);
         }
 
         return redirect()
@@ -103,6 +112,9 @@ class WebHouseholdController extends Controller
     public function update(UpdateHouseholdRequest $request, Household $household): RedirectResponse
     {
         $this->authorizeMember($request, $household);
+        // Owner/Admin only, same gate as the API update() — the spec puts
+        // rename/theme under `restructure`.
+        Gate::authorize('restructure', $household);
 
         // The web form posts '' for "default"; ConvertEmptyStringsToNull has
         // already turned that into the null the API also uses for clearing.
@@ -119,7 +131,24 @@ class WebHouseholdController extends Controller
 
         /** @var User $user */
         $user = $request->user('inventory');
+
+        // Mirror the API leave(): a household can never end up with zero
+        // owners — the sole owner has to transfer ownership before leaving.
+        // (This guard was on the API from the roles release but missing here.)
+        if ($household->roleOf($user) === 'owner') {
+            return back()->withErrors(['leave' => __('Transfer ownership before leaving this household.')]);
+        }
+
         $household->users()->detach($user->getKey());
+
+        // Same posture as the API: an emptied household is unreachable dead
+        // data — delete it; otherwise ping the channel so remaining members'
+        // clients refresh (detach() fires no Eloquent events).
+        if ($household->users()->count() === 0) {
+            $household->delete();
+        } else {
+            HouseholdChanged::dispatch((int) $household->getKey());
+        }
 
         return redirect()
             ->route('inventory.web.households')
@@ -139,6 +168,10 @@ class WebHouseholdController extends Controller
 
         $household->users()->updateExistingPivot($user->getKey(), ['role' => $data['role']]);
 
+        // Pivot writes fire no Eloquent events — ping the channel explicitly
+        // so the affected member's devices refresh their capability flags.
+        HouseholdChanged::dispatch((int) $household->getKey());
+
         return back()->with('status', 'Member role updated.');
     }
 
@@ -152,6 +185,8 @@ class WebHouseholdController extends Controller
         abort_if($targetRole === 'owner', 403);
 
         $household->users()->detach($user->getKey());
+
+        HouseholdChanged::dispatch((int) $household->getKey());
 
         return back()->with('status', 'Member removed.');
     }
@@ -178,6 +213,8 @@ class WebHouseholdController extends Controller
             $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
             $household->users()->updateExistingPivot($currentOwner->getKey(), ['role' => 'admin']);
         });
+
+        HouseholdChanged::dispatch((int) $household->getKey());
 
         return back()->with('status', 'Ownership transferred.');
     }

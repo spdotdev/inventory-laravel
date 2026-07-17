@@ -75,6 +75,18 @@ class Household extends Model
     private array $roleOfCache = [];
 
     /**
+     * Does this household currently have an Owner? Should always be true for a
+     * household with members (the single-Owner invariant) — callers use this to
+     * HEAL an owner-less household (e.g. one created by the artisan command with
+     * no members) by promoting the first member to arrive, mirroring the
+     * backfill migration's earliest-member rule.
+     */
+    public function hasOwner(): bool
+    {
+        return $this->users()->wherePivot('role', 'owner')->exists();
+    }
+
+    /**
      * The given user's role in this household, or null if they aren't a member.
      * The one place every policy method and resource reads role from — no other
      * code should query `inventory_household_user.role` directly.

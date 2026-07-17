@@ -36,8 +36,17 @@ class CreateHouseholdCommand extends Command
                 continue;
             }
 
-            $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now()]]);
-            $this->info("Added {$email} to the household.");
+            // First member added becomes Owner (single-Owner invariant, same
+            // rule as the backfill migration); the rest land as 'member'.
+            $role = $household->hasOwner() ? 'member' : 'owner';
+            $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now(), 'role' => $role]]);
+            $this->info("Added {$email} to the household".($role === 'owner' ? ' as owner' : '').'.');
+        }
+
+        if (! $household->hasOwner()) {
+            // No members yet — the join endpoints promote the first joiner to
+            // Owner, so the household won't stay owner-less once used.
+            $this->warn('Household has no members yet; the first user to join becomes its owner.');
         }
 
         $this->info("Created household \"{$name}\" (#{$household->id}).");

@@ -119,7 +119,7 @@ class WebUiTest extends TestCase
     {
         $user = $this->user('member@example.test');
         $household = Household::query()->create(['name' => 'Home', 'join_code' => 'AAAA-1111']);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'admin']);
         $location = $household->locations()->create(['name' => 'Fridge', 'type' => 'fridge']);
         $shelf = $location->shelves()->create(['name' => 'Top']);
 

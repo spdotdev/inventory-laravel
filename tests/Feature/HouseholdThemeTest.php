@@ -20,7 +20,7 @@ class HouseholdThemeTest extends TestCase
     {
         $user = User::create(['name' => 'M', 'email' => 'm@example.test', 'password' => bcrypt('secret-password')]);
         $household = Household::query()->create(['name' => 'Home', 'join_code' => 'AAAA-1111']);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'admin']);
 
         return [$user, $household];
     }
