@@ -18,6 +18,7 @@
   h1{font-size:24px;font-weight:700;color:#7dd3fc;margin-bottom:6px}
   .sub{font-size:14px;color:#7fa8c4;margin-bottom:26px;line-height:1.5}
   .card{background:rgba(125,211,252,.07);border:1px solid rgba(125,211,252,.18);border-radius:20px;padding:28px;margin-bottom:18px}
+  .section{font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:#7dd3fc;opacity:.75;margin:26px 0 10px}
   label{display:block;font-size:13px;font-weight:600;color:#b8d8f0;margin-bottom:6px}
   input[type=text],input[type=email],input[type=password],input[type=number],select{width:100%;padding:12px 14px;background:rgba(125,211,252,.06);border:1px solid rgba(125,211,252,.22);border-radius:10px;color:#eaf6ff;font-size:15px;font-family:inherit;outline:none;margin-bottom:18px}
   input:focus,select:focus{border-color:#7dd3fc}

@@ -25,6 +25,7 @@ class WebLocationController extends Controller
 
         return redirect()
             ->route('inventory.web.households.show', $household)
+            ->withFragment('locations')
             ->with('status', __('Location added.'));
     }
 

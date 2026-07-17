@@ -132,7 +132,7 @@ class WebUiTest extends TestCase
 
         $this->actingAs($user, 'inventory')
             ->post(route('inventory.web.locations.store', $household), ['name' => 'Pantry', 'type' => 'pantry'])
-            ->assertRedirect(route('inventory.web.households.show', $household));
+            ->assertRedirect(route('inventory.web.households.show', $household).'#locations');
         $this->assertDatabaseHas('inventory_storage_locations', ['name' => 'Pantry']);
 
         $location = $household->locations()->where('name', 'Pantry')->firstOrFail();

@@ -172,7 +172,7 @@ class WebHouseholdController extends Controller
         // so the affected member's devices refresh their capability flags.
         HouseholdChanged::dispatch((int) $household->getKey());
 
-        return back()->with('status', 'Member role updated.');
+        return back()->withFragment('members')->with('status', 'Member role updated.');
     }
 
     public function removeMember(Request $request, Household $household, User $user): RedirectResponse
@@ -188,7 +188,7 @@ class WebHouseholdController extends Controller
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
-        return back()->with('status', 'Member removed.');
+        return back()->withFragment('members')->with('status', 'Member removed.');
     }
 
     public function transferOwnership(Request $request, Household $household): RedirectResponse
@@ -216,7 +216,7 @@ class WebHouseholdController extends Controller
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
-        return back()->with('status', 'Ownership transferred.');
+        return back()->withFragment('members')->with('status', 'Ownership transferred.');
     }
 
     /** Same tenancy rule as the API's household.member middleware: 404, never 403. */

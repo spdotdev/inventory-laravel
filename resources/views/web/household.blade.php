@@ -4,6 +4,10 @@
 <h1>{{ $household->name }}</h1>
 <p class="sub"><a href="{{ route('inventory.web.households') }}">← All households</a></p>
 
+{{-- M7 (GAP-4): the page grew to seven equal-weight cards; light section
+     headers + a set-apart danger zone give it back an information hierarchy
+     without leaving the thin-Blade approach. --}}
+<h2 class="section" id="storage">Storage</h2>
 <div class="card">
   <form method="GET" action="{{ route('inventory.web.search', $household) }}" class="row">
     <input class="grow" type="text" name="q" placeholder="Search products in this household…" style="margin-bottom:0">
@@ -11,6 +15,33 @@
   </form>
 </div>
 
+<div class="card" id="locations">
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Storage locations</h2>
+  @forelse ($locations as $location)
+    <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)">
+      <div class="grow">
+        <a href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ $location->name }}</a>
+        <span class="muted">({{ $location->type }}, {{ $location->shelves_count }} {{ Str::plural('shelf', $location->shelves_count) }})</span>
+      </div>
+      <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">Open</a>
+    </div>
+  @empty
+    <p class="muted">No locations yet.</p>
+  @endforelse
+
+  <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" class="row" style="margin-top:14px">
+    @csrf
+    <input class="grow" type="text" name="name" placeholder="e.g. Fridge" required style="margin-bottom:0">
+    <select name="type" required style="width:140px;margin-bottom:0">
+      @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
+        <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
+      @endforeach
+    </select>
+    <button type="submit">Add location</button>
+  </form>
+</div>
+
+<h2 class="section" id="members-section">Members &amp; access</h2>
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Invite someone</h2>
   <p class="muted" style="margin-bottom:10px">Share the code or the link — anyone with it can join.</p>
@@ -20,7 +51,7 @@
   <div style="background:#fff;border-radius:12px;padding:10px;width:fit-content">{!! $inviteQrSvg !!}</div>
 </div>
 
-<div class="card">
+<div class="card" id="members">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Members</h2>
   <table>
     <tr><th>Name</th><th>Email</th><th>Role</th>@can('manageMembers', $household)<th></th>@endcan</tr>
@@ -53,52 +84,8 @@
   </table>
 </div>
 
-@can('transferOwnership', $household)
-<div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Transfer ownership</h2>
-  <p class="muted" style="margin-bottom:14px">Make another member the owner. You'll become an admin.</p>
-  <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row"
-        onsubmit="return confirm('Transfer ownership of ' + {{ Illuminate\Support\Js::from($household->name) }} + ' to ' + this.user_id.options[this.user_id.selectedIndex].text + '? You will become an admin and only they can transfer it back.')">
-    @csrf
-    <select name="user_id" required style="width:220px;margin-bottom:0">
-      @foreach ($members as $member)
-        @if ($member->pivot->role !== 'owner')
-          <option value="{{ $member->id }}">{{ $member->name }}</option>
-        @endif
-      @endforeach
-    </select>
-    <button type="submit">Transfer</button>
-  </form>
-</div>
-@endcan
-
-<div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Storage locations</h2>
-  @forelse ($locations as $location)
-    <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)">
-      <div class="grow">
-        <a href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ $location->name }}</a>
-        <span class="muted">({{ $location->type }}, {{ $location->shelves_count }} {{ Str::plural('shelf', $location->shelves_count) }})</span>
-      </div>
-      <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">Open</a>
-    </div>
-  @empty
-    <p class="muted">No locations yet.</p>
-  @endforelse
-
-  <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" class="row" style="margin-top:14px">
-    @csrf
-    <input class="grow" type="text" name="name" placeholder="e.g. Fridge" required style="margin-bottom:0">
-    <select name="type" required style="width:140px;margin-bottom:0">
-      @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
-        <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
-      @endforeach
-    </select>
-    <button type="submit">Add location</button>
-  </form>
-</div>
-
-<div class="card">
+<h2 class="section">Household</h2>
+<div class="card" id="appearance">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Appearance</h2>
   <p class="muted" style="margin-bottom:14px">Pick a colour and icon for this household in the apps — “Default” derives one automatically.</p>
   <form method="POST" action="{{ route('inventory.web.households.update', $household) }}" class="row">
@@ -125,12 +112,33 @@
   <a class="btn btn-quiet" href="{{ route('inventory.web.households.export', $household) }}">Download export</a>
 </div>
 
-<form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
+<h2 class="section" style="color:#f0b8b8">Danger zone</h2>
+<div class="card" id="danger" style="border-color:rgba(240,120,120,.35)">
+@can('transferOwnership', $household)
+  <div style="margin-bottom:18px">
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Transfer ownership</h2>
+  <p class="muted" style="margin-bottom:14px">Make another member the owner. You'll become an admin.</p>
+  <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row"
+        onsubmit="return confirm('Transfer ownership of ' + {{ Illuminate\Support\Js::from($household->name) }} + ' to ' + this.user_id.options[this.user_id.selectedIndex].text + '? You will become an admin and only they can transfer it back.')">
+    @csrf
+    <select name="user_id" required style="width:220px;margin-bottom:0">
+      @foreach ($members as $member)
+        @if ($member->pivot->role !== 'owner')
+          <option value="{{ $member->id }}">{{ $member->name }}</option>
+        @endif
+      @endforeach
+    </select>
+    <button type="submit">Transfer</button>
+  </form>
+  </div>
+@endcan
+  <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
       onsubmit="return confirm({{ Illuminate\Support\Js::from('Leave '.$household->name.'?') }})">
   @csrf
   @method('DELETE')
   <button type="submit" class="btn-danger">Leave household</button>
 </form>
+</div>
 
 @include('inventory::web.partials.live-updates', ['household' => $household])
 @endsection
