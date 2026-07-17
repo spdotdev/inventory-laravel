@@ -62,6 +62,6 @@ class User extends Authenticatable
             'inventory_household_user',
             'user_id',
             'household_id',
-        )->using(HouseholdUserPivot::class)->withPivot('joined_at');
+        )->using(HouseholdUserPivot::class)->withPivot('joined_at', 'role');
     }
 }

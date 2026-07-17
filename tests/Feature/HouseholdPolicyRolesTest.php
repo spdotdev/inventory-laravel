@@ -1,0 +1,64 @@
+<?php
+
+namespace Spdotdev\Inventory\Tests\Feature;
+
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Gate;
+use Spdotdev\Inventory\Models\Household;
+use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Tests\TestCase;
+
+class HouseholdPolicyRolesTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function memberWithRole(Household $household, string $role): User
+    {
+        static $n = 0;
+        $n++;
+        $user = User::create(['name' => "U{$n}", 'email' => "u{$n}@example.test", 'password' => 'secret-password']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => $role]);
+
+        return $user;
+    }
+
+    public function test_manage_members_matches_restructure_owner_and_admin(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'AAAA-1111']);
+        $owner = $this->memberWithRole($household, 'owner');
+        $admin = $this->memberWithRole($household, 'admin');
+        $member = $this->memberWithRole($household, 'member');
+
+        $this->assertTrue(Gate::forUser($owner)->allows('manageMembers', $household));
+        $this->assertTrue(Gate::forUser($admin)->allows('manageMembers', $household));
+        $this->assertFalse(Gate::forUser($member)->allows('manageMembers', $household));
+    }
+
+    public function test_only_the_owner_may_transfer_ownership_or_delete(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'BBBB-2222']);
+        $owner = $this->memberWithRole($household, 'owner');
+        $admin = $this->memberWithRole($household, 'admin');
+
+        $this->assertTrue(Gate::forUser($owner)->allows('transferOwnership', $household));
+        $this->assertTrue(Gate::forUser($owner)->allows('delete', $household));
+        $this->assertFalse(Gate::forUser($admin)->allows('transferOwnership', $household));
+        $this->assertFalse(Gate::forUser($admin)->allows('delete', $household));
+    }
+
+    public function test_household_role_of_returns_null_for_a_non_member(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'CCCC-3333']);
+        $outsider = User::create(['name' => 'Out', 'email' => 'out@example.test', 'password' => 'secret-password']);
+
+        $this->assertNull($household->roleOf($outsider));
+    }
+
+    public function test_household_role_of_returns_the_members_role(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'DDDD-4444']);
+        $admin = $this->memberWithRole($household, 'admin');
+
+        $this->assertSame('admin', $household->roleOf($admin));
+    }
+}

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 
 /**
  * @property string|null $joined_at
+ * @property string $role
  */
 class HouseholdUserPivot extends Pivot
 {

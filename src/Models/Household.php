@@ -62,7 +62,20 @@ class Household extends Model
             'inventory_household_user',
             'household_id',
             'user_id',
-        )->using(HouseholdUserPivot::class)->withPivot('joined_at');
+        )->using(HouseholdUserPivot::class)->withPivot('joined_at', 'role');
+    }
+
+    /**
+     * The given user's role in this household, or null if they aren't a member.
+     * The one place every policy method and resource reads role from — no other
+     * code should query `inventory_household_user.role` directly.
+     */
+    public function roleOf(User $user): ?string
+    {
+        /** @var HouseholdUserPivot|null $pivot */
+        $pivot = $this->users()->wherePivot('user_id', $user->getKey())->first()?->pivot;
+
+        return $pivot?->role;
     }
 
     /**
