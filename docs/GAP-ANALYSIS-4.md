@@ -9,26 +9,26 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## High
 
-- **H1 🔴 Sole-owner "Leave" dead-ends** — Android `HouseholdEditScreen`: the
+- **H1 ✅ (android 468de18) Sole-owner "Leave" dead-ends** — Android `HouseholdEditScreen`: the
   leave-confirm dialog never warns an Owner the action will 409, and the error
   then renders as static text with no path to the fix (Transfer ownership, on
   the Members screen). Fix: warn/disable up front for Owners + make the error
   actionable.
-- **H2 🔴 Role gating is invisible** — Android, all `can_restructure`-gated
+- **H2 ✅ (android 1381ec9) Role gating is invisible** — Android, all `can_restructure`-gated
   screens: controls simply don't exist for a Member; no caption anywhere
   explains that a role system exists, what the viewer's role is, or why
   editing is unavailable. Demotions mid-session are silent.
-- **H3 🔴 Web transfer-ownership has no confirmation** —
+- **H3 ✅ (c4b3308) Web transfer-ownership has no confirmation** —
   `resources/views/web/household.blade.php`: remove-member and leave both
   `confirm()`; the most consequential click on the page submits instantly.
-- **H4 🔴 Web member table doesn't mark "(you)"** — all rows render
+- **H4 ✅ (c4b3308) Web member table doesn't mark "(you)"** — all rows render
   identically; combined with H3, transferring to the wrong person is one
   misread away.
-- **H5 🔴 `EditableRow` name text can overflow** — no `maxLines`/`overflow` on
+- **H5 ✅ (android e1ae826) `EditableRow` name text can overflow** — no `maxLines`/`overflow` on
   a row that gains up to three 48dp buttons in edit mode; the exact
   font-scale-1.6 ellipsize bug class from issue #31 (locations + shelves
   lists both affected).
-- **H6 🔴 Dashboard & Missing have no first-load spinner** — blank screens
+- **H6 ✅ (android 1f43feb) Dashboard & Missing have no first-load spinner** — blank screens
   during the initial fetch while five sibling screens show a
   `LinearProgressIndicator` for the same condition.
 
