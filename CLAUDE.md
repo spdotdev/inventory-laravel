@@ -73,9 +73,15 @@ public/                               landing assets (publishable)
   verbatim (never overridden), which is what lets several requests from one user
   gesture share a batch for Undo. See `docs/specs/api-contract.md` for the full
   contract.
-- **Roles/permissions: coming.** `HouseholdPolicy@restructure` is the seam — today
-  it grants any member (all members still equal in practice). Owner/Admin/Member
-  land in the roles spec; change that method body, not the call sites.
+- **Roles/permissions: shipped.** Every household member has a `role` (`owner`/
+  `admin`/`member`) on `inventory_household_user`. `HouseholdPolicy@restructure` now
+  grants Owner/Admin only (was "any member" before this shipped); `manageMembers`
+  (same tier) gates member promote/demote/remove, `transferOwnership`/`delete` are
+  Owner-only. A household always has exactly one Owner — the only way that changes
+  is `POST .../transfer-ownership`, which atomically demotes the caller to Admin in
+  the same transaction. `HouseholdResource` exposes the caller's own `role` +
+  `can_restructure`/`can_manage_members` so both clients gate UI off one source of
+  truth. See `docs/superpowers/specs/2026-07-17-household-roles-design.md`.
 - Secrets via `.env` only. Validate input at every boundary.
 
 ## Scope guardrails — deliberately cut; refuse to add
@@ -111,7 +117,10 @@ middleware, auth (Sanctum + Google), households (create/list/invite/join/leave) 
 search, locations/shelves/products CRUD + add/remove/move + image upload, password
 reset, client-error intake, the admin API, MCP servers (HTTP `/mcp` + the standalone
 stdio `inventory-mcp`), and the artisan `inventory:household:*` commands — plus Phase 2:
-the session-guarded web UI, `low_stock_threshold`, and Reverb live updates. Gated by
+the session-guarded web UI, `low_stock_threshold`, and Reverb live updates — plus
+household roles (Owner/Admin/Member): the `role` column + backfill, the role-aware
+`HouseholdPolicy`, member management (`GET/PATCH/DELETE members[/{user}]`,
+`POST transfer-ownership`) on both the API and the web UI. Gated by
 Pint + Larastan + PHPUnit (SQLite for the fast job, a real MySQL service job too).
 Forward-looking work is in [`ROADMAP.md`](ROADMAP.md); shipped history in
 [`BACKLOG.md`](BACKLOG.md).
