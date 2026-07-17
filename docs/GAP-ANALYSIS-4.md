@@ -34,24 +34,24 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## Medium
 
-- **M1 🔴** Promote/demote are silent one-tap actions (Remove confirms; a
+- **M1 ✅ (android ddb2b2a)** Promote/demote are silent one-tap actions (Remove confirms; a
   permission grant doesn't) and have no Undo/snackbar.
-- **M2 🔴** No new-joiner onboarding: joining via code lands you as Member
+- **M2 ✅ (android f399522)** No new-joiner onboarding: joining via code lands you as Member
   with zero explanation of the role model.
-- **M3 🔴** Role badge is plain `Text` — no chip/color; Owner/Admin/Member
+- **M3 ✅ (android 7d1f8d4)** Role badge is plain `Text` — no chip/color; Owner/Admin/Member
   scan identically in the roster.
-- **M4 🔴** Three parallel error idioms (`ErrorRetry` with retry /
+- **M4 ✅ (android 4fe1e75)** Three parallel error idioms (`ErrorRetry` with retry /
   `LiveStatusText` without / snackbar-only). Products screens have no
   persistent error + retry at all — a missed snackbar leaves a blank screen.
-- **M5 🔴** The pencil means two interaction grammars: multi-select +
+- **M5 ✅ (android f11c30e)** The pencil means two interaction grammars: multi-select +
   strategy dialog on StorageOverview/LocationDetail, single per-row delete on
   AllStorages.
-- **M6 🔴** `Card` vs `FrostCard` drift on the two newest screens
+- **M6 ✅ (android ffa72d7)** `Card` vs `FrostCard` drift on the two newest screens
   (HouseholdEdit's members entry, MembersScreen rows).
-- **M7 🔴** Web household page is seven flat equal-weight cards — invite
+- **M7 ✅ (e89ea72)** Web household page is seven flat equal-weight cards — invite
   sits at the same visual priority as transfer-ownership; no
   sectioning/danger-zone layout.
-- **M8 🔴** Web actions `back()` to the top of a long page with a generic
+- **M8 ✅ (e89ea72)** Web actions `back()` to the top of a long page with a generic
   flash — scroll position and context lost after every member action.
 
 ## Low
