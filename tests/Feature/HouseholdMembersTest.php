@@ -140,6 +140,18 @@ class HouseholdMembersTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_the_owner_cannot_transfer_ownership_to_themselves(): void
+    {
+        $household = Household::create(['name' => 'H', 'join_code' => 'LLLL-2222']);
+        $owner = $this->memberWithRole($household, 'owner');
+        Sanctum::actingAs($owner);
+
+        $this->postJson("{$this->base}/households/{$household->id}/transfer-ownership", ['user_id' => $owner->id])
+            ->assertStatus(422);
+
+        $this->assertSame('owner', $household->fresh()->roleOf($owner));
+    }
+
     public function test_the_owner_cannot_leave_without_transferring_first(): void
     {
         $household = Household::create(['name' => 'H', 'join_code' => 'KKKK-1111']);
