@@ -82,6 +82,14 @@ class HierarchyDeleter
         DB::transaction(function () use ($shelf, $batchId, $strategy, $moveToShelfId, $unsortedShelfId, $originalShelfId) {
             $now = now();
 
+            // Serialize against Restorer: a concurrent restore of a product
+            // whose parent is THIS shelf locks this row (see Restorer's
+            // parent locks) — locking it here too means one of the two
+            // gestures fully commits before the other reads, so a restore
+            // can never land a live product under the corpse this
+            // transaction is about to create. No-op on SQLite.
+            Shelf::withTrashed()->whereKey($shelf->getKey())->lockForUpdate()->get();
+
             // move_products / unsort_products both REPARENT the products
             // rather than kill them — they stay live. C2: stamp the batch id
             // (so a live row can still be located as part of this batch) and
@@ -204,6 +212,15 @@ class HierarchyDeleter
 
         DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId, $originalLocationId, $sourceUnsortedShelfIds, $targetUnsortedShelfId) {
             $now = now();
+
+            // Serialize against Restorer — same reasoning as deleteShelf's
+            // lock above: a restore bringing a shelf back under THIS
+            // location locks this row first, so delete_contents' child
+            // listing below either runs after that restore committed (and
+            // stamps the restored shelf into this batch) or fully commits
+            // first (and the restore's guard sees the dead parent and
+            // refuses). No-op on SQLite.
+            StorageLocation::withTrashed()->whereKey($location->getKey())->lockForUpdate()->get();
 
             if ($moveToLocationId !== null) {
                 // Reparent only the location's non-system shelves. Products

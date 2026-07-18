@@ -38,6 +38,32 @@ class Restorer
      */
     public static function restore(Household $household, string $batch): array
     {
+        // Everything — gathering, the C-1/C1 guards, and the writes — runs in
+        // ONE transaction, and every parent row a guard depends on is read
+        // under lockForUpdate(). Without the locks, a restore racing a
+        // concurrent HierarchyDeleter delete of the parent could interleave
+        // (both guards read pre-commit state, both commit) and strand a LIVE
+        // child under a soft-deleted parent: invisible everywhere,
+        // unrestorable, and hard-destroyed with the parent when the retention
+        // purge fires its ON DELETE CASCADE. HierarchyDeleter takes the same
+        // lock on the row it deletes, so the two gestures serialize.
+        /** @var array{status: string, restored: int} $result */
+        $result = DB::transaction(function () use ($household, $batch): array {
+            return self::restoreWithinTransaction($household, $batch);
+        });
+
+        if ($result['status'] === self::STATUS_RESTORED) {
+            HouseholdChanged::dispatch((int) $household->getKey());
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{status: string, restored: int}
+     */
+    private static function restoreWithinTransaction(Household $household, string $batch): array
+    {
         $locationIds = StorageLocation::withTrashed()
             ->where('household_id', $household->getKey())
             ->whereNotNull('deleted_at')
@@ -104,98 +130,95 @@ class Restorer
         // and NOT itself part of this same batch, the whole restore is
         // refused. Checked BEFORE any write, inside the transaction, so a
         // blocked restore leaves nothing partially done.
-        $blocked = DB::transaction(function () use (
-            $locationIds,
-            $shelfIds,
-            $productIds,
-            $movedShelfIds,
-            $movedProductIds,
-        ): bool {
-            $shelfParentLocationIds = Shelf::withTrashed()->whereKey($shelfIds)->pluck('location_id');
+        $shelfParentLocationIds = Shelf::withTrashed()->whereKey($shelfIds)->pluck('location_id');
+        $movedShelfOriginalLocationIds = Shelf::query()->whereKey($movedShelfIds)->pluck('restore_parent_id');
+        $productParentShelfIds = Product::withTrashed()->whereKey($productIds)->pluck('shelf_id');
+        $movedProductOriginalShelfIds = Product::query()->whereKey($movedProductIds)->pluck('restore_parent_id');
 
-            $shelfParentStillDead = StorageLocation::withTrashed()
-                ->whereIn('id', $shelfParentLocationIds)
-                ->whereNotIn('id', $locationIds)
-                ->whereNotNull('deleted_at')
-                ->exists();
+        // Lock every parent row the guards below depend on — unconditionally,
+        // not only when it currently looks dead. A parent that looks LIVE here
+        // may be mid-delete in a concurrent HierarchyDeleter transaction;
+        // FOR UPDATE blocks until that commits (and the guard then sees the
+        // corpse), or makes the deleter's own locking read wait for this
+        // restore (and its child listing then sees the restored rows).
+        // No-op on SQLite; real row locks on the MySQL CI job and in prod.
+        StorageLocation::withTrashed()
+            ->whereIn('id', $shelfParentLocationIds->merge($movedShelfOriginalLocationIds)->filter()->unique())
+            ->lockForUpdate()
+            ->get();
+        Shelf::withTrashed()
+            ->whereIn('id', $productParentShelfIds->merge($movedProductOriginalShelfIds)->filter()->unique())
+            ->lockForUpdate()
+            ->get();
 
-            $productParentShelfIds = Product::withTrashed()->whereKey($productIds)->pluck('shelf_id');
+        $shelfParentStillDead = StorageLocation::withTrashed()
+            ->whereIn('id', $shelfParentLocationIds)
+            ->whereNotIn('id', $locationIds)
+            ->whereNotNull('deleted_at')
+            ->exists();
 
-            $productParentStillDead = Shelf::withTrashed()
-                ->whereIn('id', $productParentShelfIds)
-                ->whereNotIn('id', $shelfIds)
-                ->whereNotNull('deleted_at')
-                ->exists();
+        $productParentStillDead = Shelf::withTrashed()
+            ->whereIn('id', $productParentShelfIds)
+            ->whereNotIn('id', $shelfIds)
+            ->whereNotNull('deleted_at')
+            ->exists();
 
-            // Same check, mirrored for MOVED rows: restore_parent_id records
-            // where a shelf/product lived BEFORE the strategy reparented it.
-            $movedShelfOriginalLocationIds = Shelf::query()->whereKey($movedShelfIds)->pluck('restore_parent_id');
+        // Same check, mirrored for MOVED rows: restore_parent_id records
+        // where a shelf/product lived BEFORE the strategy reparented it.
+        $movedShelfOriginalParentStillDead = StorageLocation::withTrashed()
+            ->whereIn('id', $movedShelfOriginalLocationIds)
+            ->whereNotIn('id', $locationIds)
+            ->whereNotNull('deleted_at')
+            ->exists();
 
-            $movedShelfOriginalParentStillDead = StorageLocation::withTrashed()
-                ->whereIn('id', $movedShelfOriginalLocationIds)
-                ->whereNotIn('id', $locationIds)
-                ->whereNotNull('deleted_at')
-                ->exists();
+        $movedProductOriginalParentStillDead = Shelf::withTrashed()
+            ->whereIn('id', $movedProductOriginalShelfIds)
+            ->whereNotIn('id', $shelfIds)
+            ->whereNotNull('deleted_at')
+            ->exists();
 
-            $movedProductOriginalShelfIds = Product::query()->whereKey($movedProductIds)->pluck('restore_parent_id');
-
-            $movedProductOriginalParentStillDead = Shelf::withTrashed()
-                ->whereIn('id', $movedProductOriginalShelfIds)
-                ->whereNotIn('id', $shelfIds)
-                ->whereNotNull('deleted_at')
-                ->exists();
-
-            // C1: a soft-deleted is_system shelf coming back to life must never
-            // create a SECOND live Unsorted shelf in the location it lands in.
-            $systemShelfConflict = Shelf::withTrashed()
-                ->whereKey($shelfIds)
+        // C1: a soft-deleted is_system shelf coming back to life must never
+        // create a SECOND live Unsorted shelf in the location it lands in.
+        $systemShelfConflict = Shelf::withTrashed()
+            ->whereKey($shelfIds)
+            ->where('is_system', true)
+            ->get()
+            ->contains(fn (Shelf $shelf): bool => Shelf::query()
+                ->where('location_id', $shelf->location_id)
                 ->where('is_system', true)
-                ->get()
-                ->contains(fn (Shelf $shelf): bool => Shelf::query()
-                    ->where('location_id', $shelf->location_id)
-                    ->where('is_system', true)
-                    ->whereKeyNot($shelf->getKey())
-                    ->exists());
+                ->whereKeyNot($shelf->getKey())
+                ->exists());
 
-            if ($shelfParentStillDead || $productParentStillDead
-                || $movedShelfOriginalParentStillDead || $movedProductOriginalParentStillDead
-                || $systemShelfConflict) {
-                return true;
-            }
-
-            // Parents first, so a restored shelf never lands under a still-deleted
-            // location within THIS batch's own writes.
-            StorageLocation::withTrashed()->whereKey($locationIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
-            Shelf::withTrashed()->whereKey($shelfIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
-            Product::withTrashed()->whereKey($productIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
-
-            // Moved rows: reverse the reparenting the strategy performed. Read
-            // each row's OWN restore_parent_id rather than assume one shared
-            // value.
-            foreach (Shelf::query()->whereKey($movedShelfIds)->get() as $movedShelf) {
-                Shelf::query()->whereKey($movedShelf->getKey())->update([
-                    'location_id' => $movedShelf->restore_parent_id,
-                    'restore_parent_id' => null,
-                    'deletion_batch_id' => null,
-                ]);
-            }
-
-            foreach (Product::query()->whereKey($movedProductIds)->get() as $movedProduct) {
-                Product::query()->whereKey($movedProduct->getKey())->update([
-                    'shelf_id' => $movedProduct->restore_parent_id,
-                    'restore_parent_id' => null,
-                    'deletion_batch_id' => null,
-                ]);
-            }
-
-            return false;
-        });
-
-        if ($blocked) {
+        if ($shelfParentStillDead || $productParentStillDead
+            || $movedShelfOriginalParentStillDead || $movedProductOriginalParentStillDead
+            || $systemShelfConflict) {
             return ['status' => self::STATUS_BLOCKED, 'restored' => 0];
         }
 
-        HouseholdChanged::dispatch((int) $household->getKey());
+        // Parents first, so a restored shelf never lands under a still-deleted
+        // location within THIS batch's own writes.
+        StorageLocation::withTrashed()->whereKey($locationIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
+        Shelf::withTrashed()->whereKey($shelfIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
+        Product::withTrashed()->whereKey($productIds)->update(['deleted_at' => null, 'deletion_batch_id' => null]);
+
+        // Moved rows: reverse the reparenting the strategy performed. Read
+        // each row's OWN restore_parent_id rather than assume one shared
+        // value.
+        foreach (Shelf::query()->whereKey($movedShelfIds)->get() as $movedShelf) {
+            Shelf::query()->whereKey($movedShelf->getKey())->update([
+                'location_id' => $movedShelf->restore_parent_id,
+                'restore_parent_id' => null,
+                'deletion_batch_id' => null,
+            ]);
+        }
+
+        foreach (Product::query()->whereKey($movedProductIds)->get() as $movedProduct) {
+            Product::query()->whereKey($movedProduct->getKey())->update([
+                'shelf_id' => $movedProduct->restore_parent_id,
+                'restore_parent_id' => null,
+                'deletion_batch_id' => null,
+            ]);
+        }
 
         return ['status' => self::STATUS_RESTORED, 'restored' => $total];
     }
