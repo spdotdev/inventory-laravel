@@ -44,6 +44,7 @@ Route::domain(config('inventory.domain'))
             Route::get('/households/{household}/export', [WebHouseholdController::class, 'export'])->name('inventory.web.households.export');
             Route::put('/households/{household}', [WebHouseholdController::class, 'update'])->name('inventory.web.households.update');
             Route::delete('/households/{household}/leave', [WebHouseholdController::class, 'leave'])->name('inventory.web.households.leave');
+            Route::delete('/households/{household}', [WebHouseholdController::class, 'destroy'])->name('inventory.web.households.destroy');
 
             // Inventory CRUD (stage 2) — same tenancy gate + scoped bindings as /api/v1.
             Route::middleware('household.member')->scopeBindings()->group(function () {

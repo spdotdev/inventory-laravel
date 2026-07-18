@@ -138,6 +138,17 @@
   @method('DELETE')
   <button type="submit" class="btn-danger">Leave household</button>
 </form>
+
+  @can('delete', $household)
+    <form method="POST" action="{{ route('inventory.web.households.destroy', $household) }}" class="row" style="margin-top:18px">
+      @csrf @method('DELETE')
+      {{-- Server-verified typed-name confirmation: deleting a household destroys
+           every member's data, so the friction is enforced server-side too. --}}
+      <input class="grow" type="text" name="name" required style="margin-bottom:0"
+             placeholder="Type “{{ $household->name }}” to confirm">
+      <button type="submit" class="btn-danger">Delete household forever</button>
+    </form>
+  @endcan
 </div>
 
 @include('inventory::web.partials.live-updates', ['household' => $household])

@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\JoinHouseholdRequest;
 use Spdotdev\Inventory\Http\Requests\StoreHouseholdRequest;
@@ -143,6 +144,32 @@ class HouseholdController
         }
 
         return response()->json(['message' => 'Left the household.']);
+    }
+
+    /**
+     * Owner-only, with a server-side typed-name confirmation: the request must
+     * carry the household's exact name. Destroying a whole household (possibly
+     * with other members' data in it) deserves friction the server enforces,
+     * not just the UI. Hard delete — same posture as last-member leave();
+     * ON DELETE CASCADE cleans the tree and the image-reclaim observer runs.
+     */
+    public function destroy(Request $request, Household $household): JsonResponse
+    {
+        Gate::authorize('delete', $household);
+
+        $confirmed = $request->validate([
+            'name' => ['required', 'string'],
+        ]);
+
+        if ($confirmed['name'] !== $household->name) {
+            throw ValidationException::withMessages([
+                'name' => ['Type the household name exactly to confirm deletion.'],
+            ]);
+        }
+
+        $household->delete();
+
+        return response()->json(['message' => 'Household deleted.']);
     }
 
     private function user(Request $request): User

@@ -155,6 +155,25 @@ class WebHouseholdController extends Controller
             ->with('status', __('You left :name.', ['name' => $household->name]));
     }
 
+    /** Owner-only; same server-side typed-name confirmation as the API. */
+    public function destroy(Request $request, Household $household): RedirectResponse
+    {
+        $this->authorizeMember($request, $household);
+        Gate::authorize('delete', $household);
+
+        $data = $request->validate(['name' => ['required', 'string']]);
+        if ($data['name'] !== $household->name) {
+            return back()->withFragment('danger')
+                ->withErrors(['name' => __('Type the household name exactly to confirm deletion.')]);
+        }
+
+        $household->delete();
+
+        return redirect()
+            ->route('inventory.web.households')
+            ->with('status', __('Household deleted.'));
+    }
+
     public function updateMemberRole(Request $request, Household $household, User $user): RedirectResponse
     {
         $this->authorizeMember($request, $household);

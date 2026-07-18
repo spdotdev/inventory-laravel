@@ -72,6 +72,7 @@ Route::domain(config('inventory.domain'))
                 Route::get('households/{household}/invite', [HouseholdController::class, 'invite'])->name('inventory.api.households.invite');
                 Route::get('households/{household}/export', [HouseholdController::class, 'export'])->name('inventory.api.households.export');
                 Route::delete('households/{household}/leave', [HouseholdController::class, 'leave'])->name('inventory.api.households.leave');
+                Route::delete('households/{household}', [HouseholdController::class, 'destroy'])->name('inventory.api.households.destroy');
                 Route::get('households/{household}/search', SearchController::class)->name('inventory.api.households.search');
 
                 Route::get('households/{household}/members', [MemberController::class, 'index'])->name('inventory.api.members.index');
