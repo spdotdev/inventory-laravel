@@ -33,7 +33,10 @@
   <form method="POST" action="{{ route('inventory.web.households.join') }}">
     @csrf
     <div class="row">
-      <input class="grow mono" type="text" name="code" placeholder="ABCD-1234" required style="margin-bottom:0">
+      {{-- ?join=CODE prefills (audit #24): the /join/{code} invite page links
+           here; guests round-trip through login with the query preserved by
+           redirect()->intended(). --}}
+      <input class="grow mono" type="text" name="code" value="{{ old('code', request()->query('join', '')) }}" placeholder="ABCD-1234" required style="margin-bottom:0">
       <button type="submit">{{ __('Join') }}</button>
     </div>
     @error('code') <p class="field-error">{{ $message }}</p> @enderror

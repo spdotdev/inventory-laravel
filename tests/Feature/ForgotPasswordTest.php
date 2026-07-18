@@ -62,4 +62,25 @@ class ForgotPasswordTest extends TestCase
         $this->postJson($this->url, ['email' => 'not-an-email'])
             ->assertStatus(422)->assertJsonValidationErrors('email');
     }
+
+    public function test_the_web_forgot_password_form_sends_the_link_and_never_reveals_registration(): void
+    {
+        Mail::fake();
+        User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+
+        // Known address: token stored + mail sent, generic flash either way.
+        $this->post('http://inventory.test/forgot-password', ['email' => 'stan@example.test'])
+            ->assertRedirect('http://inventory.test/forgot-password')
+            ->assertSessionHas('status');
+        $this->assertDatabaseHas('inventory_password_resets', ['email' => 'stan@example.test']);
+        Mail::assertSent(PasswordResetMail::class);
+
+        // Unknown address: identical outward response, nothing stored/sent.
+        Mail::fake();
+        $this->post('http://inventory.test/forgot-password', ['email' => 'nobody@example.test'])
+            ->assertRedirect('http://inventory.test/forgot-password')
+            ->assertSessionHas('status');
+        $this->assertDatabaseMissing('inventory_password_resets', ['email' => 'nobody@example.test']);
+        Mail::assertNothingSent();
+    }
 }

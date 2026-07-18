@@ -5,8 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', __('Inventory'))</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<link href="{{ asset('vendor/inventory/fonts/fonts.css') }}" rel="stylesheet">
 <style>
   /* Web parity T6: dark tokens are the original values (default + explicit
      data-theme="dark"); light tokens match the Android app's Frost light

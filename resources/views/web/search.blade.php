@@ -14,7 +14,7 @@
 <div class="card">
   @if ($products->isNotEmpty())
     <table>
-      <tr><th>{{ __('Product') }}</th><th>{{ __('Where') }}</th><th style="width:80px;text-align:right">{{ __('Qty') }}</th></tr>
+      <tr><th>{{ __('Product') }}</th><th>{{ __('Where') }}</th><th style="width:80px;text-align:right">{{ __('Qty') }}</th><th style="width:80px"></th></tr>
       @foreach ($products as $product)
         <tr>
           <td>
@@ -26,6 +26,7 @@
             <span class="muted">› {{ $product->shelf->name }}</span>
           </td>
           <td class="mono" style="text-align:right">{{ $product->quantity }}</td>
+          <td style="text-align:right"><a class="btn btn-quiet" href="{{ route('inventory.web.products.edit', [$household, $product->shelf, $product]) }}">{{ __('Edit') }}</a></td>
         </tr>
       @endforeach
     </table>

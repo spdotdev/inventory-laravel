@@ -57,8 +57,7 @@
               </form>
             @endif
           </noscript>
-        @endcan
-        @if ($shelf->products->isNotEmpty())
+          @if ($shelf->products->isNotEmpty())
           {{-- T3: full delete-strategy dialog — move_products (target: any
                other non-system shelf in the household) joins the previous
                unsort/delete choices. Safest option (keep here, unsorted)
@@ -87,10 +86,15 @@
                move_products — it needs the JS-driven target picker above).
                Hidden by <noscript> whenever Alpine renders the dialog. --}}
           <noscript>
+            {{-- onsubmit-confirm never runs without JS — a required checkbox
+                 is the explicit confirmation instead (audit #10). --}}
             <form class="inline" method="POST"
-                  action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
-                  onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete shelf :name?', ['name' => $shelf->name])) }})">
+                  action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}">
               @csrf @method('DELETE')
+              <label class="inv-dialog-option" style="display:inline-flex;margin:0 6px 0 0">
+                <input type="checkbox" required style="width:auto;margin:0">
+                <span class="muted">{{ __('Confirm') }}</span>
+              </label>
               <select name="strategy" style="width:auto;margin-bottom:0">
                 <option value="unsort_products" selected>{{ __('Keep products here (move to Unsorted)') }}</option>
                 <option value="delete_products">{{ __('Delete the products too') }}</option>
@@ -106,6 +110,7 @@
             <button type="submit" class="btn-danger">{{ __('Delete shelf') }}</button>
           </form>
         @endif
+        @endcan
       @endunless
     </div>
 
@@ -159,6 +164,9 @@
 @endforeach
 </div>
 
+{{-- Restructure-gated in the controller — hidden from Members instead of
+     403ing on submit (audit #9). --}}
+@can('restructure', $household)
 <div class="card">
   <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:14px">{{ __('Add a shelf') }}</h2>
   <form method="POST" action="{{ route('inventory.web.shelves.store', [$household, $location]) }}" class="row">
@@ -167,6 +175,7 @@
     <button type="submit">{{ __('Add shelf') }}</button>
   </form>
 </div>
+@endcan
 
 @php
   // T3: move_contents (target: another location in this household) joins
@@ -178,6 +187,7 @@
   $hasContents = $shelfCount > 0 || $productCount > 0;
   $locationMoveTargets = $otherLocations->map(fn ($l) => ['value' => $l->id, 'label' => $l->name])->values()->all();
 @endphp
+@can('restructure', $household)
 @if ($hasContents)
   <div x-cloak>
     @include('inventory::web.partials.delete-strategy-dialog', [
@@ -193,10 +203,15 @@
     ])
   </div>
   <noscript>
-    <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
-          onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name with', ['name' => $location->name])) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count shelf|:count shelves', $shelfCount, ['count' => $shelfCount])) }} + ' ' + {{ Illuminate\Support\Js::from(__('and')) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count product|:count products', $productCount, ['count' => $productCount])) }} + '?')">
+    {{-- onsubmit-confirm never runs without JS — a required checkbox is the
+         explicit confirmation for the subtree delete instead (audit #10). --}}
+    <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}">
       @csrf @method('DELETE')
       <input type="hidden" name="strategy" value="delete_contents">
+      <label class="inv-dialog-option" style="display:inline-flex;margin:0 6px 0 0">
+        <input type="checkbox" required style="width:auto;margin:0">
+        <span class="muted">{{ trans_choice(':count shelf|:count shelves', $shelfCount, ['count' => $shelfCount]) }} {{ __('and') }} {{ trans_choice(':count product|:count products', $productCount, ['count' => $productCount]) }} — {{ __('Delete everything with it') }}</span>
+      </label>
       <button type="submit" class="btn-danger">{{ __('Delete location') }}</button>
     </form>
   </noscript>
@@ -207,6 +222,7 @@
     <button type="submit" class="btn-danger">{{ __('Delete location') }}</button>
   </form>
 @endif
+@endcan
 
 @include('inventory::web.partials.live-updates', ['household' => $household])
 @endsection

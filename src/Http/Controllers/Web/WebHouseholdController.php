@@ -43,13 +43,19 @@ class WebHouseholdController extends Controller
         /** @var User $user */
         $user = $request->user('inventory');
 
-        $household = Household::query()->create([
-            'name' => $data['name'],
-            'join_code' => Household::generateUniqueJoinCode(),
-        ]);
-        // The creator is the household's Owner (single-Owner invariant) — the
-        // pivot column default is 'member', so the role must be explicit here.
-        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+        // One transaction: a failure after create() would otherwise leave an
+        // owner-less orphan household with a minted join code (audit #4).
+        $household = DB::transaction(function () use ($data, $user) {
+            $household = Household::query()->create([
+                'name' => $data['name'],
+                'join_code' => Household::generateUniqueJoinCode(),
+            ]);
+            // The creator is the household's Owner (single-Owner invariant) — the
+            // pivot column default is 'member', so the role must be explicit here.
+            $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+            return $household;
+        });
 
         return redirect()
             ->route('inventory.web.households.show', $household)
@@ -63,13 +69,21 @@ class WebHouseholdController extends Controller
         /** @var User $user */
         $user = $request->user('inventory');
 
-        $household = Household::query()->where('join_code', $data['code'])->first();
+        // Normalize before lookup: codes are minted uppercase (XXXX-XXXX), and
+        // a pasted code often arrives with stray whitespace or lowercased
+        // (audit #6).
+        $code = strtoupper(trim($data['code']));
+
+        $household = Household::query()->where('join_code', $code)->first();
         if ($household === null) {
             return back()->withErrors(['code' => __('No household with that join code.')]);
         }
-        if (! $household->users()->whereKey($user->getKey())->exists()) {
-            $household->users()->attach($user->getKey(), ['joined_at' => now()]);
-        }
+
+        // Distinguish "already in" from a fresh join for honest feedback
+        // (audit #3), and use the API's race-safe idempotent write instead of
+        // check-then-attach (audit #2).
+        $alreadyMember = $household->users()->whereKey($user->getKey())->exists();
+        $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now()]]);
 
         // Heal an owner-less household (single-Owner invariant) — same rule as
         // the API join endpoint: first member to arrive becomes Owner.
@@ -79,7 +93,9 @@ class WebHouseholdController extends Controller
 
         return redirect()
             ->route('inventory.web.households.show', $household)
-            ->with('status', __('Joined :name.', ['name' => $household->name]));
+            ->with('status', $alreadyMember
+                ? __("You're already a member of :name.", ['name' => $household->name])
+                : __('Joined :name.', ['name' => $household->name]));
     }
 
     public function show(Request $request, Household $household): View
@@ -246,7 +262,12 @@ class WebHouseholdController extends Controller
         // row inside the transaction below; the second call ('admin') overwrites
         // the first ('owner'), leaving the household with zero owners. That
         // violates the hard invariant: a household always has exactly one Owner.
-        abort_if($newOwner->getKey() === $currentOwner->getKey(), 422, __("You're already the owner."));
+        // Redirect-back like every other validation failure on this surface —
+        // an abort() here rendered a bare 422 page (audit #1).
+        if ($newOwner->getKey() === $currentOwner->getKey()) {
+            return back()->withFragment('members')
+                ->withErrors(['user_id' => __("You're already the owner.")]);
+        }
 
         DB::transaction(function () use ($household, $newOwner, $currentOwner) {
             $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);

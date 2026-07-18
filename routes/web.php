@@ -1,11 +1,13 @@
 <?php
 
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Route;
 use Spdotdev\Inventory\Http\Controllers\JoinController;
 use Spdotdev\Inventory\Http\Controllers\LandingController;
 use Spdotdev\Inventory\Http\Controllers\ResetPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebDisplayModeController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebForgotPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebGoogleAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocaleController;
@@ -21,7 +23,11 @@ Route::domain(config('inventory.domain'))
     ->group(function () {
         Route::get('/', [LandingController::class, 'index'])->name('inventory.landing');
         Route::get('/reset-password', [ResetPasswordController::class, 'show'])->name('inventory.reset-password');
-        Route::post('/reset-password', [ResetPasswordController::class, 'update'])->name('inventory.reset-password.update');
+        // Throttled like the other credential surfaces — this POST was the one
+        // unauthenticated DB-hitting endpoint with no abuse bound (audit #23).
+        Route::post('/reset-password', [ResetPasswordController::class, 'update'])
+            ->middleware('throttle:inventory-auth')->name('inventory.reset-password.update');
+        Route::get('/reset-password/done', [ResetPasswordController::class, 'success'])->name('inventory.reset-password.success');
         Route::get('/join/{code}', [JoinController::class, 'show'])->name('inventory.join');
 
         // Web parity T6: light/dark toggle, available on every page (guest or
@@ -36,6 +42,9 @@ Route::domain(config('inventory.domain'))
         Route::middleware('throttle:inventory-auth')->group(function () {
             Route::post('/login', [WebAuthController::class, 'login'])->name('inventory.web.login');
             Route::post('/register', [WebAuthController::class, 'register'])->name('inventory.web.register');
+            // Web forgot-password form (audit #14) — email requests share the
+            // auth throttle; the enumeration-safe sender is PasswordResetLink.
+            Route::post('/forgot-password', [WebForgotPasswordController::class, 'send'])->name('inventory.web.forgot-password.send');
 
             // Google sign-in (server-side redirect flow); 404s unless the web
             // client id + secret are configured. GETs — the throttle's
@@ -45,12 +54,20 @@ Route::domain(config('inventory.domain'))
         });
         Route::get('/login', [WebAuthController::class, 'showLogin'])->name('inventory.web.login.show');
         Route::get('/register', [WebAuthController::class, 'showRegister'])->name('inventory.web.register.show');
+        Route::get('/forgot-password', [WebForgotPasswordController::class, 'show'])->name('inventory.web.forgot-password.show');
 
-        Route::middleware('auth:inventory')->prefix('app')->group(function () {
+        // AuthenticateSession (after auth:inventory sets the request's guard)
+        // stamps the password hash into the session and logs out any session
+        // whose hash no longer matches — so a password reset kills live web
+        // sessions, not just Sanctum tokens (audit #15).
+        Route::middleware(['auth:inventory', AuthenticateSession::class])->prefix('app')->group(function () {
             Route::post('/logout', [WebAuthController::class, 'logout'])->name('inventory.web.logout');
             Route::get('/households', [WebHouseholdController::class, 'index'])->name('inventory.web.households');
             Route::post('/households', [WebHouseholdController::class, 'store'])->name('inventory.web.households.store');
-            Route::post('/households/join', [WebHouseholdController::class, 'join'])->name('inventory.web.households.join');
+            // Same brute-force bound as the API twin (audit #22) — join codes
+            // are guessable, so the web form must not allow unbounded attempts.
+            Route::post('/households/join', [WebHouseholdController::class, 'join'])
+                ->middleware('throttle:inventory-join')->name('inventory.web.households.join');
             Route::get('/households/{household}', [WebHouseholdController::class, 'show'])->name('inventory.web.households.show');
             Route::get('/households/{household}/export', [WebHouseholdController::class, 'export'])->name('inventory.web.households.export');
             Route::put('/households/{household}', [WebHouseholdController::class, 'update'])->name('inventory.web.households.update');

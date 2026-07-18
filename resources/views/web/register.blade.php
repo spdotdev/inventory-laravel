@@ -9,11 +9,12 @@
     <label for="name">{{ __('Name') }}</label>
     <input type="text" id="name" name="name" value="{{ old('name') }}" required autofocus>
     <label for="email">{{ __('Email') }}</label>
-    <input type="email" id="email" name="email" value="{{ old('email') }}" required>
+    <input type="email" id="email" name="email" value="{{ old('email') }}" required autocomplete="email">
     <label for="password">{{ __('Password') }}</label>
-    <input type="password" id="password" name="password" required>
+    <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password">
+    <p class="muted" style="margin:-12px 0 16px">{{ __('At least 8 characters.') }}</p>
     <label for="password_confirmation">{{ __('Repeat password') }}</label>
-    <input type="password" id="password_confirmation" name="password_confirmation" required>
+    <input type="password" id="password_confirmation" name="password_confirmation" required minlength="8" autocomplete="new-password">
     <button type="submit" style="width:100%">{{ __('Create account') }}</button>
   </form>
   @include('inventory::web.partials.google-signin')

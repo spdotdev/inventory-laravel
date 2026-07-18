@@ -37,6 +37,7 @@ class WebAuthController extends Controller
         }
 
         $request->session()->regenerate();
+        self::storePasswordHashInSession($request);
 
         return redirect()->intended(route('inventory.web.households'));
     }
@@ -63,8 +64,26 @@ class WebAuthController extends Controller
 
         Auth::guard('inventory')->login($user, remember: true);
         $request->session()->regenerate();
+        self::storePasswordHashInSession($request);
 
         return redirect()->route('inventory.web.households');
+    }
+
+    /**
+     * Refresh the hash AuthenticateSession compares on the /app group.
+     * session()->regenerate() keeps session DATA, so signing into a second
+     * account in the same browser session would leave the previous account's
+     * hash behind — AuthenticateSession would then log the new user straight
+     * out (and, without a stored hash refresh, a fresh login after a password
+     * reset could be bounced too).
+     */
+    public static function storePasswordHashInSession(Request $request): void
+    {
+        $user = Auth::guard('inventory')->user();
+
+        if ($user !== null) {
+            $request->session()->put('password_hash_inventory', $user->getAuthPassword());
+        }
     }
 
     public function logout(Request $request): RedirectResponse

@@ -49,13 +49,13 @@ class ResetPasswordController
             || $expired;
 
         if ($invalid) {
-            return back()->withErrors(['token' => 'This password reset link is invalid or has expired.']);
+            return back()->withErrors(['token' => __('This password reset link is invalid or has expired.')]);
         }
 
         $user = User::query()->where('email', $validated['email'])->first();
 
         if ($user === null) {
-            return back()->withErrors(['email' => 'No account found for this email address.']);
+            return back()->withErrors(['email' => __('No account found for this email address.')]);
         }
 
         $user->forceFill([
@@ -68,6 +68,15 @@ class ResetPasswordController
 
         DB::table('inventory_password_resets')->where('email', $validated['email'])->delete();
 
+        // Post/Redirect/Get: a refresh on the success page must not re-POST the
+        // (now consumed) token (audit #21). Web sessions die too: the /app
+        // group runs AuthenticateSession, which logs out every session whose
+        // stored password hash no longer matches (audit #15).
+        return redirect()->route('inventory.reset-password.success');
+    }
+
+    public function success(): View
+    {
         // @phpstan-ignore argument.type (the inventory:: namespace is registered at runtime via loadViewsFrom, so it is not resolvable during package-only static analysis)
         return view('inventory::auth.reset-password-success');
     }

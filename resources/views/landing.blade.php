@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ app()->getLocale() }}">
+<html lang="{{ app()->getLocale() }}"@if($__invDisplayMode = request()->cookie(\Spdotdev\Inventory\Http\Controllers\Web\WebDisplayModeController::COOKIE)) data-theme="{{ $__invDisplayMode === 'light' ? 'light' : 'dark' }}"@endif>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,9 +9,7 @@
 <meta property="og:title" content="{{ __('inventory::landing.meta_title') }}">
 <meta property="og:description" content="{{ __('inventory::landing.meta_description') }}">
 <meta property="og:type" content="website">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="{{ asset('vendor/inventory/fonts/fonts.css') }}" rel="stylesheet">
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -20,13 +18,22 @@
     --card-border:rgba(125,211,252,.18); --glow:rgba(125,211,252,.22);
     --warn:#fbbf24; --bad:#f87171;
   }
+  /* OS preference decides only while no explicit choice was made; the
+     inv_display_mode cookie (stamped as data-theme above) always wins —
+     same rule as the app layout (audit #27). */
   @media (prefers-color-scheme: light){
-    :root{
+    :root:not([data-theme]){
       --bg-0:#dbeafe; --bg-1:#eef6ff; --fg:#0d2436; --muted:#4d7a9c;
       --accent:#0369a1; --on-accent:#ffffff;
       --card:rgba(255,255,255,.72); --card-border:rgba(63,125,166,.18);
       --glow:rgba(30,167,230,.18); --warn:#b45309; --bad:#dc2626;
     }
+  }
+  :root[data-theme="light"]{
+    --bg-0:#dbeafe; --bg-1:#eef6ff; --fg:#0d2436; --muted:#4d7a9c;
+    --accent:#0369a1; --on-accent:#ffffff;
+    --card:rgba(255,255,255,.72); --card-border:rgba(63,125,166,.18);
+    --glow:rgba(30,167,230,.18); --warn:#b45309; --bad:#dc2626;
   }
   body{
     font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;

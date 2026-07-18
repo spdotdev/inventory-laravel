@@ -51,13 +51,15 @@
     bar.setAttribute('aria-hidden', active ? 'false' : 'true');
   }
 
-  function showToast(message, { variant = 'success', retry = null } = {}) {
+  function showToast(message, { variant = 'success', retry = null, onExpire = null } = {}) {
     const container = toastContainerEl();
     if (!container) return;
 
     const toast = document.createElement('div');
     toast.className = 'inv-toast inv-toast-' + variant;
-    toast.setAttribute('role', 'status');
+    // Errors interrupt (a revert just happened); successes stay polite
+    // (audit #18).
+    toast.setAttribute('role', variant === 'error' ? 'alert' : 'status');
 
     const text = document.createElement('span');
     text.textContent = message;
@@ -78,7 +80,13 @@
     container.appendChild(toast);
 
     const ttl = variant === 'error' ? TOAST_ERROR_MS : TOAST_SUCCESS_MS;
-    setTimeout(() => toast.remove(), ttl);
+    setTimeout(() => {
+      // Only fire onExpire if the toast is still in the DOM — a clicked
+      // Retry already removed it (and handled the state itself).
+      const expired = toast.isConnected;
+      toast.remove();
+      if (expired && typeof onExpire === 'function') onExpire();
+    }, ttl);
   }
 
   function updateDirtyFlag() {
@@ -168,6 +176,14 @@
           } else {
             save(url, fetchOptionsInput, feedback);
           }
+        },
+        // When the toast (and its Retry) expires unused, clear the failed
+        // flag too: the optimistic change was already reverted, so the page
+        // is consistent — keeping the beforeunload/dirty state alive with no
+        // retry UI left trapped the user (audit #17).
+        onExpire: () => {
+          hasFailedSave = false;
+          updateDirtyFlag();
         },
       });
     }

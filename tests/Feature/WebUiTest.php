@@ -74,7 +74,11 @@ class WebUiTest extends TestCase
         $this->assertTrue($household->users()->whereKey($owner->getKey())->exists());
 
         // Second user joins by code, sees the household, then leaves.
+        // flushSession(): switching accounts inside one test leaves the first
+        // user's AuthenticateSession password hash behind; a real browser gets
+        // a fresh hash via the login controller.
         $joiner = $this->user('joiner@example.test');
+        $this->flushSession();
         $this->actingAs($joiner, 'inventory')
             ->post("{$this->base}/app/households/join", ['code' => $household->join_code])
             ->assertRedirect(route('inventory.web.households.show', $household));
@@ -467,6 +471,7 @@ class WebUiTest extends TestCase
 
         // Non-members get a 404, never a 403 (tenancy rule).
         $stranger = $this->user('stranger3@example.test');
+        $this->flushSession(); // see the join/leave flow test
         $this->actingAs($stranger, 'inventory')
             ->get(route('inventory.web.search', $household).'?q=milk')
             ->assertNotFound();

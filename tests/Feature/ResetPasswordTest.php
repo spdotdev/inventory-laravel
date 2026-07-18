@@ -44,7 +44,9 @@ class ResetPasswordTest extends TestCase
             'email' => 'stan@example.test',
             'password' => 'new-password-123',
             'password_confirmation' => 'new-password-123',
-        ])->assertOk(); // renders the success view
+        ])->assertRedirect('http://inventory.test/reset-password/done'); // PRG: refresh must not re-POST the consumed token
+
+        $this->get('http://inventory.test/reset-password/done')->assertOk();
 
         $this->assertTrue(Hash::check('new-password-123', $user->refresh()->password));
         // All existing Sanctum tokens revoked, and the reset row consumed.

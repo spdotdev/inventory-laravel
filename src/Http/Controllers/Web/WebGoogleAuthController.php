@@ -82,6 +82,7 @@ class WebGoogleAuthController extends Controller
 
         Auth::guard('inventory')->login($linker->resolve($claims), remember: true);
         $request->session()->regenerate();
+        WebAuthController::storePasswordHashInSession($request);
 
         return redirect()->intended(route('inventory.web.households'));
     }

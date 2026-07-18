@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Http\Controllers\Web;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -44,6 +45,7 @@ class WebProductController extends Controller
         // unchecking actually persists (the API sends explicit booleans instead).
         $data = $request->validated();
         $data['is_mandatory'] = $request->boolean('is_mandatory');
+        $data['is_starred'] = $request->boolean('is_starred');
         $data['low_stock_threshold'] = $request->filled('low_stock_threshold')
             ? (int) $request->input('low_stock_threshold')
             : null;
@@ -80,14 +82,16 @@ class WebProductController extends Controller
     {
         $product->addStock(1, ProductRequest::MAX_QUANTITY);
 
-        return $this->backToLocation($household, $shelf);
+        // redirect()->back() so the steppers work from both callers (location
+        // page and the product edit page — audit #12); location is the fallback.
+        return redirect()->back(fallback: route('inventory.web.locations.show', [$household, $shelf->location_id]));
     }
 
     public function remove(Household $household, Shelf $shelf, Product $product): RedirectResponse
     {
         $product->removeStock(1);
 
-        return $this->backToLocation($household, $shelf);
+        return redirect()->back(fallback: route('inventory.web.locations.show', [$household, $shelf->location_id]));
     }
 
     public function destroy(Household $household, Shelf $shelf, Product $product): RedirectResponse
@@ -101,10 +105,16 @@ class WebProductController extends Controller
         $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
         $product->delete();
 
-        // Web parity T4: see WebLocationController::destroy for the undo-flash rationale.
-        return $this->backToLocation($household, $shelf)
-            ->with('status', __('Product deleted.'))
-            ->with('undo', ['batch' => $batchId, 'household' => (int) $household->getKey()]);
+        // Web parity T4: see WebLocationController::destroy for the undo-flash
+        // rationale. The Undo flash only renders for users who can actually
+        // restore — WebRestoreController is restructure-gated, so showing a
+        // Member an Undo button meant a bare 403 on click (audit #8).
+        $redirect = $this->backToLocation($household, $shelf)->with('status', __('Product deleted.'));
+        if (Gate::allows('restructure', $household)) {
+            $redirect->with('undo', ['batch' => $batchId, 'household' => (int) $household->getKey()]);
+        }
+
+        return $redirect;
     }
 
     private function backToLocation(Household $household, Shelf $shelf): RedirectResponse

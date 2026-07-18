@@ -34,7 +34,7 @@ class LandingPageTest extends TestCase
     {
         $this->get('http://inventory.test/')
             ->assertOk()
-            ->assertHeader('Vary', 'Accept-Language')
+            ->assertHeader('Vary', 'Accept-Language, Cookie')
             ->assertSee('Know what you have,')
             ->assertSee('Create a free account')
             ->assertSee('private preview')

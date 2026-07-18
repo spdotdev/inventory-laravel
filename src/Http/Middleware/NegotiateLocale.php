@@ -34,9 +34,13 @@ class NegotiateLocale
         /** @var Response $response */
         $response = $next($request);
 
-        // Vary: Accept-Language so proxies/CDNs cache the EN and NL bodies
-        // separately instead of serving one negotiated variant to every locale.
-        $response->headers->set('Vary', 'Accept-Language');
+        // Vary on Accept-Language AND Cookie: the effective locale (and the
+        // display mode) are cookie-driven, so Accept-Language alone would let
+        // a shared cache serve a cookie-picked NL body to an EN visitor.
+        // Append rather than set — never clobber a Vary added earlier in the
+        // stack (audit #19).
+        $vary = array_filter(array_map('trim', explode(',', (string) $response->headers->get('Vary', ''))));
+        $response->headers->set('Vary', implode(', ', array_unique(array_merge($vary, ['Accept-Language', 'Cookie']))));
 
         return $response;
     }

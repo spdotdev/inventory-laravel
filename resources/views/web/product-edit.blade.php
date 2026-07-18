@@ -5,6 +5,19 @@
 <p class="sub"><a href="{{ route('inventory.web.locations.show', [$household, $shelf->location_id]) }}">← {{ __('Back to :shelf', ['shelf' => $shelf->name]) }}</a></p>
 
 <div class="card" style="max-width:520px">
+  {{-- Current stock + steppers (audit #12): the same add/remove endpoints as
+       the location page; they redirect back here. --}}
+  <div class="row" style="margin-bottom:20px">
+    <span class="grow" style="font-size:14px;color:var(--text-heading);font-weight:600">{{ __('In stock') }}</span>
+    <form class="inline" method="POST" action="{{ route('inventory.web.products.remove', [$household, $shelf, $product]) }}">
+      @csrf<button type="submit" class="btn-quiet" aria-label="{{ __('Remove one') }}">−</button>
+    </form>
+    <span class="mono" style="min-width:32px;text-align:center">{{ $product->quantity }}</span>
+    <form class="inline" method="POST" action="{{ route('inventory.web.products.add', [$household, $shelf, $product]) }}">
+      @csrf<button type="submit" class="btn-quiet" aria-label="{{ __('Add one') }}">+</button>
+    </form>
+  </div>
+
   @if ($product->image_url)
     <img src="{{ $product->image_url }}" alt="{{ $product->name }}" style="max-width:100%;border-radius:12px;margin-bottom:18px">
   @endif
@@ -39,10 +52,18 @@
            value="{{ old('low_stock_threshold', $product->low_stock_threshold) }}">
     @error('low_stock_threshold') <p class="field-error">{{ $message }}</p> @enderror
 
-    <label style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
+    <label style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
       <input type="checkbox" name="is_mandatory" value="1" style="width:auto;margin:0"
              @checked(old('is_mandatory', $product->is_mandatory))>
       {{ __('Should always be stocked (missing when at 0)') }}
+    </label>
+
+    {{-- Starred parity with the app (audit #11) — is_starred was API/Android
+         only; the update() normalizes it like is_mandatory. --}}
+    <label style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
+      <input type="checkbox" name="is_starred" value="1" style="width:auto;margin:0"
+             @checked(old('is_starred', $product->is_starred))>
+      {{ __('Starred') }}
     </label>
 
     <button type="submit" style="width:100%">{{ __('Save') }}</button>

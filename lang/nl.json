@@ -10,7 +10,6 @@
     "the Android app": "de Android-app",
     "Barcode scanning is available in :link.": "Barcode scannen is beschikbaar in :link.",
     "Switch language": "Taal wisselen",
-
     "Your households": "Jouw huishoudens",
     "Create a household, or join one with an invite code.": "Maak een huishouden aan, of sluit je aan met een uitnodigingscode.",
     ":count member|:count members": ":count lid|:count leden",
@@ -22,7 +21,6 @@
     "Create": "Aanmaken",
     "Join with a code": "Aansluiten met een code",
     "Join": "Aansluiten",
-
     "All households": "Alle huishoudens",
     "Storage": "Opslag",
     "Search products in this household…": "Zoek producten in dit huishouden…",
@@ -41,7 +39,6 @@
     "Fridge": "Koelkast",
     "Pantry": "Voorraadkast",
     "Other": "Overig",
-
     "Members & access": "Leden & toegang",
     "Invite someone": "Iemand uitnodigen",
     "Share the code or the link — anyone with it can join.": "Deel de code of de link — iedereen die deze heeft kan aansluiten.",
@@ -57,7 +54,6 @@
     "Promote": "Promoveren",
     "Remove": "Verwijderen",
     "Remove :name?": ":name verwijderen?",
-
     "Household": "Huishouden",
     "Appearance": "Weergave",
     "Pick a colour and icon for this household in the apps — “Default” derives one automatically.": "Kies een kleur en icoon voor dit huishouden in de apps — “Standaard” leidt er automatisch een af.",
@@ -80,11 +76,9 @@
     "Storefront": "Winkel",
     "Box": "Doos",
     "Save": "Opslaan",
-
     "Your data": "Jouw gegevens",
     "Download everything in this household — locations, shelves, products and members — as a JSON file.": "Download alles in dit huishouden — locaties, planken, producten en leden — als een JSON-bestand.",
     "Download export": "Export downloaden",
-
     "Danger zone": "Gevarenzone",
     "Transfer ownership": "Eigenaarschap overdragen",
     "Make another member the owner. You'll become an admin.": "Maak een ander lid eigenaar. Jij wordt beheerder.",
@@ -95,7 +89,6 @@
     "Leave :name?": ":name verlaten?",
     "Type “:name” to confirm": "Typ “:name” ter bevestiging",
     "Delete household forever": "Huishouden permanent verwijderen",
-
     "Delete shelf :name?": "Plank :name verwijderen?",
     "Delete shelf": "Plank verwijderen",
     "Product": "Product",
@@ -122,7 +115,6 @@
     "Delete everything with it": "Alles ermee verwijderen",
     "Cancel": "Annuleren",
     ":count product on this shelf|:count products on this shelf": ":count product op deze plank|:count producten op deze plank",
-
     "Search :name": "Zoeken in :name",
     "Search products…": "Producten zoeken…",
     "Where": "Waar",
@@ -130,7 +122,6 @@
     "Showing the first 50 matches — refine the search to narrow down.": "De eerste 50 resultaten worden getoond — verfijn de zoekopdracht om te versmallen.",
     "No products match \":query\".": "Geen producten komen overeen met “:query”.",
     "Type a product name to search this household.": "Typ een productnaam om dit huishouden te doorzoeken.",
-
     "Edit :name": ":name bewerken",
     "Back to :shelf": "Terug naar :shelf",
     "Description": "Omschrijving",
@@ -138,27 +129,22 @@
     "Low-stock warning at (empty = off)": "Waarschuwing bijna-op bij (leeg = uit)",
     "Should always be stocked (missing when at 0)": "Moet altijd op voorraad zijn (ontbreekt bij 0)",
     "Photos and barcode scanning are available in :link.": "Foto's en barcode scannen zijn beschikbaar in :link.",
-
     "Manage your households and inventory from the browser.": "Beheer je huishoudens en voorraad vanuit de browser.",
     "Password": "Wachtwoord",
     "New here?": "Nieuw hier?",
     "Create an account": "Account aanmaken",
-
     "Create account": "Account aanmaken",
     "One account for the app and the web.": "Eén account voor de app en het web.",
     "Repeat password": "Herhaal wachtwoord",
     "Already have an account?": "Heb je al een account?",
-
     "Continue with Google": "Doorgaan met Google",
     "or": "of",
-
     "Join a household": "Aansluiten bij een huishouden",
     "You're invited to a household": "Je bent uitgenodigd voor een huishouden",
     "Open the Inventory app and enter this join code to share the household's storage.": "Open de Inventory-app en voer deze code in om de voorraad van het huishouden te delen.",
     "Join code": "Aansluitcode",
     "Get the app": "App downloaden",
     "Already have the app? Tap :action and enter the code above.": "Heb je de app al? Tik op :action en voer de code hierboven in.",
-
     "These credentials do not match our records.": "Deze gegevens komen niet overeen met wat bij ons bekend is.",
     "Shelf added.": "Plank toegevoegd.",
     "The Unsorted shelf still holds products. Move them first.": "De plank Ongesorteerd bevat nog producten. Verplaats ze eerst.",
@@ -186,7 +172,6 @@
     "Saved.": "Opgeslagen.",
     "That didn't save — check your connection.": "Dat is niet opgeslagen — controleer je verbinding.",
     "Retry": "Opnieuw proberen",
-
     "Recently deleted": "Recent verwijderd",
     "Deleted locations, shelves and products can be restored here, however they were deleted — from the app or the web.": "Verwijderde locaties, planken en producten kun je hier herstellen, hoe ze ook zijn verwijderd — vanuit de app of het web.",
     "Nothing deleted recently.": "Niets recent verwijderd.",
@@ -195,5 +180,36 @@
     "Undo": "Ongedaan maken",
     ":count item restored.|:count items restored.": ":count item hersteld.|:count items hersteld.",
     "Nothing to restore. This was already restored, or permanently removed.": "Niets om te herstellen. Dit is al hersteld of definitief verwijderd.",
-    "Cannot restore: a parent of one of these rows is still deleted under a different batch, or restoring would create a second live Unsorted shelf. Restore the parent first.": "Herstellen niet mogelijk: een bovenliggend item is nog verwijderd via een andere actie, of herstellen zou een tweede actieve plank Ongesorteerd opleveren. Herstel eerst het bovenliggende item."
+    "Cannot restore: a parent of one of these rows is still deleted under a different batch, or restoring would create a second live Unsorted shelf. Restore the parent first.": "Herstellen niet mogelijk: een bovenliggend item is nog verwijderd via een andere actie, of herstellen zou een tweede actieve plank Ongesorteerd opleveren. Herstel eerst het bovenliggende item.",
+    "You're already a member of :name.": "Je bent al lid van :name.",
+    "Invite another member first — ownership can only be transferred to an existing member.": "Nodig eerst een ander lid uit — eigendom kan alleen worden overgedragen aan een bestaand lid.",
+    "Forgot password": "Wachtwoord vergeten",
+    "Forgot password?": "Wachtwoord vergeten?",
+    "Send reset link": "Verstuur herstellink",
+    "Back to sign in": "Terug naar inloggen",
+    "Enter your email and we'll send you a link to reset your password.": "Vul je e-mailadres in en we sturen je een link om je wachtwoord opnieuw in te stellen.",
+    "If that address is registered you will receive a reset link shortly.": "Als dat adres geregistreerd is, ontvang je binnen enkele ogenblikken een herstellink.",
+    "At least 8 characters.": "Minimaal 8 tekens.",
+    "This password reset link is invalid or has expired.": "Deze wachtwoordherstellink is ongeldig of verlopen.",
+    "No account found for this email address.": "Geen account gevonden voor dit e-mailadres.",
+    "Reset password": "Wachtwoord herstellen",
+    "Choose a new password": "Kies een nieuw wachtwoord",
+    "Enter a new password for your Inventory account.": "Vul een nieuw wachtwoord in voor je Inventory-account.",
+    "New password": "Nieuw wachtwoord",
+    "Confirm password": "Bevestig wachtwoord",
+    "Password reset": "Wachtwoord hersteld",
+    "Your password has been updated. Open the Inventory app and sign in with your new password.": "Je wachtwoord is bijgewerkt. Open de Inventory-app en log in met je nieuwe wachtwoord.",
+    "Sign in on the web": "Log in op het web",
+    "Reset your password": "Herstel je wachtwoord",
+    "We received a request to reset the password for your Inventory account. Click the button below to choose a new password.": "We hebben een verzoek ontvangen om het wachtwoord van je Inventory-account opnieuw in te stellen. Klik op de knop hieronder om een nieuw wachtwoord te kiezen.",
+    "Or copy this link:": "Of kopieer deze link:",
+    "This link expires in 60 minutes. If you didn't request a password reset, you can safely ignore this email.": "Deze link verloopt over 60 minuten. Als je geen wachtwoordherstel hebt aangevraagd, kun je deze e-mail negeren.",
+    "In stock": "Op voorraad",
+    "Add one": "Eén erbij",
+    "Remove one": "Eén eraf",
+    "Starred": "Met ster",
+    "Join on the web": "Lid worden via het web",
+    "Confirm": "Bevestig",
+    "The list must contain every location in this household, and only those.": "De lijst moet elke locatie in dit huishouden bevatten, en alleen die.",
+    "The list must contain every shelf in this location, and only those.": "De lijst moet elke plank op deze locatie bevatten, en alleen die."
 }

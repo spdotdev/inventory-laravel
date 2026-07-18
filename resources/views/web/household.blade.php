@@ -99,10 +99,16 @@
             ])
           </div>
           <noscript>
-            <form class="inline" method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
-                  onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name?', ['name' => $location->name])) }})">
+            {{-- No JS here by definition, so an onsubmit confirm can never
+                 run — a required checkbox is the confirmation instead
+                 (audit #10: never one-click-destroy a subtree). --}}
+            <form class="inline" method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}">
               @csrf @method('DELETE')
               <input type="hidden" name="strategy" value="delete_contents">
+              <label class="inv-dialog-option" style="display:inline-flex;margin:0 6px 0 0">
+                <input type="checkbox" required style="width:auto;margin:0">
+                <span class="muted">{{ __('Delete everything with it') }}</span>
+              </label>
               <button type="submit" class="btn-danger">{{ __('Delete') }}</button>
             </form>
           </noscript>
@@ -120,6 +126,9 @@
   @endforelse
   </div>
 
+  {{-- Restructure-gated in the controller since T3 — hide it from Members
+       too, instead of showing a form that 403s on submit (audit #9). --}}
+  @can('restructure', $household)
   <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" style="margin-top:14px">
     @csrf
     <div class="row">
@@ -134,6 +143,7 @@
     @error('name') <p class="field-error">{{ $message }}</p> @enderror
     @error('type') <p class="field-error">{{ $message }}</p> @enderror
   </form>
+  @endcan
 </div>
 
 <h2 class="section" id="members-section">{{ __('Members & access') }}</h2>
@@ -239,9 +249,15 @@
 <h2 class="section" style="color:var(--danger-heading)">{{ __('Danger zone') }}</h2>
 <div class="card" id="danger" style="border-color:var(--danger-border)">
 @can('transferOwnership', $household)
+  @php $transferCandidates = $members->filter(fn ($m) => $m->pivot->role !== 'owner'); @endphp
   <div style="margin-bottom:18px">
   <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:10px">{{ __('Transfer ownership') }}</h2>
   <p class="muted" style="margin-bottom:14px">{{ __("Make another member the owner. You'll become an admin.") }}</p>
+  @if ($transferCandidates->isEmpty())
+  {{-- A sole owner has nobody to transfer to — a hint beats an empty
+       required select the browser silently refuses to submit (audit #5). --}}
+  <p class="muted">{{ __('Invite another member first — ownership can only be transferred to an existing member.') }}</p>
+  @else
   <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row"
         onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Transfer ownership of :name to', ['name' => $household->name])) }} + ' ' + this.user_id.options[this.user_id.selectedIndex].text + {{ Illuminate\Support\Js::from('? '.__('You will become an admin and only they can transfer it back.')) }})">
     @csrf
@@ -255,6 +271,7 @@
     <button type="submit">{{ __('Transfer') }}</button>
   </form>
   @error('user_id') <p class="field-error">{{ $message }}</p> @enderror
+  @endif
   </div>
 @endcan
   <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"

@@ -35,7 +35,7 @@ class Reorderer
 
         if (count($owned) !== count($ids) || $total !== count($ids)) {
             throw ValidationException::withMessages([
-                'ids' => ['The list must contain every location in this household, and only those.'],
+                'ids' => [__('The list must contain every location in this household, and only those.')],
             ]);
         }
 
@@ -64,7 +64,7 @@ class Reorderer
 
         if (count($owned) !== count($ids) || $total !== count($ids)) {
             throw ValidationException::withMessages([
-                'ids' => ['The list must contain every shelf in this location, and only those.'],
+                'ids' => [__('The list must contain every shelf in this location, and only those.')],
             ]);
         }
 

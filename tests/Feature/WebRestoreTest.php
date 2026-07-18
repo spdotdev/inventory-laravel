@@ -181,4 +181,19 @@ class WebRestoreTest extends TestCase
             ->assertOk()
             ->assertDontSee(__('Recently deleted'));
     }
+
+    public function test_a_plain_member_deleting_a_product_gets_no_undo_flash(): void
+    {
+        // WebRestoreController is restructure-gated, so flashing `undo` to a
+        // Member rendered an Undo button that 403ed on click (audit #8).
+        [, $household] = $this->member(role: 'member');
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->delete("{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}")
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionMissing('undo');
+    }
 }

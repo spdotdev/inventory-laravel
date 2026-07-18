@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reset your Inventory password</title>
+<title>{{ __('Reset your password') }} — {{ __('Inventory') }}</title>
 <style>
   body { margin: 0; padding: 0; background: #0a141d; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #eaf6ff; }
   .wrap { max-width: 520px; margin: 40px auto; padding: 40px 32px; background: rgba(125,211,252,.06); border: 1px solid rgba(125,211,252,.18); border-radius: 16px; }
@@ -16,11 +16,11 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Reset your password</h1>
-  <p>We received a request to reset the password for your Inventory account. Click the button below to choose a new password.</p>
-  <a href="{{ $resetUrl }}" class="btn">Reset password</a>
-  <p class="url">Or copy this link: {{ $resetUrl }}</p>
-  <p class="footer">This link expires in 60 minutes. If you didn't request a password reset, you can safely ignore this email.</p>
+  <h1>{{ __('Reset your password') }}</h1>
+  <p>{{ __('We received a request to reset the password for your Inventory account. Click the button below to choose a new password.') }}</p>
+  <a href="{{ $resetUrl }}" class="btn">{{ __('Reset password') }}</a>
+  <p class="url">{{ __('Or copy this link:') }} {{ $resetUrl }}</p>
+  <p class="footer">{{ __("This link expires in 60 minutes. If you didn't request a password reset, you can safely ignore this email.") }}</p>
 </div>
 </body>
 </html>

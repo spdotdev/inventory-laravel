@@ -49,7 +49,8 @@ class WebHouseholdMembersTest extends TestCase
 
         $this->actingAs($owner, 'inventory')
             ->post("{$this->web}/households/{$household->id}/transfer-ownership", ['user_id' => $owner->id])
-            ->assertStatus(422);
+            ->assertRedirect()
+            ->assertSessionHasErrors('user_id');
 
         $this->assertSame('owner', $household->fresh()->roleOf($owner));
     }

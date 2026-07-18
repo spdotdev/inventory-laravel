@@ -4,13 +4,8 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
-use Spdotdev\Inventory\Mail\PasswordResetMail;
-use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\PasswordResetLink;
 
 class ForgotPasswordController
 {
@@ -24,34 +19,10 @@ class ForgotPasswordController
         }
         RateLimiter::hit($key, 60);
 
-        // Always return success — never reveal whether the email exists.
-        $user = User::query()->where('email', $request->string('email')->lower())->first();
-
-        if ($user !== null) {
-            $rawToken = Str::random(64);
-
-            DB::table('inventory_password_resets')->upsert(
-                [
-                    'email' => $user->email,
-                    'token' => Hash::make($rawToken),
-                    'created_at' => now(),
-                ],
-                ['email'],
-                ['token', 'created_at'],
-            );
-
-            // Build the link on the package's own host (config('inventory.domain')),
-            // not the host app's APP_URL — `/reset-password` is only registered on the
-            // inventory domain, so on a split-domain deploy (INVENTORY_DOMAIN ≠ APP_URL)
-            // an APP_URL-based link 404s. Mirror HouseholdController::invite()'s approach.
-            $path = route('inventory.reset-password', [
-                'token' => $rawToken,
-                'email' => $user->email,
-            ], absolute: false);
-            $resetUrl = 'https://'.config('inventory.domain').$path;
-
-            Mail::to($user->email)->send(new PasswordResetMail($resetUrl));
-        }
+        // Always return success — never reveal whether the email exists. The
+        // token mint + mail live in the shared PasswordResetLink sender, used
+        // by the web forgot-password form too (audit #14).
+        PasswordResetLink::send((string) $request->string('email'));
 
         return response()->json(['message' => 'If that address is registered you will receive a reset link shortly.']);
     }

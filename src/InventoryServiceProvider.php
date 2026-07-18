@@ -8,6 +8,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -80,6 +81,15 @@ class InventoryServiceProvider extends ServiceProvider
         // own sign-in page (the host's route('login') may not exist). Other hosts
         // fall through to the framework default.
         Authenticate::redirectUsing(function (Request $request) {
+            return $request->getHost() === config('inventory.domain')
+                ? route('inventory.web.login.show')
+                : null;
+        });
+
+        // AuthenticateSession (on the /app group, audit #15) builds its logout
+        // redirect eagerly via route('login'), which may not exist on the host
+        // — send it to the package's sign-in page like Authenticate above.
+        AuthenticateSession::redirectUsing(function (Request $request) {
             return $request->getHost() === config('inventory.domain')
                 ? route('inventory.web.login.show')
                 : null;
