@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>@yield('title', __('Inventory'))</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
@@ -44,9 +45,21 @@
   .muted{color:#7fa8c4;font-size:13px}
   form.inline{display:inline}
   footer.app-promo{max-width:760px;margin:0 auto;padding:0 24px 32px;font-size:13px;color:#7fa8c4;text-align:center}
+  /* Web parity Task 1: shared feedback layer (savebar + toasts). */
+  .inv-savebar{position:fixed;top:0;left:0;width:100%;height:3px;z-index:60;background:transparent;opacity:0;transition:opacity .15s ease}
+  .inv-savebar.is-active{opacity:1}
+  .inv-savebar-fill{height:100%;width:40%;background:#7dd3fc;animation:inv-savebar-slide 1.1s ease-in-out infinite}
+  @keyframes inv-savebar-slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+  .inv-toast-container{position:fixed;bottom:20px;right:20px;z-index:60;display:flex;flex-direction:column;gap:10px;max-width:340px}
+  .inv-toast{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:inv-toast-in .15s ease-out}
+  .inv-toast-success{background:rgba(125,211,252,.16);border:1px solid rgba(125,211,252,.4);color:#eaf6ff}
+  .inv-toast-error{background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.45);color:#fca5a5}
+  .inv-toast-retry{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
+  @keyframes inv-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
+@include('inventory::web.partials.savebar')
 <header>
   <a class="brand" href="{{ route('inventory.web.households') }}">Inventory</a>
   <nav>
@@ -80,5 +93,23 @@
     </footer>
   @endif
 @endauth
+@include('inventory::web.partials.toast')
+{{-- Web parity Task 1: Alpine.js (self-hosted, no CDN — see
+     public/js/README.md for the pinned version + sha256) and the shared
+     feedback layer. Both are plain progressive-enhancement scripts; pages
+     render and their non-JS form fallbacks work with either script
+     missing/failing to load. --}}
+<script src="{{ asset('vendor/inventory/js/web-feedback.js') }}" defer></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!window.InventoryFeedback) return;
+    window.InventoryFeedback.strings = {
+      saved: {{ Illuminate\Support\Js::from(__('Saved.')) }},
+      saveFailed: {{ Illuminate\Support\Js::from(__("That didn't save — check your connection.")) }},
+      retry: {{ Illuminate\Support\Js::from(__('Retry')) }},
+    };
+  });
+</script>
+<script src="{{ asset('vendor/inventory/js/alpine.min.js') }}" defer></script>
 </body>
 </html>

@@ -58,7 +58,7 @@
         // input. Untouched pages keep the original silent-refresh behavior.
         clearTimeout(reloadTimer);
         reloadTimer = setTimeout(() => {
-          if (dirty) {
+          if (dirty || (window.InventoryFeedback && window.InventoryFeedback.dirty)) {
             showStaleHint();
           } else {
             location.reload();
@@ -76,7 +76,11 @@
 
   // Dirtiness tracking: any input inside a form marks the page dirty until
   // that form is submitted (native form submits, incl. the confirm()-gated
-  // ones already on these pages, still fire 'submit').
+  // ones already on these pages, still fire 'submit'). Web parity Task 1:
+  // also treated as dirty while an Alpine optimistic mutation is in flight
+  // or has failed-and-not-retried (window.InventoryFeedback.dirty, set by
+  // web-feedback.js) — an unsent optimistic change is exactly as
+  // unsaved as unsubmitted form input.
   let dirty = false;
   let hintShown = false;
 

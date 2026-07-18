@@ -166,5 +166,9 @@
     "Member removed.": "Lid verwijderd.",
     "Ownership transferred.": "Eigenaarschap overgedragen.",
     "You're already the owner.": "Je bent al de eigenaar.",
-    "Household updated elsewhere — refresh to see changes.": "Huishouden elders bijgewerkt — ververs om de wijzigingen te zien."
+    "Household updated elsewhere — refresh to see changes.": "Huishouden elders bijgewerkt — ververs om de wijzigingen te zien.",
+    "Saving…": "Opslaan…",
+    "Saved.": "Opgeslagen.",
+    "That didn't save — check your connection.": "Dat is niet opgeslagen — controleer je verbinding.",
+    "Retry": "Opnieuw proberen"
 }
