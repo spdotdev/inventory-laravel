@@ -6,10 +6,18 @@
 
 <div class="card" style="max-width:520px">
   @if ($product->image_url)
-    {{-- Display-only: web has no upload flow (GAP-6 M6), but a photo already
-         set by the app should still be visible here for parity. --}}
     <img src="{{ $product->image_url }}" alt="{{ $product->name }}" style="max-width:100%;border-radius:12px;margin-bottom:18px">
   @endif
+
+  {{-- Web parity T5: photo upload, mirroring the API's image endpoint. Plain
+       multipart form post — no Alpine needed for a single file field. --}}
+  <form method="POST" action="{{ route('inventory.web.products.image', [$household, $shelf, $product]) }}" enctype="multipart/form-data" style="margin-bottom:20px">
+    @csrf
+    <label for="image">{{ __('Photo') }}</label>
+    <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp">
+    @error('image') <p class="field-error">{{ $message }}</p> @enderror
+    <button type="submit" style="width:100%;margin-top:8px">{{ __('Upload photo') }}</button>
+  </form>
 
   <form method="POST" action="{{ route('inventory.web.products.update', [$household, $shelf, $product]) }}">
     @csrf @method('PUT')
@@ -40,12 +48,13 @@
     <button type="submit" style="width:100%">{{ __('Save') }}</button>
   </form>
 
-  {{-- GAP-6 M6: cross-hint the app-only capabilities this page can't offer
-       (photo upload, barcode scanning) — same hidden-unless-configured
-       pattern as the layout's footer promo. --}}
+  {{-- GAP-6 M6: cross-hint the remaining app-only capability this page can't
+       offer (barcode scanning) — photo upload moved to web in T5, so the
+       hint no longer mentions it. Same hidden-unless-configured pattern as
+       the layout's footer promo. --}}
   @if (config('inventory.android_app_url'))
     <p class="muted" style="margin-top:16px">
-      {!! __('Photos and barcode scanning are available in :link.', ['link' => '<a href="'.e(config('inventory.android_app_url')).'">'.__('the Android app').'</a>']) !!}
+      {!! __('Barcode scanning is available in :link.', ['link' => '<a href="'.e(config('inventory.android_app_url')).'">'.__('the Android app').'</a>']) !!}
     </p>
   @endif
 </div>

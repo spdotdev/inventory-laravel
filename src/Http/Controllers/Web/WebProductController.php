@@ -3,13 +3,16 @@
 namespace Spdotdev\Inventory\Http\Controllers\Web;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Http\Requests\ProductRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
+use Spdotdev\Inventory\Support\ProductImage;
 
 /**
  * Web CRUD + stock actions for products (Phase 2 stage 2). Tenancy via the
@@ -47,6 +50,30 @@ class WebProductController extends Controller
         $product->update($data);
 
         return $this->backToLocation($household, $shelf)->with('status', __('Product saved.'));
+    }
+
+    public function image(Request $request, Household $household, Shelf $shelf, Product $product): RedirectResponse
+    {
+        // Mirrors Api\ProductController::image exactly (validation, disk,
+        // image_url population, old-image cleanup via the shared ProductImage
+        // helper) — web parity T5. Kept as a documented mirror rather than an
+        // extracted class since the whole body is five lines.
+        $disk = (string) config('inventory.image_disk', 'public');
+
+        $request->validate([
+            'image' => ['required', 'file', 'mimetypes:image/jpeg,image/png,image/webp', 'max:'.(int) config('inventory.image_max_kb', 5120)],
+        ]);
+
+        $previous = $product->image_url;
+
+        $path = $request->file('image')->store('inventory/products', $disk);
+        $url = Storage::disk($disk)->url($path);
+        $product->update(['image_url' => str_starts_with($url, 'http') ? $url : url($url)]);
+
+        ProductImage::delete($disk, $previous);
+
+        return redirect()->route('inventory.web.products.edit', [$household, $shelf, $product])
+            ->with('status', __('Photo uploaded.'));
     }
 
     public function add(Household $household, Shelf $shelf, Product $product): RedirectResponse
