@@ -51,9 +51,19 @@
         ws.send(JSON.stringify({event: 'pusher:pong', data: {}}));
       } else if (message.event === 'household.changed' && message.channel === channel) {
         // Debounced full reload: these pages are thin server-rendered views,
-        // so re-rendering IS the re-fetch. The ping carries no state.
+        // so re-rendering IS the re-fetch. The ping carries no state. GAP-6
+        // M5: a reload mid-form silently threw away whatever the user typed
+        // (and their scroll position). While a form is dirty, skip the
+        // reload and show a small non-blocking hint instead — never destroy
+        // input. Untouched pages keep the original silent-refresh behavior.
         clearTimeout(reloadTimer);
-        reloadTimer = setTimeout(() => location.reload(), 500);
+        reloadTimer = setTimeout(() => {
+          if (dirty) {
+            showStaleHint();
+          } else {
+            location.reload();
+          }
+        }, 500);
       }
     });
 
@@ -62,6 +72,33 @@
       attempts += 1;
       setTimeout(connect, Math.min(30, 2 ** attempts) * 1000);
     });
+  }
+
+  // Dirtiness tracking: any input inside a form marks the page dirty until
+  // that form is submitted (native form submits, incl. the confirm()-gated
+  // ones already on these pages, still fire 'submit').
+  let dirty = false;
+  let hintShown = false;
+
+  document.addEventListener('input', (event) => {
+    if (event.target instanceof Element && event.target.closest('form')) {
+      dirty = true;
+    }
+  });
+  document.addEventListener('submit', () => {
+    dirty = false;
+  });
+
+  function showStaleHint() {
+    if (hintShown) return;
+    hintShown = true;
+    const hint = document.createElement('div');
+    hint.className = 'flash';
+    hint.style.position = 'sticky';
+    hint.style.top = '0';
+    hint.style.zIndex = '10';
+    hint.textContent = {{ Illuminate\Support\Js::from(__('Household updated elsewhere — refresh to see changes.')) }};
+    document.body.prepend(hint);
   }
 
   connect();
