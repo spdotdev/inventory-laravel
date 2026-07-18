@@ -86,7 +86,7 @@ class HouseholdDeleteTest extends TestCase
         $this->member($household, 'member');
 
         $this->actingAs($owner, 'inventory')
-            ->delete("{$this->web}/households/{$household->id}", ['name' => 'WebDoomed'])
+            ->delete("{$this->web}/households/{$household->id}", ['confirm_name' => 'WebDoomed'])
             ->assertRedirect();
 
         $this->assertDatabaseMissing('inventory_households', ['id' => $household->id]);
@@ -98,9 +98,26 @@ class HouseholdDeleteTest extends TestCase
         $owner = $this->member($household, 'owner');
 
         $this->actingAs($owner, 'inventory')
-            ->delete("{$this->web}/households/{$household->id}", ['name' => 'nope'])
-            ->assertSessionHasErrors('name');
+            ->delete("{$this->web}/households/{$household->id}", ['confirm_name' => 'nope'])
+            ->assertSessionHasErrors('confirm_name');
 
         $this->assertDatabaseHas('inventory_households', ['id' => $household->id]);
+    }
+
+    /**
+     * GAP-4 L4: the household page also has a location-add form validating
+     * `name`. The delete-confirm field is `confirm_name`, not `name`, so a
+     * failed delete-confirm never lands a bogus 'name' error under the
+     * unrelated location-add input.
+     */
+    public function test_web_delete_confirm_error_does_not_collide_with_location_name(): void
+    {
+        $household = Household::create(['name' => 'WebCollide', 'join_code' => 'GGGG-7777']);
+        $owner = $this->member($household, 'owner');
+
+        $this->actingAs($owner, 'inventory')
+            ->delete("{$this->web}/households/{$household->id}", ['confirm_name' => 'nope'])
+            ->assertSessionHasErrors('confirm_name')
+            ->assertSessionDoesntHaveErrors('name');
     }
 }

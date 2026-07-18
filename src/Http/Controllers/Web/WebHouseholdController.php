@@ -155,16 +155,24 @@ class WebHouseholdController extends Controller
             ->with('status', __('You left :name.', ['name' => $household->name]));
     }
 
-    /** Owner-only; same server-side typed-name confirmation as the API. */
+    /**
+     * Owner-only; same server-side typed-name confirmation as the API.
+     *
+     * The web form field is `confirm_name`, not the API's `name` — the
+     * household page also has a location-add form validating `name`, and a
+     * shared field name would collide in the single global $errors bag
+     * (GAP-4 L4). The API's `name` field itself is a shipped contract
+     * (Android sends `name`) and is untouched.
+     */
     public function destroy(Request $request, Household $household): RedirectResponse
     {
         $this->authorizeMember($request, $household);
         Gate::authorize('delete', $household);
 
-        $data = $request->validate(['name' => ['required', 'string']]);
-        if ($data['name'] !== $household->name) {
+        $data = $request->validate(['confirm_name' => ['required', 'string']]);
+        if ($data['confirm_name'] !== $household->name) {
             return back()->withFragment('danger')
-                ->withErrors(['name' => __('Type the household name exactly to confirm deletion.')]);
+                ->withErrors(['confirm_name' => __('Type the household name exactly to confirm deletion.')]);
         }
 
         $household->delete();
