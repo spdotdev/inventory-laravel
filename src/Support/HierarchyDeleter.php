@@ -56,7 +56,7 @@ class HierarchyDeleter
 
             if ($target === null || (int) $target->getKey() === (int) $shelf->getKey()) {
                 throw ValidationException::withMessages([
-                    'target_shelf_id' => ['Pick a different shelf in this household.'],
+                    'target_shelf_id' => [__('Pick a different shelf in this household.')],
                 ]);
             }
 
@@ -170,7 +170,7 @@ class HierarchyDeleter
 
             if ($target === null || (int) $target->getKey() === (int) $location->getKey()) {
                 throw ValidationException::withMessages([
-                    'target_location_id' => ['Pick a different location in this household.'],
+                    'target_location_id' => [__('Pick a different location in this household.')],
                 ]);
             }
 

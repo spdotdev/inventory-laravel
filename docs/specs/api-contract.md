@@ -89,9 +89,37 @@ PATCH  /api/v1/households/{household}      { name?, color?,   -> partial update:
 GET    /api/v1/households/{household}/invite                  -> { code, link }
                                                                  (client renders QR from link)
 POST   /api/v1/households/join             { code }           -> join by code
-DELETE /api/v1/households/{household}/leave                   -> leave self
+DELETE /api/v1/households/{household}/leave                   -> leave self (409 for the sole
+                                                                 Owner: transfer first)
+DELETE /api/v1/households/{household}      { name }           -> Owner-only hard delete; body must
+                                                                 carry the EXACT current name as a
+                                                                 typed confirmation (422 mismatch,
+                                                                 403 non-owner)
+GET    /api/v1/households/{household}/export                  -> versioned JSON export of the tree
 GET    /api/v1/households/{household}/search?q=               -> matching products (see Search result)
 ```
+
+### Roles & member management (shipped 2026-07-17)
+
+Every membership row carries a `role`: `owner` | `admin` | `member`. A household
+always has **exactly one Owner**; the only way that changes is transfer-ownership,
+which atomically demotes the caller to Admin (conditional demote-first — a lost
+concurrent race 409s instead of minting two owners).
+
+```
+GET    /api/v1/households/{household}/members                    -> roster (HouseholdMemberResource)
+PATCH  /api/v1/households/{household}/members/{user}  { role }   -> promote/demote admin<->member
+                                                                    (manageMembers; the Owner's own
+                                                                    row 403s - transfer instead)
+DELETE /api/v1/households/{household}/members/{user}             -> remove member (manageMembers;
+                                                                    the Owner 403s)
+POST   /api/v1/households/{household}/transfer-ownership { user_id } -> Owner-only; 422 self,
+                                                                    409 lost race
+```
+
+Capability gates (HouseholdPolicy): `restructure` + `manageMembers` = Owner/Admin;
+`transferOwnership` + `delete` = Owner. Clients gate UI off the server-computed
+flags below — never re-derive from `role` client-side.
 
 **Household resource** (`HouseholdResource`) — returned by list/create/join:
 
@@ -100,10 +128,13 @@ GET    /api/v1/households/{household}/search?q=               -> matching produc
   join_code,                   # visible to members (all members are equal and may
                                # invite); this resource is only ever returned to members.
                                # Client field is required — a rename breaks deserialization.
-  color, icon }                # nullable theme KEYS (Phase 2) — color: sky|teal|indigo|pink|
+  color, icon,                 # nullable theme KEYS (Phase 2) — color: sky|teal|indigo|pink|
                                # amber|green|violet|orange; icon: home|kitchen|house|apartment|
                                # cottage|warehouse|storefront|box. null = client derives a
                                # stable default from the household id.
+  role,                        # the CALLER's own role: owner|admin|member
+  can_restructure,             # server-computed capability flags the client gates UI on
+  can_manage_members }
 ```
 
 The invite endpoint returns `{ code, link }` where `link` is

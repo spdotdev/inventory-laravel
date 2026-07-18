@@ -9,6 +9,7 @@ use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\OwnershipTransfer;
 use Spdotdev\Inventory\Tests\TestCase;
 
 /**
@@ -207,5 +208,31 @@ class HouseholdOwnerInvariantTest extends TestCase
             ->assertRedirect();
 
         $this->assertDatabaseMissing('inventory_households', ['id' => $household->id]);
+    }
+
+    public function test_a_lost_transfer_race_cannot_mint_two_owners(): void
+    {
+        $owner = $this->user('Owner');
+        $a = $this->user('A');
+        $b = $this->user('B');
+        $household = Household::create(['name' => 'H', 'join_code' => 'RACE-0001']);
+        $household->users()->attach($owner->getKey(), ['role' => 'owner']);
+        $household->users()->attach($a->getKey(), ['role' => 'member']);
+        $household->users()->attach($b->getKey(), ['role' => 'member']);
+
+        // First transfer wins; the caller is demoted to admin.
+        $this->assertTrue(OwnershipTransfer::transfer($household, $a, $owner));
+
+        // A concurrent second transfer (same stale caller, different target)
+        // finds the caller's row no longer 'owner' — it must refuse rather
+        // than crown a second owner.
+        $this->assertFalse(OwnershipTransfer::transfer($household, $b, $owner));
+
+        $roles = DB::table('inventory_household_user')
+            ->where('household_id', $household->getKey())->pluck('role', 'user_id');
+        $this->assertSame('owner', $roles[$a->getKey()]);
+        $this->assertSame('admin', $roles[$owner->getKey()]);
+        $this->assertSame('member', $roles[$b->getKey()]);
+        $this->assertSame(1, $roles->filter(fn ($r) => $r === 'owner')->count());
     }
 }

@@ -16,6 +16,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Support\HouseholdExport;
 use Spdotdev\Inventory\Support\InviteQr;
+use Spdotdev\Inventory\Support\OwnershipTransfer;
 use Spdotdev\Inventory\Support\RecentlyDeleted;
 
 /**
@@ -113,7 +114,13 @@ class WebHouseholdController extends Controller
             // summary line ("N shelves, M products") needs a product count
             // per location without an N+1; StorageLocation::products() is the
             // HasManyThrough across all of a location's shelves.
-            'locations' => $household->locations()->withCount(['shelves', 'products'])->orderBy('position')->orderBy('name')->get(),
+            // 'shelvesWithContents as shelves_count', not plain 'shelves': the
+            // count must stay in lockstep with the API's shelf_count and with
+            // DeleteLocationRequest::locationHasContents() (see that relation's
+            // docblock) — a bare count includes an empty system Unsorted shelf,
+            // showing "1 shelf" where Android shows 0 and forcing a delete
+            // strategy the server doesn't actually require.
+            'locations' => $household->locations()->withCount(['shelvesWithContents as shelves_count', 'products'])->orderBy('position')->orderBy('name')->get(),
             'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
             'inviteQrSvg' => InviteQr::svg($link),
             // Web parity T4: "Recently deleted" section — restorable batches
@@ -269,10 +276,12 @@ class WebHouseholdController extends Controller
                 ->withErrors(['user_id' => __("You're already the owner.")]);
         }
 
-        DB::transaction(function () use ($household, $newOwner, $currentOwner) {
-            $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
-            $household->users()->updateExistingPivot($currentOwner->getKey(), ['role' => 'admin']);
-        });
+        // Conditional demote-first transfer (OwnershipTransfer) — a double
+        // submit racing another transfer must not crown two owners.
+        if (! OwnershipTransfer::transfer($household, $newOwner, $currentOwner)) {
+            return back()->withFragment('members')
+                ->withErrors(['user_id' => __('Ownership has already been transferred.')]);
+        }
 
         HouseholdChanged::dispatch((int) $household->getKey());
 

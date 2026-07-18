@@ -4,7 +4,6 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\TransferOwnershipRequest;
@@ -12,6 +11,7 @@ use Spdotdev\Inventory\Http\Requests\UpdateMemberRoleRequest;
 use Spdotdev\Inventory\Http\Resources\HouseholdMemberResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\OwnershipTransfer;
 
 /**
  * Membership management. Every action here is gated by `manageMembers` /
@@ -89,10 +89,10 @@ class MemberController
         // violates the hard invariant: a household always has exactly one Owner.
         abort_if($newOwner->getKey() === $currentOwner->getKey(), 422, "You're already the owner.");
 
-        DB::transaction(function () use ($household, $newOwner, $currentOwner) {
-            $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
-            $household->users()->updateExistingPivot($currentOwner->getKey(), ['role' => 'admin']);
-        });
+        // Conditional demote-first transfer (OwnershipTransfer) — an owner
+        // double-submitting to two different targets passes the gate twice,
+        // and unguarded pivot writes would crown two owners.
+        abort_unless(OwnershipTransfer::transfer($household, $newOwner, $currentOwner), 409, 'Ownership has already been transferred.');
 
         HouseholdChanged::dispatch((int) $household->getKey());
 

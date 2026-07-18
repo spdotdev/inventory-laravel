@@ -37,16 +37,20 @@ class HouseholdExport
                 ->map(fn (User $user): array => [
                     'name' => $user->name,
                     'email' => $user->email,
+                    'role' => $user->pivot?->role,
                 ])->values()->all(),
             'locations' => $household->locations
                 ->map(fn (StorageLocation $location): array => [
                     'id' => $location->id,
                     'name' => $location->name,
                     'type' => $location->type,
+                    'position' => $location->position,
                     'shelves' => $location->shelves
                         ->map(fn (Shelf $shelf): array => [
                             'id' => $shelf->id,
                             'name' => $shelf->name,
+                            'position' => $shelf->position,
+                            'is_system' => $shelf->is_system,
                             'products' => $shelf->products
                                 ->map(fn (Product $product): array => [
                                     'id' => $product->id,
@@ -54,6 +58,7 @@ class HouseholdExport
                                     'description' => $product->description,
                                     'code' => $product->code,
                                     'is_mandatory' => $product->is_mandatory,
+                                    'is_starred' => $product->is_starred,
                                     'quantity' => $product->quantity,
                                     'low_stock_threshold' => $product->low_stock_threshold,
                                     'image_url' => $product->image_url,
