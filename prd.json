@@ -41,8 +41,8 @@
         "Full PHPUnit suite still passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Audited ProductRequest (quantity/low_stock_threshold - already bounded via MAX_QUANTITY, W14), the amount() helper in ProductController (already bounded), ReorderRequest (already capped at MAX_IDS/500 ids), and every other FormRequest in src/Http/Requests for missing bounds. Confirmed gap: ShelfRequest's `position` field had `integer|min:0` with no upper bound, while the underlying column is `unsignedInteger` (~4.29B ceiling) - the same class of bug W14 already fixed for product quantity, just missed here. Regression test tests/Feature/ResourceCrudTest.php::test_shelf_position_beyond_the_column_ceiling_is_rejected (POST a shelf with position=5_000_000_000, expect 422) failed before the fix (SQLite silently stored it and returned 201). Fixed by adding max:ProductRequest::MAX_QUANTITY to ShelfRequest::rules(), reusing the existing bound constant. Also checked LocationRequest: its `position` column exists but is never client-writable (only set via ReorderRequest, which is already bounded), so no gap there. Pagination/limit params (SearchController, WebSearchController, AdminController) are all hardcoded ->limit(50), not user-controlled, so no boundary issue. Full PHPUnit suite passes (382 tests, 1297 assertions); Pint and Larastan (max level) clean."
     },
     {
       "id": "US-004",

@@ -7,3 +7,13 @@
   - User model already hides password/remember_token via $hidden; AdminController builds admin payloads through explicit allow-listed arrays (userPayload/householdPayload) rather than raw model serialization - good pattern to keep following for any new admin endpoints.
   - The only custom exception-handler hook (InventoryServiceProvider::boot) renders AuthenticationException as a static 'Unauthenticated.' JSON message - never exposes real exception messages/traces.
 ---
+
+## 2026-07-19 - US-003
+- Audited AmountRequest-style form requests and limit/page query params for missing bounds validation.
+- Found and fixed a real gap: ShelfRequest's `position` field (`integer|min:0`) had no upper bound, while the column is `unsignedInteger` (~4.29B). A huge client-supplied value passed validation but could silently overflow the DB column instead of failing with a clean 422 - same bug class as W14 (ProductRequest quantity), just missed on shelves.
+- Files changed: src/Http/Requests/ShelfRequest.php (added max:ProductRequest::MAX_QUANTITY bound), tests/Feature/ResourceCrudTest.php (regression test), prd.json (notes + passes:true).
+- **Learnings for future iterations:**
+  - `ProductRequest::MAX_QUANTITY` (1,000,000) is the shared upper-bound constant for any unsignedInteger-backed client-writable numeric field, not just quantity - reuse it (`'max:'.ProductRequest::MAX_QUANTITY`) instead of inventing a new cap per field.
+  - When auditing for this bug class, grep migrations for `unsignedInteger`/`unsignedBigInteger` columns, then check whether every FormRequest field that writes to them has both a min AND a max - Laravel's `integer` rule only checks PHP int-ness, not the target column's range, and SQLite (used in the fast test job) won't even error on overflow the way MySQL would, so a missing max is silent until it hits a real MySQL column.
+  - Pagination/search endpoints in this codebase (SearchController, WebSearchController, AdminController) all use a hardcoded `->limit(50)` with no client-controlled page/limit param, so they were not a source of boundary bugs in this pass.
+---

@@ -169,6 +169,21 @@ class ResourceCrudTest extends TestCase
         $this->assertLessThan($third, $second);
     }
 
+    public function test_shelf_position_beyond_the_column_ceiling_is_rejected(): void
+    {
+        // `position` is an unsignedInteger column (~4.29B ceiling). Without an
+        // upper bound in ShelfRequest, an out-of-range value passes the
+        // `integer|min:0` rule (still a valid PHP int) but overflows the DB
+        // column on INSERT, turning a client typo into a 500 instead of a
+        // clean 422 - the same class of bug W14 fixed for product quantity.
+        $h = $this->memberHousehold();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $url = "{$this->base}/households/{$h->id}/locations/{$location->id}/shelves";
+
+        $this->postJson($url, ['name' => 'Top', 'position' => 5_000_000_000])
+            ->assertUnprocessable()->assertJsonValidationErrors('position');
+    }
+
     public function test_shelf_index_does_not_n_plus_one_on_product_counts(): void
     {
         // ShelfController::index() uses withCount('products') so the per-shelf
