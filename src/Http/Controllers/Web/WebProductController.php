@@ -74,7 +74,10 @@ class WebProductController extends Controller
         $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
         $product->delete();
 
-        return $this->backToLocation($household, $shelf)->with('status', __('Product deleted.'));
+        // Web parity T4: see WebLocationController::destroy for the undo-flash rationale.
+        return $this->backToLocation($household, $shelf)
+            ->with('status', __('Product deleted.'))
+            ->with('undo', ['batch' => $batchId, 'household' => (int) $household->getKey()]);
     }
 
     private function backToLocation(Household $household, Shelf $shelf): RedirectResponse

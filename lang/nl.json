@@ -180,5 +180,15 @@
     "Saving…": "Opslaan…",
     "Saved.": "Opgeslagen.",
     "That didn't save — check your connection.": "Dat is niet opgeslagen — controleer je verbinding.",
-    "Retry": "Opnieuw proberen"
+    "Retry": "Opnieuw proberen",
+
+    "Recently deleted": "Recent verwijderd",
+    "Deleted locations, shelves and products can be restored here, however they were deleted — from the app or the web.": "Verwijderde locaties, planken en producten kun je hier herstellen, hoe ze ook zijn verwijderd — vanuit de app of het web.",
+    "Nothing deleted recently.": "Niets recent verwijderd.",
+    "Restore": "Herstellen",
+    "Undo?": "Ongedaan maken?",
+    "Undo": "Ongedaan maken",
+    ":count item restored.|:count items restored.": ":count item hersteld.|:count items hersteld.",
+    "Nothing to restore. This was already restored, or permanently removed.": "Niets om te herstellen. Dit is al hersteld of definitief verwijderd.",
+    "Cannot restore: a parent of one of these rows is still deleted under a different batch, or restoring would create a second live Unsorted shelf. Restore the parent first.": "Herstellen niet mogelijk: een bovenliggend item is nog verwijderd via een andere actie, of herstellen zou een tweede actieve plank Ongesorteerd opleveren. Herstel eerst het bovenliggende item."
 }

@@ -105,16 +105,23 @@ class WebLocationController extends Controller
         // MUST go through HierarchyDeleter. A bare $location->delete() is now a
         // soft delete, which does NOT fire the ON DELETE CASCADE — the shelves
         // and products would survive as unreachable, un-purgeable orphans.
+        $batchId = $request->batchId();
+
         HierarchyDeleter::deleteLocation(
             $household,
             $location,
-            $request->batchId(),
+            $batchId,
             $request->strategy(),
             $request->targetLocationId(),
         );
 
+        // Web parity T4: the redirect carries the batch id so the layout can
+        // upgrade the flash into an Undo toast — see
+        // partials/undo-toast.blade.php. Session flash, not the response
+        // body, because this is a plain form POST + redirect, not a fetch.
         return redirect()
             ->route('inventory.web.households.show', $household)
-            ->with('status', __('Location deleted.'));
+            ->with('status', __('Location deleted.'))
+            ->with('undo', ['batch' => $batchId, 'household' => (int) $household->getKey()]);
     }
 }

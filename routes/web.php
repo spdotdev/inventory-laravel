@@ -9,6 +9,7 @@ use Spdotdev\Inventory\Http\Controllers\Web\WebGoogleAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocationController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebProductController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebRestoreController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebSearchController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebShelfController;
 
@@ -49,6 +50,11 @@ Route::domain(config('inventory.domain'))
             // Inventory CRUD (stage 2) — same tenancy gate + scoped bindings as /api/v1.
             Route::middleware('household.member')->scopeBindings()->group(function () {
                 Route::get('/households/{household}/search', WebSearchController::class)->name('inventory.web.search');
+                // Web parity T4: undo one deletion gesture (thin wrapper over
+                // Support\Restorer, shared with the API). Literal "restore"
+                // segment before the {batch} wildcard, same convention as
+                // "reorder" above.
+                Route::post('/households/{household}/restore/{batch}', WebRestoreController::class)->name('inventory.web.restore');
                 Route::post('/households/{household}/locations', [WebLocationController::class, 'store'])->name('inventory.web.locations.store');
                 // Literal segments precede the {location} wildcard routes below,
                 // same convention as routes/api.php — otherwise "reorder" would

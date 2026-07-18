@@ -81,16 +81,20 @@ class WebShelfController extends Controller
 
         // MUST go through HierarchyDeleter — see WebLocationController::destroy
         // for why a bare $shelf->delete() would silently orphan its products.
+        $batchId = $request->batchId();
+
         HierarchyDeleter::deleteShelf(
             $household,
             $shelf,
-            $request->batchId(),
+            $batchId,
             $request->strategy(),
             $request->targetShelfId(),
         );
 
+        // Web parity T4: see WebLocationController::destroy for the undo-flash rationale.
         return redirect()
             ->route('inventory.web.locations.show', [$household, $location])
-            ->with('status', __('Shelf deleted.'));
+            ->with('status', __('Shelf deleted.'))
+            ->with('undo', ['batch' => $batchId, 'household' => (int) $household->getKey()]);
     }
 }

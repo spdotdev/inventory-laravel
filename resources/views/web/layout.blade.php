@@ -106,6 +106,7 @@
   @endif
 @endauth
 @include('inventory::web.partials.toast')
+@include('inventory::web.partials.undo-toast')
 {{-- Web parity Task 1: Alpine.js (self-hosted, no CDN — see
      public/js/README.md for the pinned version + sha256) and the shared
      feedback layer. Both are plain progressive-enhancement scripts; pages

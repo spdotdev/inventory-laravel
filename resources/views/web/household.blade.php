@@ -209,6 +209,33 @@
   <a class="btn btn-quiet" href="{{ route('inventory.web.households.export', $household) }}">{{ __('Download export') }}</a>
 </div>
 
+@can('restructure', $household)
+<h2 class="section" id="recently-deleted">{{ __('Recently deleted') }}</h2>
+<div class="card">
+  <p class="muted" style="margin-bottom:14px">{{ __('Deleted locations, shelves and products can be restored here, however they were deleted — from the app or the web.') }}</p>
+  @forelse ($deletedBatches as $batch)
+    <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)">
+      <div class="grow">
+        @php
+          $parts = [];
+          if ($batch['locations'] > 0) $parts[] = trans_choice(':count location|:count locations', $batch['locations'], ['count' => $batch['locations']]);
+          if ($batch['shelves'] > 0) $parts[] = trans_choice(':count shelf|:count shelves', $batch['shelves'], ['count' => $batch['shelves']]);
+          if ($batch['products'] > 0) $parts[] = trans_choice(':count product|:count products', $batch['products'], ['count' => $batch['products']]);
+        @endphp
+        {{ implode(', ', $parts) }}
+        <span class="muted">— {{ $batch['deleted_at']->diffForHumans() }}</span>
+      </div>
+      <form method="POST" action="{{ route('inventory.web.restore', [$household, $batch['batch']]) }}" style="margin-bottom:0">
+        @csrf
+        <button type="submit">{{ __('Restore') }}</button>
+      </form>
+    </div>
+  @empty
+    <p class="muted">{{ __('Nothing deleted recently.') }}</p>
+  @endforelse
+</div>
+@endcan
+
 <h2 class="section" style="color:#f0b8b8">{{ __('Danger zone') }}</h2>
 <div class="card" id="danger" style="border-color:rgba(240,120,120,.35)">
 @can('transferOwnership', $household)

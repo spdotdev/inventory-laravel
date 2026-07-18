@@ -16,6 +16,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Support\HouseholdExport;
 use Spdotdev\Inventory\Support\InviteQr;
+use Spdotdev\Inventory\Support\RecentlyDeleted;
 
 /**
  * Household onboarding on the web (Phase 2): list/create/join/leave and the
@@ -99,6 +100,10 @@ class WebHouseholdController extends Controller
             'locations' => $household->locations()->withCount(['shelves', 'products'])->orderBy('position')->orderBy('name')->get(),
             'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
             'inviteQrSvg' => InviteQr::svg($link),
+            // Web parity T4: "Recently deleted" section — restorable batches
+            // within the retention window, regardless of which surface
+            // (API/Android or web) minted them.
+            'deletedBatches' => RecentlyDeleted::forHousehold($household),
         ]);
     }
 
