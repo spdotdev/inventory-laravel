@@ -1,0 +1,62 @@
+{
+  "project": "inventory-laravel",
+  "branchName": "main",
+  "description": "Deeper follow-up audit (round 2) after the 2026-07-19 pass that fixed BUG-1..6. Scope: quality-tier (P3-P4) and integration/edge-case categories the first pass did not exhaustively sweep - N+1/perf, resource/log hygiene, boundary and concurrency edge cases beyond what prior GAP waves already closed. Each story is find-and-fix within one category, not a fixed bug list: audit that category first, write a failing test per confirmed defect, fix minimally, then mark the story passing. If a category turns up nothing after genuine audit effort, mark passes true with notes explaining what was checked and why nothing qualified - do not fabricate a fix.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "N+1 queries and missing eager-loading on listing/detail endpoints",
+      "description": "As an API/web consumer, list and detail endpoints (households, locations, shelves, products, members) must not issue per-row queries for relations already known to be needed.",
+      "acceptanceCriteria": [
+        "Enable query logging (DB::listen or a test assertion helper) in a temporary test and audit every index/show controller under src/Http/Controllers for N+1 patterns",
+        "Any confirmed N+1 gets a regression test asserting a bounded query count and a with()/withCount() fix",
+        "Full PHPUnit suite still passes",
+        "Larastan and Pint stay clean"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Audited index/show on all Api and Web controllers plus their Resources/views. One confirmed N+1: HouseholdController::index -> HouseholdResource -> Household::roleOf() re-queried inventory_household_user per household (memoization was per-instance only, not shared with the pivot already loaded via $user->households()). Fixed by having roleOf() reuse the already-hydrated pivot relation when it belongs to the same user. Regression test: tests/Feature/HouseholdPolicyRolesTest.php::test_role_of_reuses_the_pivot_already_loaded_via_user_households (asserts flat query count across 5 households). LocationController/ShelfController/ProductController/MemberController/SearchController/AdminController index/show and all audited Web controllers already eager-load or withCount() correctly - no other N+1 found."
+    },
+    {
+      "id": "US-002",
+      "title": "Sensitive data in logs and error responses",
+      "description": "As a security-conscious operator, application logs and error payloads (client-error intake, exception handler, admin API) must never contain tokens, passwords, or full auth headers.",
+      "acceptanceCriteria": [
+        "Audit config/logging.php, the exception handler, the client-error intake controller, and any Log::/logger() calls for accidental secret/PII logging",
+        "Audit request/response logging middleware if any exists for header redaction",
+        "Any confirmed leak gets a regression test and a minimal redaction fix",
+        "Full PHPUnit suite still passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "Numeric/boundary edge cases in stock and pagination",
+      "description": "As a user, stock add/remove amounts and any paginated/limited endpoints must handle boundary values (0, negative, very large, non-integer, missing) without a 500 or silent wrong behavior.",
+      "acceptanceCriteria": [
+        "Audit AmountRequest-style form requests and any limit/page query params for missing bounds validation",
+        "Any confirmed gap gets a regression test (expect 422, not 500) and a minimal validation fix",
+        "Full PHPUnit suite still passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "Dead code, deprecated Laravel/PHP APIs, resource leaks",
+      "description": "As a maintainer, the codebase should not carry unreachable code paths, deprecated framework calls, or unclosed resources (file handles, DB transactions left open on early return).",
+      "acceptanceCriteria": [
+        "Grep for deprecated Laravel 13 APIs and PHP 8.3 deprecation notices (run with error_reporting tuned to surface deprecations if feasible)",
+        "Check every early-return path inside DB::transaction closures and file-handling code (image upload, export) for leaks",
+        "Any confirmed issue gets a minimal fix; unreachable code is deleted with justification in notes, not just flagged",
+        "Full PHPUnit suite, Larastan, and Pint stay clean"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

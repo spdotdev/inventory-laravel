@@ -86,4 +86,33 @@ class HouseholdPolicyRolesTest extends TestCase
             'The second roleOf() call on the same instance should be memoized and run no additional queries.'
         );
     }
+
+    public function test_role_of_reuses_the_pivot_already_loaded_via_user_households(): void
+    {
+        $user = User::create(['name' => 'Multi', 'email' => 'multi@example.test', 'password' => 'secret-password']);
+
+        foreach (range(1, 5) as $i) {
+            $household = Household::create(['name' => "H{$i}", 'join_code' => sprintf('AAA%d-%04d', $i, $i)]);
+            $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+        }
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $households = $user->households()->orderBy('name')->get();
+        $queriesForListing = count(DB::getQueryLog());
+
+        foreach ($households as $household) {
+            $this->assertSame('owner', $household->roleOf($user));
+        }
+        $queriesAfterRoleOfOnEach = count(DB::getQueryLog());
+
+        DB::disableQueryLog();
+
+        $this->assertSame(
+            $queriesForListing,
+            $queriesAfterRoleOfOnEach,
+            'roleOf() should reuse the pivot already hydrated by $user->households() instead of running one query per household (N+1).'
+        );
+    }
 }

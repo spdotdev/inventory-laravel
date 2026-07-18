@@ -99,6 +99,19 @@ class Household extends Model
             return $this->roleOfCache[$key];
         }
 
+        // When this Household was loaded off $user->households() (e.g. the
+        // household-index listing), the pivot for exactly that user is
+        // already hydrated onto the model — reuse it instead of firing one
+        // extra query per household to avoid an N+1 across the listing.
+        if ($this->relationLoaded('pivot')) {
+            /** @var HouseholdUserPivot $loadedPivot */
+            $loadedPivot = $this->getRelation('pivot');
+
+            if ((string) $loadedPivot->user_id === (string) $key) {
+                return $this->roleOfCache[$key] = $loadedPivot->role;
+            }
+        }
+
         /** @var HouseholdUserPivot|null $pivot */
         $pivot = $this->users()->wherePivot('user_id', $key)->first()?->pivot;
 

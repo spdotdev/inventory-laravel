@@ -1,0 +1,15 @@
+# Ralph Progress Log
+Started: Sun Jul 19 01:26:14 AM CEST 2026
+---
+
+## 2026-07-19 - US-001
+- Audited index/show controller methods (Api + Web) for N+1s against their Resources/Blade views
+- Found: Household::roleOf() re-queried inventory_household_user per household when called from HouseholdController::index -> HouseholdResource (per-instance memoization didn't help since each Household is a distinct object across the listing)
+- Fix: roleOf() now reuses the pivot already hydrated onto the Household model when it was loaded via $user->households() (relationLoaded('pivot') + matching user_id), before falling back to the query
+- Files: src/Models/Household.php, src/Models/HouseholdUserPivot.php (added @property user_id for phpstan), tests/Feature/HouseholdPolicyRolesTest.php (new regression test)
+- Larastan, Pint, full PHPUnit suite (381 tests) all pass
+- **Learnings for future iterations:**
+  - Existing query-count regression pattern: DB::flushQueryLog(); DB::enableQueryLog(); ...; count(DB::getQueryLog()); DB::disableQueryLog() — used in tests/Feature/ResourceCrudTest.php and HouseholdPolicyRolesTest.php. No assertQueryCount helper exists; write it inline.
+  - BelongsToMany pivot models are hydrated as a *relation* named 'pivot' (relationLoaded('pivot') / getRelation('pivot')), not a plain attribute — useful for reusing already-loaded pivot data instead of re-querying.
+  - LocationController/ShelfController already use withCount() correctly for shelf_count/product_count; ProductController/MemberController/SearchController/AdminController already eager-load what their Resources need. No other N+1s found in this pass.
+---
