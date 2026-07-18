@@ -36,7 +36,41 @@ class WebProductController extends Controller
             'household' => $household,
             'shelf' => $shelf,
             'product' => $product,
+            // Move targets (GAP-8 parity with the API's move endpoint): every
+            // OTHER shelf in the household, labelled location — shelf.
+            'moveTargets' => $household->shelves()->with('location')
+                ->whereKeyNot($shelf->getKey())
+                ->get()
+                ->sortBy([['location.name', 'asc'], ['name', 'asc']])
+                ->values(),
         ]);
+    }
+
+    /**
+     * Web twin of Api\ProductController::move — member-level like the API
+     * (filing a product on the right shelf is everyday stock work, not
+     * restructuring). Redirects to the edit page under the NEW shelf: the old
+     * URL's scoped binding would 404 the moment the move lands.
+     */
+    public function move(Request $request, Household $household, Shelf $shelf, Product $product): RedirectResponse
+    {
+        /** @var array{shelf_id: int} $data */
+        $data = $request->validate(['shelf_id' => ['required', 'integer']]);
+
+        // Same scoping rule as the API twin: the target must be the caller's
+        // household's shelf — Rule::exists cannot see the household.
+        $target = $household->shelves()->whereKey($data['shelf_id'])->first();
+
+        if ($target === null) {
+            return back()->withErrors(['shelf_id' => __('The selected shelf is not in this household.')]);
+        }
+
+        $product->shelf_id = (int) $target->getKey();
+        $product->save();
+
+        return redirect()
+            ->route('inventory.web.products.edit', [$household, $target, $product])
+            ->with('status', __('Product moved.'));
     }
 
     public function update(ProductRequest $request, Household $household, Shelf $shelf, Product $product): RedirectResponse

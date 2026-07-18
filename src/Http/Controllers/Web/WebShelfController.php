@@ -38,6 +38,32 @@ class WebShelfController extends Controller
             ->with('status', __('Shelf added.'));
     }
 
+    /**
+     * Web twin of Api\ShelfController::update, rename only — reparenting
+     * (location_id) stays API-only until a web gesture needs it. Same
+     * ShelfRequest, same restructure gate, same system-shelf guard: the
+     * Unsorted shelf is a fixed concept the clients localise off is_system,
+     * so renaming it must be refused here exactly as in the API.
+     */
+    public function update(ShelfRequest $request, Household $household, StorageLocation $location, Shelf $shelf): RedirectResponse
+    {
+        Gate::authorize('restructure', $household);
+
+        $data = $request->validated();
+
+        if ($shelf->is_system && array_key_exists('name', $data)) {
+            return redirect()
+                ->route('inventory.web.locations.show', [$household, $location])
+                ->withErrors(['name' => __('The Unsorted shelf cannot be renamed.')]);
+        }
+
+        $shelf->update(['name' => $data['name'] ?? $shelf->name]);
+
+        return redirect()
+            ->route('inventory.web.locations.show', [$household, $location])
+            ->with('status', __('Shelf updated.'));
+    }
+
     /** Web twin of Api\ShelfController::reorder — see WebLocationController::reorder for the shared-endpoint rationale (JS + non-JS). */
     public function reorder(ReorderRequest $request, Household $household, StorageLocation $location): RedirectResponse|JsonResponse
     {

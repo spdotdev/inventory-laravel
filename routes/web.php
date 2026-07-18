@@ -88,14 +88,17 @@ Route::domain(config('inventory.domain'))
                 // be swallowed as a {location} id.
                 Route::patch('/households/{household}/locations/reorder', [WebLocationController::class, 'reorder'])->name('inventory.web.locations.reorder');
                 Route::get('/households/{household}/locations/{location}', [WebLocationController::class, 'show'])->name('inventory.web.locations.show');
+                Route::put('/households/{household}/locations/{location}', [WebLocationController::class, 'update'])->name('inventory.web.locations.update');
                 Route::delete('/households/{household}/locations/{location}', [WebLocationController::class, 'destroy'])->name('inventory.web.locations.destroy');
                 Route::patch('/households/{household}/locations/{location}/shelves/reorder', [WebShelfController::class, 'reorder'])->name('inventory.web.shelves.reorder');
                 Route::post('/households/{household}/locations/{location}/shelves', [WebShelfController::class, 'store'])->name('inventory.web.shelves.store');
+                Route::put('/households/{household}/locations/{location}/shelves/{shelf}', [WebShelfController::class, 'update'])->name('inventory.web.shelves.update');
                 Route::delete('/households/{household}/locations/{location}/shelves/{shelf}', [WebShelfController::class, 'destroy'])->name('inventory.web.shelves.destroy');
                 Route::post('/households/{household}/shelves/{shelf}/products', [WebProductController::class, 'store'])->name('inventory.web.products.store');
                 Route::get('/households/{household}/shelves/{shelf}/products/{product}/edit', [WebProductController::class, 'edit'])->name('inventory.web.products.edit');
                 Route::put('/households/{household}/shelves/{shelf}/products/{product}', [WebProductController::class, 'update'])->name('inventory.web.products.update');
                 Route::post('/households/{household}/shelves/{shelf}/products/{product}/image', [WebProductController::class, 'image'])->name('inventory.web.products.image');
+                Route::post('/households/{household}/shelves/{shelf}/products/{product}/move', [WebProductController::class, 'move'])->name('inventory.web.products.move');
                 Route::post('/households/{household}/shelves/{shelf}/products/{product}/add', [WebProductController::class, 'add'])->name('inventory.web.products.add');
                 Route::post('/households/{household}/shelves/{shelf}/products/{product}/remove', [WebProductController::class, 'remove'])->name('inventory.web.products.remove');
                 Route::delete('/households/{household}/shelves/{shelf}/products/{product}', [WebProductController::class, 'destroy'])->name('inventory.web.products.destroy');

@@ -69,6 +69,25 @@
     <button type="submit" style="width:100%">{{ __('Save') }}</button>
   </form>
 
+  {{-- GAP-8: move to another shelf (web twin of the API's move endpoint;
+       member-level — filing stock is not restructuring). Hidden when the
+       household has no other shelf to move to. --}}
+  @if ($moveTargets->isNotEmpty())
+    <form method="POST" action="{{ route('inventory.web.products.move', [$household, $shelf, $product]) }}" style="margin-top:20px">
+      @csrf
+      <label class="muted" style="display:block;margin-bottom:6px">{{ __('Move to another shelf') }}</label>
+      <div class="row">
+        <select name="shelf_id" required class="grow" style="margin-bottom:0">
+          @foreach ($moveTargets as $target)
+            <option value="{{ $target->id }}">{{ $target->location->name }} — {{ $target->name }}</option>
+          @endforeach
+        </select>
+        <button type="submit" class="btn-quiet">{{ __('Move') }}</button>
+      </div>
+      @error('shelf_id') <p class="field-error">{{ $message }}</p> @enderror
+    </form>
+  @endif
+
   {{-- GAP-6 M6: cross-hint the remaining app-only capability this page can't
        offer (barcode scanning) — photo upload moved to web in T5, so the
        hint no longer mentions it. Same hidden-unless-configured pattern as

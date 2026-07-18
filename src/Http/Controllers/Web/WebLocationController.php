@@ -70,6 +70,23 @@ class WebLocationController extends Controller
             ->with('status', __('Order saved.'));
     }
 
+    /**
+     * Web twin of Api\LocationController::update (rename / retype) — same
+     * LocationRequest, same restructure gate. Closes the parity gap where a
+     * web-only user's sole recourse for a typo'd location name was
+     * delete-and-recreate.
+     */
+    public function update(LocationRequest $request, Household $household, StorageLocation $location): RedirectResponse
+    {
+        Gate::authorize('restructure', $household);
+
+        $location->update($request->validated());
+
+        return redirect()
+            ->route('inventory.web.locations.show', [$household, $location])
+            ->with('status', __('Location updated.'));
+    }
+
     public function show(Household $household, StorageLocation $location): View
     {
         // @phpstan-ignore argument.type (the inventory:: namespace is registered at runtime via loadViewsFrom, so it is not resolvable during package-only static analysis)

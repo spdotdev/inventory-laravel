@@ -4,6 +4,28 @@
 <h1>{{ $location->name }} <span class="muted" style="font-size:14px">({{ __(ucfirst($location->type->value)) }})</span></h1>
 <p class="sub"><a href="{{ route('inventory.web.households.show', $household) }}">← {{ $household->name }}</a></p>
 
+@can('restructure', $household)
+{{-- GAP-8: rename/retype on the web — a typo'd location no longer forces
+     delete-and-recreate. details/summary keeps it collapsed with no JS. --}}
+<details style="margin-bottom:16px" @if ($errors->has('name') || $errors->has('type')) open @endif>
+  <summary class="muted" style="cursor:pointer">{{ __('Rename this location') }}</summary>
+  <form method="POST" action="{{ route('inventory.web.locations.update', [$household, $location]) }}" style="margin-top:10px">
+    @csrf @method('PUT')
+    <div class="row">
+      <input class="grow" type="text" name="name" value="{{ old('name', $location->name) }}" required maxlength="50" style="margin-bottom:0">
+      <select name="type" required style="width:140px;margin-bottom:0">
+        @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
+          <option value="{{ $type->value }}" @selected(old('type', $location->type->value) === $type->value)>{{ __(ucfirst($type->value)) }}</option>
+        @endforeach
+      </select>
+      <button type="submit">{{ __('Save') }}</button>
+    </div>
+    @error('name') <p class="field-error">{{ $message }}</p> @enderror
+    @error('type') <p class="field-error">{{ $message }}</p> @enderror
+  </form>
+</details>
+@endcan
+
 {{-- Web parity Task 2: reorder. `order` covers non-system shelves only —
      the Unsorted shelf is never draggable and always renders last (matches
      Reorderer::shelves / the API's is_system exclusion). Each card binds
@@ -28,6 +50,17 @@
       <h2 class="grow" style="font-size:16px;color:var(--text-heading)">{{ $shelf->name }}</h2>
       @unless ($shelf->is_system)
         @can('restructure', $household)
+          {{-- GAP-8: shelf rename (web twin of Api\ShelfController::update's
+               name path; the system shelf never shows this — it is not
+               renamable anywhere). --}}
+          <details style="margin:0 8px 0 0">
+            <summary class="muted" style="cursor:pointer;font-size:13px">{{ __('Rename') }}</summary>
+            <form method="POST" action="{{ route('inventory.web.shelves.update', [$household, $location, $shelf]) }}" class="row" style="margin-top:6px">
+              @csrf @method('PUT')
+              <input type="text" name="name" value="{{ $shelf->name }}" required maxlength="50" style="margin-bottom:0;width:140px">
+              <button type="submit" class="btn-quiet">{{ __('Save') }}</button>
+            </form>
+          </details>
           <div class="row" style="gap:4px" x-cloak>
             <button type="button" class="btn-quiet" x-show="order.indexOf({{ $shelf->id }}) > 0"
                     @click="move({{ $shelf->id }}, -1)" aria-label="{{ __('Move up') }}">&uarr;</button>
