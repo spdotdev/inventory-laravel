@@ -148,6 +148,13 @@
       <input type="hidden" name="mode" value="{{ ($__invDisplayMode ?? null) === 'light' ? 'dark' : 'light' }}">
       <button type="submit" class="inv-mode-toggle" aria-label="{{ __('Switch to :mode mode', ['mode' => ($__invDisplayMode ?? null) === 'light' ? __('dark') : __('light')]) }}">{{ ($__invDisplayMode ?? null) === 'light' ? '🌙' : '☀️' }}</button>
     </form>
+    {{-- Web parity T7: EN/NL toggle, same plain-POST mechanism as the
+         display-mode toggle above. --}}
+    <form class="inline" method="POST" action="{{ route('inventory.web.locale') }}">
+      @csrf
+      <input type="hidden" name="locale" value="{{ app()->getLocale() === 'nl' ? 'en' : 'nl' }}">
+      <button type="submit" class="inv-mode-toggle" aria-label="{{ __('Switch language') }}">{{ app()->getLocale() === 'nl' ? 'EN' : 'NL' }}</button>
+    </form>
     @auth('inventory')
       <span class="muted">{{ auth('inventory')->user()->name }}</span>
       <form class="inline" method="POST" action="{{ route('inventory.web.logout') }}">

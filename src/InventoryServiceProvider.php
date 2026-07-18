@@ -121,6 +121,17 @@ class InventoryServiceProvider extends ServiceProvider
         // Plain __('...') calls (controllers' flash/error strings, view copy)
         // resolve via JSON dictionaries — see lang/nl.json.
         $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
+        // Web parity T7: also register the same lang/ directory in the
+        // DEFAULT namespace (no second copy of the files). Laravel's
+        // validator resolves messages from `validation.*` (default
+        // namespace), never `inventory::validation.*` — namespacing alone
+        // (the call above) would make lang/nl/validation.php unreachable by
+        // FormRequest/`$request->validate()` failures. addPath() appends
+        // this directory as an extra lookup location for the default
+        // namespace rather than replacing the host app's own lang/ (if any),
+        // so a host that ships its own nl/validation.php still wins for keys
+        // it defines.
+        $this->loadTranslationsFrom(__DIR__.'/../lang');
 
         // Package-owned tables (inventory_*) live here; empty until the schema
         // step. loadMigrationsFrom is a no-op while the directory has none.

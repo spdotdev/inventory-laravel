@@ -8,6 +8,7 @@ use Spdotdev\Inventory\Http\Controllers\Web\WebAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebDisplayModeController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebGoogleAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebLocaleController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocationController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebProductController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebRestoreController;
@@ -26,6 +27,10 @@ Route::domain(config('inventory.domain'))
         // Web parity T6: light/dark toggle, available on every page (guest or
         // authed) since the layout it decorates is shared by both.
         Route::post('/display-mode', [WebDisplayModeController::class, 'update'])->name('inventory.web.display-mode');
+
+        // Web parity T7: EN/NL toggle, layered over NegotiateLocale's
+        // Accept-Language default (see that middleware).
+        Route::post('/locale', [WebLocaleController::class, 'update'])->name('inventory.web.locale');
 
         // Phase-2 web UI: session auth on the `inventory` guard (inventory_users).
         Route::middleware('throttle:inventory-auth')->group(function () {
