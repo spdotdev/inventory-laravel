@@ -69,13 +69,13 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## Low
 
-- **L1 🔴** Undo snackbar is obscured while any dialog is open (Compose
+- **L1 ✅ (android 96dcdd7, documented limitation)** Undo snackbar is obscured while any dialog is open (Compose
   dialog window layering) — edge timing case.
-- **L2 🔴** Search result path fallback can degrade to `" › "` when fields
+- **L2 ✅ (android 581f120)** Search result path fallback can degrade to `" › "` when fields
   are blank.
-- **L3 🔴** No spinner/shimmer between photo pick and upload finish; no
+- **L3 ✅ (android 23ff9c3)** No spinner/shimmer between photo pick and upload finish; no
   styled error/retry for a failed remote image load.
-- **L4 🔴** Scan-originated no-results shares Search's plain empty state
+- **L4 ✅ (superseded by H6)** Scan-originated no-results shares Search's plain empty state
   (superseded if H6 lands).
 
 ## Verified healthy (no action)

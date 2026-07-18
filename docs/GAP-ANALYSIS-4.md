@@ -56,22 +56,22 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## Low
 
-- **L1 🔴** Members screen loading is an overlaid spinner, no empty-state
+- **L1 ✅ (android 40cd556)** Members screen loading is an overlaid spinner, no empty-state
   polish (unreachable in practice; consistency nit).
-- **L2 🔴** Members roster rows lack TalkBack semantic grouping.
-- **L3 🔴** No shared spacing tokens — ~207 hand-typed `.dp` literals;
+- **L2 ✅ (android 40cd556)** Members roster rows lack TalkBack semantic grouping.
+- **L3 ✅ (android 405498b, scoped: tokens + 3 screens, rest organic)** No shared spacing tokens — ~207 hand-typed `.dp` literals;
   measurable padding drift between Auth/Dashboard/Scanner.
-- **L4 🔴** Web validation errors are one generic top-of-page flash, not
+- **L4 ✅ (web 5d6bebc/ee4fcd7)** Web validation errors are one generic top-of-page flash, not
   field-level.
-- **L5 🔴** Web members table lacks an `overflow-x` wrapper — awkward on
+- **L5 ✅ (web 5d6bebc)** Web members table lacks an `overflow-x` wrapper — awkward on
   narrow phones from invite links.
-- **L6 🔴** "No locations yet." empty state doesn't frame the add form below
+- **L6 ✅ (web 5d6bebc)** "No locations yet." empty state doesn't frame the add form below
   it as the first action.
-- **L7 🔴** No "get the app" cross-promotion anywhere on the web surface —
+- **L7 ✅ (web 5d6bebc, shown only when android_app_url config set)** No "get the app" cross-promotion anywhere on the web surface —
   needs a product decision (or explicit acceptance of web parity).
-- **L8 🔴** Missing tab root shows a back arrow other tab roots omit.
-- **L9 🔴** No first-run hint for the edit-mode pencil.
-- **L10 🔴** Auth/ForgotPassword and Settings join-household use bespoke
+- **L8 ✅ (android 2e37fd6)** Missing tab root shows a back arrow other tab roots omit.
+- **L9 ✅ (android 65edde9, StorageOverview only)** No first-run hint for the edit-mode pencil.
+- **L10 ✅ (android 5df9f87)** Auth/ForgotPassword and Settings join-household use bespoke
   inline feedback instead of the app's shared idioms (overlaps M4).
 
 ## Verified healthy (no action)
