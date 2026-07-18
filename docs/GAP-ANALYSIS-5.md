@@ -39,32 +39,32 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## Medium
 
-- **M1 🔴** Delete-dialog copy is generic — doesn't state member count or
+- **M1 ✅ (android e613b7f)** Delete-dialog copy is generic — doesn't state member count or
   scale of data being destroyed.
-- **M2 🔴** Disabled-until-match Delete button gives no mismatch feedback
+- **M2 ✅ (android e613b7f)** Disabled-until-match Delete button gives no mismatch feedback
   (strict `==`, no trim; trailing space = mystery-disabled forever).
-- **M3 🔴** Danger-zone intro copy still only describes "Leave" though the
+- **M3 ✅ (android e613b7f)** Danger-zone intro copy still only describes "Leave" though the
   card now holds Leave + Delete + the transfer steer.
-- **M4 🔴** AllStorages vs StorageOverview multi-select diverge: Cancel
+- **M4 ✅ (android 2a3569b)** AllStorages vs StorageOverview multi-select diverge: Cancel
   changes sides, Delete is an icon on one and a labeled count-button on the
   other. Align to StorageOverview's pattern.
-- **M5 🔴** Login/Register are one screen with a low-salience toggle — weak
+- **M5 ✅ (android 822b09a)** Login/Register are one screen with a low-salience toggle — weak
   first-run framing of which mode you're in.
-- **M6 🔴** Forgot-password sent-state has no "wrong email? edit/resend"
+- **M6 ✅ (android bdd50d4)** Forgot-password sent-state has no "wrong email? edit/resend"
   affordance (the no-account-disclosure behavior itself is correct).
-- **M7 🔴** No torch/flashlight in the scanner — dark fridges/cupboards are
+- **M7 ✅ (android 71e2723)** No torch/flashlight in the scanner — dark fridges/cupboards are
   this app's home turf; CameraX's `enableTorch` is one line from the
   already-bound Camera.
-- **M8 🔴** Camera-permission denial has no "Open settings" path — once
+- **M8 ✅ (android 71e2723)** Camera-permission denial has no "Open settings" path — once
   denied, un-denying requires leaving the app with no guidance.
-- **M9 🔴** Non-deep-linkable search results are visually identical to
+- **M9 ✅ (android 7ddadfd)** Non-deep-linkable search results are visually identical to
   tappable ones (missing onClick, no muted state).
-- **M10 🔴** Quantity stepper is tap-only ±1 — no long-press repeat, no
+- **M10 ✅ (android 1013884, numeric entry still open)** Quantity stepper is tap-only ±1 — no long-press repeat, no
   direct numeric entry; 0→24 is 24 taps.
-- **M11 🔴** Dashboard zero-state for an empty-but-real household is three
+- **M11 ✅ (android c1b0312)** Dashboard zero-state for an empty-but-real household is three
   bare zeros with no "add your first location" pointer (the no-household
   dialog exists; the empty-household case doesn't).
-- **M12 🔴** Verify `product_detail_mandatory_hint` explains the downstream
+- **M12 ✅ (android 4b143b8)** Verify `product_detail_mandatory_hint` explains the downstream
   effect (drives missing/running-low), not just the flag's existence.
 
 ## Low
