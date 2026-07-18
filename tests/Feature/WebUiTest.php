@@ -42,8 +42,10 @@ class WebUiTest extends TestCase
             'password_confirmation' => 'secret-password',
         ])->assertRedirect();
 
-        $this->assertDatabaseHas('inventory_users', ['email' => 'stan@example.test']);
-        $this->assertDatabaseMissing('inventory_users', ['email' => 'Stan@Example.TEST']);
+        // Compare the stored string in PHP: on MySQL's case-insensitive collation a
+        // WHERE-based assertDatabaseMissing('Stan@Example.TEST') matches the
+        // lowercased row too, so it can't distinguish stored case.
+        $this->assertSame('stan@example.test', User::query()->sole()->email);
     }
 
     public function test_login_matches_mixed_case_email_input(): void
