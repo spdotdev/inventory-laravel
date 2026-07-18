@@ -10,27 +10,27 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## High
 
-- **H1 🔴 Stepper hold-delta silently lost on gesture cancel** — Android
+- **H1 ✅ (android f85cb45) Stepper hold-delta silently lost on gesture cancel** — Android
   `ui/common/RepeatingIconButton.kt`: the accumulated ticks only flush on a
   clean pointer-up; navigate-away/backgrounding/config-change cancels the
   gesture coroutine and the count the user watched go up is silently never
   sent. Flush in a try/finally or NonCancellable block.
-- **H2 🔴 Failed stepper release-send leaves the wrong count on screen** —
+- **H2 ✅ (android e830cc5) Failed stepper release-send leaves the wrong count on screen** —
   `ProductsPane`/detail: `pendingDelta` only resets when the server quantity
   changes; on send failure the optimistic number persists indefinitely with
   only a generic snackbar. Reset the delta on failure + a specific
   "quantity didn't update" message.
-- **H3 🔴 Every error message is hardcoded English, app-wide** —
+- **H3 ✅ (android 8701808) Every error message is hardcoded English, app-wide** —
   `data/error/ErrorMapping.kt` returns EN literals for all failure paths
   while the rest of the UI is EN+NL: a Dutch UI reverts to English the
   moment anything fails, on every screen. Route the mapper through string
   resources.
-- **H4 🔴 Unsorted shelf unlocalized in search results** — backend
+- **H4 ✅ (backend 8c91177 + android b005e08) Unsorted shelf unlocalized in search results** — backend
   `SearchResultResource` returns the raw DB name; the client renders it
   verbatim instead of gating on `is_system` like every other screen
   (`shelfDisplayName()`). Return `is_system` in the resource + localize
   client-side.
-- **H5 🔴 Web location/shelf deletes have no strategy and no recovery
+- **H5 ✅ (web 8c7a984, move strategies omitted by scope) Web location/shelf deletes have no strategy and no recovery
   affordance** — `WebLocationController`/`WebShelfController` hardcode
   delete-contents; the identical action Android treats as its LOCKED
   delete-doctrine (mandatory strategy dialog) is one `confirm()` on the web,
