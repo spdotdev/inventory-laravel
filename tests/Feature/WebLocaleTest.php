@@ -2,6 +2,7 @@
 
 namespace Spdotdev\Inventory\Tests\Feature;
 
+use Illuminate\Translation\FileLoader;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocaleController;
 use Spdotdev\Inventory\Tests\TestCase;
 
@@ -89,5 +90,43 @@ class WebLocaleTest extends TestCase
             ->followingRedirects()
             ->post("{$this->base}/register", [])
             ->assertSee('naam is verplicht.');
+    }
+
+    /**
+     * Program-review finding 3: InventoryServiceProvider::boot() registers
+     * lang/ in the default namespace via addPath() so lang/nl/validation.php
+     * is reachable by the framework's own `validation.*` lookups (see the
+     * test above). This pins down WHY that test's message wins for a shared
+     * key: Illuminate\Translation\FileLoader::loadPaths() reduces over the
+     * loader's registered paths in order and merges each path's file on top
+     * of the previous with array_replace_recursive() — so the LAST
+     * registered path wins for any key both define. Laravel's own
+     * TranslationServiceProvider registers the host's default lang path
+     * during the register() phase, before any package's boot() runs, so the
+     * package's addPath() call here always lands after it and therefore
+     * wins for shared default-namespace keys. This is the corrected,
+     * accurate account of that precedence — see the (previously backwards)
+     * docblock at the addPath() call site in InventoryServiceProvider.
+     */
+    public function test_the_packages_lang_path_is_registered_after_the_hosts_default_path(): void
+    {
+        // loadTranslationsFrom() defers its addPath() call via
+        // callAfterResolving('translator', ...) — it only fires once
+        // something actually resolves the `translator` abstract (as every
+        // real request does). Resolve it here before inspecting the loader,
+        // or the package's path won't have been added yet.
+        $this->app->make('translator');
+
+        /** @var FileLoader $loader */
+        $loader = $this->app->make('translation.loader');
+        $paths = $loader->paths();
+
+        $this->assertNotEmpty($paths, 'Expected at least the host default lang path to be registered.');
+        $this->assertSame(
+            realpath(__DIR__.'/../../lang'),
+            realpath($paths[count($paths) - 1]),
+            'The package lang/ path must be the LAST registered path so it wins over any host-defined '
+            .'default-namespace translations for shared keys (see FileLoader::loadPaths()).'
+        );
     }
 }

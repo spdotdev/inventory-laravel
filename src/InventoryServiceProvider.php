@@ -126,11 +126,29 @@ class InventoryServiceProvider extends ServiceProvider
         // validator resolves messages from `validation.*` (default
         // namespace), never `inventory::validation.*` — namespacing alone
         // (the call above) would make lang/nl/validation.php unreachable by
-        // FormRequest/`$request->validate()` failures. addPath() appends
-        // this directory as an extra lookup location for the default
-        // namespace rather than replacing the host app's own lang/ (if any),
-        // so a host that ships its own nl/validation.php still wins for keys
-        // it defines.
+        // FormRequest/`$request->validate()` failures.
+        //
+        // Path-ordering note (corrected 2026-07-18 — the previous comment
+        // here had this backwards): Laravel's FileLoader::loadPaths()
+        // reduces over $paths in registration order and merges each file's
+        // array on top of the previous one via array_replace_recursive(),
+        // so the LAST-registered path wins for any key both define. The
+        // host app's own lang/ (if any) is registered by Laravel's own
+        // TranslationServiceProvider during the register() phase, which
+        // runs before package providers' boot() — so this addPath() call,
+        // running in boot(), is always added after it. Net effect: for
+        // shared keys in the default namespace (e.g. validation.php), the
+        // PACKAGE's translations win over the host app's, not the other
+        // way around. There is no public FileLoader API to prepend a path
+        // instead (only addPath()/append), so making the host win cleanly
+        // would mean reaching into FileLoader's protected $paths via
+        // reflection — too fragile to do for a same-priority tradeoff.
+        // This is accepted as a deliberate, revisitable tradeoff: sd-admin
+        // ships no validation.php of its own today, so there's no actual
+        // collision in production; if the host ever needs to override a
+        // specific shared key, it can do so today by publishing/adding its
+        // own `inventory::` namespaced override or a later addPath() call
+        // of its own after this package boots.
         $this->loadTranslationsFrom(__DIR__.'/../lang');
 
         // Package-owned tables (inventory_*) live here; empty until the schema
