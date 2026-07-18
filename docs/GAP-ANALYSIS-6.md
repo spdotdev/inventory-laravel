@@ -40,20 +40,20 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## Medium
 
-- **M1 🔴** Search and ProductDetail are the only screens that don't react to
+- **M1 ✅ (android 6d814a3)** Search and ProductDetail are the only screens that don't react to
   `household.changed` pings — exactly where a user "watching" a change sits.
-- **M2 🔴** The first-run pencil hint stays visible inside edit mode,
+- **M2 ✅ (android 902c4c4)** The first-run pencil hint stays visible inside edit mode,
   explaining an icon that's no longer on screen while competing with the
   selection UI. Hide when `editMode`.
-- **M3 🔴** Dashboard covers zero-locations but not locations-with-zero-
+- **M3 ✅ (android 84d1349)** Dashboard covers zero-locations but not locations-with-zero-
   products: an all-zero bar chart with no add-a-product nudge.
-- **M4 🔴** Web `/app` pages are English-only (`lang="en"` hardcoded, zero
+- **M4 ✅ (web dcaf230; Laravel default validation strings still EN)** Web `/app` pages are English-only (`lang="en"` hardcoded, zero
   `__()` calls) despite `lang/nl` existing and the landing page proving the
   pipeline — a real seam for Dutch households mixing surfaces.
-- **M5 🔴** Web live-update is `location.reload()` — a ping mid-form destroys
+- **M5 ✅ (web 34942f2)** Web live-update is `location.reload()` — a ping mid-form destroys
   unsaved input and scroll; Android's equivalent is a silent background
   refresh. Skip/delay reload while a form is dirty, or fragment-reload.
-- **M6 🔴** Capability asymmetries with no cross-references: export is
+- **M6 ✅ (web 81fd7e9 + android fba19c6)** Capability asymmetries with no cross-references: export is
   web-only (invisible from the app), product photos are app-only (not even
   rendered on web), reorder is app-only. Each surface should hint at the
   other where relevant.
