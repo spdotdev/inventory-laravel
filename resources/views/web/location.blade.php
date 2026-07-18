@@ -11,8 +11,18 @@
       @unless ($shelf->is_system)
         <form class="inline" method="POST"
               action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
-              onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete shelf '.$shelf->name.' and all its products?') }})">
+              onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete shelf '.$shelf->name.'?') }})">
           @csrf @method('DELETE')
+          @if ($shelf->products->isNotEmpty())
+            {{-- H5: move_products is deliberately NOT offered here — it needs a
+                 target-shelf picker, disproportionate for a thin-Blade form.
+                 Android's LOCKED delete dialog still exposes it. Default is
+                 the non-destructive choice (unsort), never delete. --}}
+            <select name="strategy" style="width:auto;margin-bottom:0">
+              <option value="unsort_products" selected>{{ __('Keep products here (move to Unsorted)') }}</option>
+              <option value="delete_products">{{ __('Delete the products too') }}</option>
+            </select>
+          @endif
           <button type="submit" class="btn-danger">Delete shelf</button>
         </form>
       @endunless
@@ -76,9 +86,19 @@
   </form>
 </div>
 
+@php
+  // H5: no strategy PICKER at location level — unsort is shelf-only, and
+  // move_contents needs a target-location picker that's out of scope for
+  // thin-Blade. delete_contents is the only choice, so instead of a select
+  // with one option, the confirm copy states exactly what will be destroyed
+  // so this is still an informed action rather than a silent default.
+  $shelfCount = $shelves->where('is_system', false)->count();
+  $productCount = $shelves->sum(fn ($s) => $s->products->count());
+@endphp
 <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
-      onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete '.$location->name.' with all shelves and products?') }})">
+      onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete '.$location->name.' with '.$shelfCount.' '.Str::plural('shelf', $shelfCount).' and '.$productCount.' '.Str::plural('product', $productCount).'?') }})">
   @csrf @method('DELETE')
+  <input type="hidden" name="strategy" value="delete_contents">
   <button type="submit" class="btn-danger">Delete location</button>
 </form>
 

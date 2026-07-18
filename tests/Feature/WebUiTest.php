@@ -256,6 +256,110 @@ class WebUiTest extends TestCase
             ->assertDontSee('Delete shelf');
     }
 
+    public function test_shelf_delete_with_unsort_products_strategy_keeps_products_live_on_unsorted(): void
+    {
+        // H5: web shelf delete now offers a strategy picker for a non-empty
+        // shelf. unsort_products must move the products to the location's
+        // Unsorted shelf, not destroy them.
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.shelves.destroy', [$household, $location, $shelf]), [
+                'strategy' => 'unsort_products',
+            ])
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $product->refresh();
+        $this->assertNull($product->deleted_at);
+        $this->assertSame($location->unsortedShelf()->id, $product->shelf_id);
+    }
+
+    public function test_shelf_delete_with_delete_products_strategy_soft_deletes_products(): void
+    {
+        // H5: delete_products keeps the historical "delete what's on it"
+        // behavior, but now as an explicit choice rather than a hardcoded one.
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.shelves.destroy', [$household, $location, $shelf]), [
+                'strategy' => 'delete_products',
+            ])
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_shelf_delete_with_unknown_strategy_is_rejected(): void
+    {
+        // H5: the server never guesses — an unrecognized strategy value must
+        // be rejected, not silently treated as any particular default.
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.shelves.destroy', [$household, $location, $shelf]), [
+                'strategy' => 'nonsense_value',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_empty_shelf_delete_with_no_strategy_still_works(): void
+    {
+        // H5 backward compatibility: an empty shelf needs no strategy at all
+        // — the pre-existing plain-delete path must keep working unchanged.
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.shelves.destroy', [$household, $location, $shelf]))
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+    }
+
+    public function test_location_delete_with_unknown_strategy_is_rejected(): void
+    {
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.locations.destroy', [$household, $location]), [
+                'strategy' => 'nonsense_value',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('strategy');
+
+        $this->assertNotSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+        $this->assertNotSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_location_delete_with_delete_contents_strategy_still_soft_deletes_shelves_and_products(): void
+    {
+        // H5 backward compatibility: delete_contents (the only strategy in
+        // scope for the location form) must keep destroying shelves+products
+        // exactly like the old hardcoded path did.
+        [$user, $household, $location, $shelf] = $this->memberSetup();
+        $product = $shelf->products()->create(['name' => 'Milk', 'quantity' => 1]);
+
+        $this->actingAs($user, 'inventory')
+            ->delete(route('inventory.web.locations.destroy', [$household, $location]), [
+                'strategy' => 'delete_contents',
+            ])
+            ->assertRedirect();
+
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+        $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
     public function test_web_crud_is_tenancy_gated(): void
     {
         [, $household, $location, $shelf] = $this->memberSetup();

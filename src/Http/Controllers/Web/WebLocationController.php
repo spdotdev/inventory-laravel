@@ -3,8 +3,10 @@
 namespace Spdotdev\Inventory\Http\Controllers\Web;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
@@ -42,15 +44,30 @@ class WebLocationController extends Controller
         ]);
     }
 
-    public function destroy(Household $household, StorageLocation $location): RedirectResponse
+    public function destroy(Request $request, Household $household, StorageLocation $location): RedirectResponse
     {
+        // H5: location-level delete has no unsort option (unsort is
+        // shelf-level only — see LocationDeleteStrategy's docblock) and
+        // move_contents is out of scope here too: it needs a target-location
+        // picker, disproportionate for a thin-Blade form. delete_contents is
+        // therefore the ONLY strategy the web form offers, so there is no
+        // meaningful choice to make — but the destructive scope (shelf +
+        // product counts) is still surfaced in the confirm copy in the Blade
+        // view so this is an informed action, not a silent default.
+        //
+        // A strategy param is still validated when present (defence in
+        // depth / a stable contract for the form), and its absence keeps the
+        // historical delete-everything default for full backward
+        // compatibility with any pre-existing caller of this route.
+        if ($request->filled('strategy')) {
+            $request->validate([
+                'strategy' => ['required', Rule::in([LocationDeleteStrategy::DeleteContents->value])],
+            ]);
+        }
+
         // MUST go through HierarchyDeleter. A bare $location->delete() is now a
         // soft delete, which does NOT fire the ON DELETE CASCADE — the shelves
         // and products would survive as unreachable, un-purgeable orphans.
-        //
-        // The web UI has no strategy picker, so it keeps its historical
-        // semantics: deleting a location deletes what is in it. The difference
-        // is that it is now soft and batched, so it can be restored.
         HierarchyDeleter::deleteLocation(
             $household,
             $location,

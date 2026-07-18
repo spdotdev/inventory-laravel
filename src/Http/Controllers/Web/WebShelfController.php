@@ -3,8 +3,11 @@
 namespace Spdotdev\Inventory\Http\Controllers\Web;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Enums\ShelfDeleteStrategy;
 use Spdotdev\Inventory\Http\Requests\ShelfRequest;
 use Spdotdev\Inventory\Models\Household;
@@ -28,7 +31,7 @@ class WebShelfController extends Controller
             ->with('status', __('Shelf added.'));
     }
 
-    public function destroy(Household $household, StorageLocation $location, Shelf $shelf): RedirectResponse
+    public function destroy(Request $request, Household $household, StorageLocation $location, Shelf $shelf): RedirectResponse
     {
         // Same rule as the API (ShelfController::destroy): the Unsorted shelf
         // exists to hold products the user chose to KEEP, so deleting it
@@ -40,22 +43,46 @@ class WebShelfController extends Controller
             return back()->withErrors(['shelf' => __('The Unsorted shelf still holds products. Move them first.')]);
         }
 
+        // H5: the web form now offers move-away (unsort_products) as a
+        // non-destructive alternative to the historical delete_products
+        // default. move_products is deliberately NOT offered on the web — it
+        // needs a target-shelf picker, which is disproportionate for a
+        // thin-Blade form; Android's LOCKED delete dialog still exposes it.
+        // No strategy param at all (empty shelf, or a pre-existing client
+        // hitting this route) keeps the historical delete-everything default
+        // for full backward compatibility.
+        $strategy = $request->filled('strategy')
+            ? $this->validatedStrategy($request)
+            : ShelfDeleteStrategy::DeleteProducts;
+
         // MUST go through HierarchyDeleter — see WebLocationController::destroy
         // for why a bare $shelf->delete() would silently orphan its products.
-        //
-        // The web UI has no strategy picker, so it keeps its historical
-        // semantics: deleting a shelf deletes what is on it. The difference is
-        // that it is now soft and batched, so it can be restored.
         HierarchyDeleter::deleteShelf(
             $household,
             $shelf,
             (string) Str::uuid(),
-            ShelfDeleteStrategy::DeleteProducts,
+            $strategy,
             null,
         );
 
         return redirect()
             ->route('inventory.web.locations.show', [$household, $location])
             ->with('status', __('Shelf deleted.'));
+    }
+
+    /**
+     * @throws ValidationException when the strategy value is not one of the
+     *                             two options the web form offers
+     */
+    private function validatedStrategy(Request $request): ShelfDeleteStrategy
+    {
+        $validated = $request->validate([
+            'strategy' => ['required', Rule::in([
+                ShelfDeleteStrategy::UnsortProducts->value,
+                ShelfDeleteStrategy::DeleteProducts->value,
+            ])],
+        ]);
+
+        return ShelfDeleteStrategy::from($validated['strategy']);
     }
 }
