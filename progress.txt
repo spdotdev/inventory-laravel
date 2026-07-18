@@ -1,0 +1,9 @@
+
+## 2026-07-19 - US-002
+- Audited config/logging.php, exception handler, client-error intake, and Log::/logger() calls across src/ for sensitive-data leaks.
+- Files changed: prd.json only (notes + passes:true) - no code changes, no defect found.
+- **Learnings for future iterations:**
+  - This package has NO Log::/logger() calls anywhere in src/ - all logging is the host app's (sd-admin) responsibility since this is a Composer library, not a standalone app. Don't expect config/logging.php to exist here.
+  - User model already hides password/remember_token via $hidden; AdminController builds admin payloads through explicit allow-listed arrays (userPayload/householdPayload) rather than raw model serialization - good pattern to keep following for any new admin endpoints.
+  - The only custom exception-handler hook (InventoryServiceProvider::boot) renders AuthenticationException as a static 'Unauthenticated.' JSON message - never exposes real exception messages/traces.
+---

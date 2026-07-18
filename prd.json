@@ -28,8 +28,8 @@
         "Full PHPUnit suite still passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Genuine audit, no fix needed. This package has zero Log::/logger()/->log() calls anywhere in src/ - logging is entirely the host app's responsibility (this is a library, not a standalone app, per CLAUDE.md), so config/logging.php doesn't exist here either. Checked: (1) ClientErrorController - client-supplied message/error_code/app_version are validated (max lengths) and stored only in inventory_client_errors table, never logged or echoed back; response is a bare 201 with no body. (2) InventoryServiceProvider's only exception-handler customization is a renderable() for AuthenticationException that returns a static 'Unauthenticated.' message - no exception message/trace ever surfaced. (3) AdminController (admin API) - user/household payloads are built via explicit allow-listed arrays (userPayload/householdPayload), never a raw model dump; User model has password and remember_token in $hidden, and AdminController's payload builder doesn't touch them. (4) AuthController/WebAuthController/WebGoogleAuthController - only static messages returned ('Invalid Google token.', 'Logged out.'), no token/credential echoed. (5) EnsureAdminToken middleware compares tokens via hash_equals and returns static 401/503 messages, never reflects the provided token. (6) No request/response logging middleware exists in src/Http/Middleware/. Full PHPUnit suite passes (381 tests, 1294 assertions)."
     },
     {
       "id": "US-003",
