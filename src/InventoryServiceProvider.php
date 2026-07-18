@@ -23,6 +23,7 @@ use Spdotdev\Inventory\Console\Commands\PruneDeletedCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
+use Spdotdev\Inventory\Http\Middleware\NegotiateLocale;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
@@ -101,6 +102,7 @@ class InventoryServiceProvider extends ServiceProvider
         $router = $this->app['router'];
         $router->aliasMiddleware('household.member', EnsureHouseholdMember::class);
         $router->aliasMiddleware('inventory.admin', EnsureAdminToken::class);
+        $router->aliasMiddleware('inventory.locale', NegotiateLocale::class);
 
         $this->registerRateLimiters();
 
@@ -116,6 +118,9 @@ class InventoryServiceProvider extends ServiceProvider
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'inventory');
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'inventory');
+        // Plain __('...') calls (controllers' flash/error strings, view copy)
+        // resolve via JSON dictionaries — see lang/nl.json.
+        $this->loadJsonTranslationsFrom(__DIR__.'/../lang');
 
         // Package-owned tables (inventory_*) live here; empty until the schema
         // step. loadMigrationsFrom is a no-op while the directory has none.

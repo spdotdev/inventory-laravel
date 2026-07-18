@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>@yield('title', 'Inventory')</title>
+<title>@yield('title', __('Inventory'))</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
 <style>
@@ -54,10 +54,10 @@
       <span class="muted">{{ auth('inventory')->user()->name }}</span>
       <form class="inline" method="POST" action="{{ route('inventory.web.logout') }}">
         @csrf
-        <button type="submit" class="btn-quiet">Sign out</button>
+        <button type="submit" class="btn-quiet">{{ __('Sign out') }}</button>
       </form>
     @else
-      <a href="{{ route('inventory.web.login.show') }}">Sign in</a>
+      <a href="{{ route('inventory.web.login.show') }}">{{ __('Sign in') }}</a>
     @endauth
   </nav>
 </header>
@@ -76,7 +76,7 @@
 @auth('inventory')
   @if (config('inventory.android_app_url'))
     <footer class="app-promo">
-      Inventory is best in the <a href="{{ config('inventory.android_app_url') }}">Android app</a>.
+      {!! __('Inventory is best in the :link.', ['link' => '<a href="'.e(config('inventory.android_app_url')).'">'.__('Android app').'</a>']) !!}
     </footer>
   @endif
 @endauth

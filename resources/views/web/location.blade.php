@@ -1,7 +1,7 @@
 @extends('inventory::web.layout')
-@section('title', $location->name.' — Inventory')
+@section('title', $location->name.' — '.__('Inventory'))
 @section('content')
-<h1>{{ $location->name }} <span class="muted" style="font-size:14px">({{ $location->type }})</span></h1>
+<h1>{{ $location->name }} <span class="muted" style="font-size:14px">({{ __(ucfirst($location->type->value)) }})</span></h1>
 <p class="sub"><a href="{{ route('inventory.web.households.show', $household) }}">← {{ $household->name }}</a></p>
 
 @foreach ($shelves as $shelf)
@@ -11,7 +11,7 @@
       @unless ($shelf->is_system)
         <form class="inline" method="POST"
               action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
-              onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete shelf '.$shelf->name.'?') }})">
+              onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete shelf :name?', ['name' => $shelf->name])) }})">
           @csrf @method('DELETE')
           @if ($shelf->products->isNotEmpty())
             {{-- H5: move_products is deliberately NOT offered here — it needs a
@@ -23,22 +23,22 @@
               <option value="delete_products">{{ __('Delete the products too') }}</option>
             </select>
           @endif
-          <button type="submit" class="btn-danger">Delete shelf</button>
+          <button type="submit" class="btn-danger">{{ __('Delete shelf') }}</button>
         </form>
       @endunless
     </div>
 
     @if ($shelf->products->isNotEmpty())
       <table>
-        <tr><th>Product</th><th style="width:180px">Quantity</th><th style="width:180px"></th></tr>
+        <tr><th>{{ __('Product') }}</th><th style="width:180px">{{ __('Quantity') }}</th><th style="width:180px"></th></tr>
         @foreach ($shelf->products as $product)
           <tr>
             <td>
               {{ $product->name }}
               @if ($product->is_mandatory && $product->quantity === 0)
-                <span style="color:#fca5a5"> · missing</span>
+                <span style="color:#fca5a5"> · {{ __('missing') }}</span>
               @elseif ($product->low_stock_threshold !== null && $product->quantity <= $product->low_stock_threshold)
-                <span style="color:#fbbf24"> · running low</span>
+                <span style="color:#fbbf24"> · {{ __('running low') }}</span>
               @endif
               @if ($product->code)<div class="muted mono" style="font-size:11px">{{ $product->code }}</div>@endif
             </td>
@@ -54,35 +54,35 @@
               </div>
             </td>
             <td style="text-align:right">
-              <a class="btn btn-quiet" href="{{ route('inventory.web.products.edit', [$household, $shelf, $product]) }}">Edit</a>
+              <a class="btn btn-quiet" href="{{ route('inventory.web.products.edit', [$household, $shelf, $product]) }}">{{ __('Edit') }}</a>
               <form class="inline" method="POST"
                     action="{{ route('inventory.web.products.destroy', [$household, $shelf, $product]) }}"
-                    onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete '.$product->name.'?') }})">
+                    onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name?', ['name' => $product->name])) }})">
                 @csrf @method('DELETE')
-                <button type="submit" class="btn-danger">Delete</button>
+                <button type="submit" class="btn-danger">{{ __('Delete') }}</button>
               </form>
             </td>
           </tr>
         @endforeach
       </table>
     @else
-      <p class="muted">No products on this shelf yet.</p>
+      <p class="muted">{{ __('No products on this shelf yet.') }}</p>
     @endif
 
     <form method="POST" action="{{ route('inventory.web.products.store', [$household, $shelf]) }}" class="row" style="margin-top:14px">
       @csrf
-      <input class="grow" type="text" name="name" placeholder="Add a product…" required style="margin-bottom:0">
-      <button type="submit">Add</button>
+      <input class="grow" type="text" name="name" placeholder="{{ __('Add a product…') }}" required style="margin-bottom:0">
+      <button type="submit">{{ __('Add') }}</button>
     </form>
   </div>
 @endforeach
 
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Add a shelf</h2>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Add a shelf') }}</h2>
   <form method="POST" action="{{ route('inventory.web.shelves.store', [$household, $location]) }}" class="row">
     @csrf
-    <input class="grow" type="text" name="name" placeholder="e.g. Top shelf" required style="margin-bottom:0">
-    <button type="submit">Add shelf</button>
+    <input class="grow" type="text" name="name" placeholder="{{ __('e.g. Top shelf') }}" required style="margin-bottom:0">
+    <button type="submit">{{ __('Add shelf') }}</button>
   </form>
 </div>
 
@@ -96,10 +96,10 @@
   $productCount = $shelves->sum(fn ($s) => $s->products->count());
 @endphp
 <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
-      onsubmit="return confirm({{ Illuminate\Support\Js::from('Delete '.$location->name.' with '.$shelfCount.' '.Str::plural('shelf', $shelfCount).' and '.$productCount.' '.Str::plural('product', $productCount).'?') }})">
+      onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name with', ['name' => $location->name])) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count shelf|:count shelves', $shelfCount, ['count' => $shelfCount])) }} + ' ' + {{ Illuminate\Support\Js::from(__('and')) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count product|:count products', $productCount, ['count' => $productCount])) }} + '?')">
   @csrf @method('DELETE')
   <input type="hidden" name="strategy" value="delete_contents">
-  <button type="submit" class="btn-danger">Delete location</button>
+  <button type="submit" class="btn-danger">{{ __('Delete location') }}</button>
 </form>
 
 @include('inventory::web.partials.live-updates', ['household' => $household])

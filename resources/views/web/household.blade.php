@@ -1,54 +1,54 @@
 @extends('inventory::web.layout')
-@section('title', $household->name.' — Inventory')
+@section('title', $household->name.' — '.__('Inventory'))
 @section('content')
 <h1>{{ $household->name }}</h1>
-<p class="sub"><a href="{{ route('inventory.web.households') }}">← All households</a></p>
+<p class="sub"><a href="{{ route('inventory.web.households') }}">← {{ __('All households') }}</a></p>
 
 {{-- M7 (GAP-4): the page grew to seven equal-weight cards; light section
      headers + a set-apart danger zone give it back an information hierarchy
      without leaving the thin-Blade approach. --}}
-<h2 class="section" id="storage">Storage</h2>
+<h2 class="section" id="storage">{{ __('Storage') }}</h2>
 <div class="card">
   <form method="GET" action="{{ route('inventory.web.search', $household) }}" class="row">
-    <input class="grow" type="text" name="q" placeholder="Search products in this household…" style="margin-bottom:0">
-    <button type="submit">Search</button>
+    <input class="grow" type="text" name="q" placeholder="{{ __('Search products in this household…') }}" style="margin-bottom:0">
+    <button type="submit">{{ __('Search') }}</button>
   </form>
 </div>
 
 <div class="card" id="locations">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Storage locations</h2>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Storage locations') }}</h2>
   @forelse ($locations as $location)
     <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)">
       <div class="grow">
         <a href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ $location->name }}</a>
-        <span class="muted">({{ $location->type }}, {{ $location->shelves_count }} {{ Str::plural('shelf', $location->shelves_count) }})</span>
+        <span class="muted">({{ __(ucfirst($location->type->value)) }}, {{ trans_choice(':count shelf|:count shelves', $location->shelves_count, ['count' => $location->shelves_count]) }})</span>
       </div>
-      <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">Open</a>
+      <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ __('Open') }}</a>
     </div>
   @empty
-    <p class="muted">No locations yet — add your first one below, e.g. Fridge or Pantry.</p>
+    <p class="muted">{{ __('No locations yet — add your first one below, e.g. Fridge or Pantry.') }}</p>
   @endforelse
 
   <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" style="margin-top:14px">
     @csrf
     <div class="row">
-      <input class="grow" type="text" name="name" placeholder="e.g. Fridge" required style="margin-bottom:0">
+      <input class="grow" type="text" name="name" placeholder="{{ __('e.g. Fridge') }}" required style="margin-bottom:0">
       <select name="type" required style="width:140px;margin-bottom:0">
         @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
-          <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
+          <option value="{{ $type->value }}">{{ __(ucfirst($type->value)) }}</option>
         @endforeach
       </select>
-      <button type="submit">Add location</button>
+      <button type="submit">{{ __('Add location') }}</button>
     </div>
     @error('name') <p class="field-error">{{ $message }}</p> @enderror
     @error('type') <p class="field-error">{{ $message }}</p> @enderror
   </form>
 </div>
 
-<h2 class="section" id="members-section">Members &amp; access</h2>
+<h2 class="section" id="members-section">{{ __('Members & access') }}</h2>
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Invite someone</h2>
-  <p class="muted" style="margin-bottom:10px">Share the code or the link — anyone with it can join.</p>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Invite someone') }}</h2>
+  <p class="muted" style="margin-bottom:10px">{{ __('Share the code or the link — anyone with it can join.') }}</p>
   <p class="mono" style="font-size:22px;color:#7dd3fc;letter-spacing:2px;margin-bottom:8px">{{ $household->join_code }}</p>
   <p class="muted" style="word-break:break-all;margin-bottom:14px">{{ $inviteLink }}</p>
   {{-- Server-rendered QR (white tile so dark-mode scanners keep contrast) --}}
@@ -56,15 +56,15 @@
 </div>
 
 <div class="card" id="members">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Members</h2>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Members') }}</h2>
   <div class="table-scroll">
   <table>
-    <tr><th>Name</th><th>Email</th><th>Role</th>@can('manageMembers', $household)<th></th>@endcan</tr>
+    <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Role') }}</th>@can('manageMembers', $household)<th></th>@endcan</tr>
     @foreach ($members as $member)
       <tr>
-        <td>{{ $member->name }}@if ($member->id === auth('inventory')->id()) <span class="muted">(you)</span>@endif</td>
+        <td>{{ $member->name }}@if ($member->id === auth('inventory')->id()) <span class="muted">({{ __('you') }})</span>@endif</td>
         <td class="muted">{{ $member->email }}</td>
-        <td class="mono">{{ ucfirst($member->pivot->role) }}</td>
+        <td class="mono">{{ __(ucfirst($member->pivot->role)) }}</td>
         @can('manageMembers', $household)
           <td>
             {{-- No actions on the owner's row (untouchable except via transfer)
@@ -74,12 +74,12 @@
               <form method="POST" action="{{ route('inventory.web.members.update', [$household, $member]) }}" class="row" style="margin-bottom:0">
                 @csrf @method('PUT')
                 <input type="hidden" name="role" value="{{ $member->pivot->role === 'admin' ? 'member' : 'admin' }}">
-                <button type="submit" class="btn-quiet">{{ $member->pivot->role === 'admin' ? 'Demote' : 'Promote' }}</button>
+                <button type="submit" class="btn-quiet">{{ $member->pivot->role === 'admin' ? __('Demote') : __('Promote') }}</button>
               </form>
               <form method="POST" action="{{ route('inventory.web.members.remove', [$household, $member]) }}"
-                    onsubmit="return confirm({{ Illuminate\Support\Js::from('Remove '.$member->name.'?') }})" style="margin-bottom:0">
+                    onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Remove :name?', ['name' => $member->name])) }})" style="margin-bottom:0">
                 @csrf @method('DELETE')
-                <button type="submit" class="btn-danger">Remove</button>
+                <button type="submit" class="btn-danger">{{ __('Remove') }}</button>
               </form>
             @endif
           </td>
@@ -90,42 +90,42 @@
   </div>
 </div>
 
-<h2 class="section">Household</h2>
+<h2 class="section">{{ __('Household') }}</h2>
 <div class="card" id="appearance">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Appearance</h2>
-  <p class="muted" style="margin-bottom:14px">Pick a colour and icon for this household in the apps — “Default” derives one automatically.</p>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Appearance') }}</h2>
+  <p class="muted" style="margin-bottom:14px">{{ __('Pick a colour and icon for this household in the apps — “Default” derives one automatically.') }}</p>
   <form method="POST" action="{{ route('inventory.web.households.update', $household) }}" class="row">
     @csrf @method('PUT')
     <select name="color" style="width:150px;margin-bottom:0">
-      <option value="">Default colour</option>
+      <option value="">{{ __('Default colour') }}</option>
       @foreach (\Spdotdev\Inventory\Enums\HouseholdColor::cases() as $color)
-        <option value="{{ $color->value }}" @selected($household->color === $color->value)>{{ ucfirst($color->value) }}</option>
+        <option value="{{ $color->value }}" @selected($household->color === $color->value)>{{ __(ucfirst($color->value)) }}</option>
       @endforeach
     </select>
     <select name="icon" style="width:150px;margin-bottom:0">
-      <option value="">Default icon</option>
+      <option value="">{{ __('Default icon') }}</option>
       @foreach (\Spdotdev\Inventory\Enums\HouseholdIcon::cases() as $icon)
-        <option value="{{ $icon->value }}" @selected($household->icon === $icon->value)>{{ ucfirst($icon->value) }}</option>
+        <option value="{{ $icon->value }}" @selected($household->icon === $icon->value)>{{ __(ucfirst($icon->value)) }}</option>
       @endforeach
     </select>
-    <button type="submit">Save</button>
+    <button type="submit">{{ __('Save') }}</button>
   </form>
 </div>
 
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Your data</h2>
-  <p class="muted" style="margin-bottom:14px">Download everything in this household — locations, shelves, products and members — as a JSON file.</p>
-  <a class="btn btn-quiet" href="{{ route('inventory.web.households.export', $household) }}">Download export</a>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Your data') }}</h2>
+  <p class="muted" style="margin-bottom:14px">{{ __('Download everything in this household — locations, shelves, products and members — as a JSON file.') }}</p>
+  <a class="btn btn-quiet" href="{{ route('inventory.web.households.export', $household) }}">{{ __('Download export') }}</a>
 </div>
 
-<h2 class="section" style="color:#f0b8b8">Danger zone</h2>
+<h2 class="section" style="color:#f0b8b8">{{ __('Danger zone') }}</h2>
 <div class="card" id="danger" style="border-color:rgba(240,120,120,.35)">
 @can('transferOwnership', $household)
   <div style="margin-bottom:18px">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">Transfer ownership</h2>
-  <p class="muted" style="margin-bottom:14px">Make another member the owner. You'll become an admin.</p>
+  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Transfer ownership') }}</h2>
+  <p class="muted" style="margin-bottom:14px">{{ __("Make another member the owner. You'll become an admin.") }}</p>
   <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row"
-        onsubmit="return confirm('Transfer ownership of ' + {{ Illuminate\Support\Js::from($household->name) }} + ' to ' + this.user_id.options[this.user_id.selectedIndex].text + '? You will become an admin and only they can transfer it back.')">
+        onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Transfer ownership of :name to', ['name' => $household->name])) }} + ' ' + this.user_id.options[this.user_id.selectedIndex].text + {{ Illuminate\Support\Js::from('? '.__('You will become an admin and only they can transfer it back.')) }})">
     @csrf
     <select name="user_id" required style="width:220px;margin-bottom:0">
       @foreach ($members as $member)
@@ -134,16 +134,16 @@
         @endif
       @endforeach
     </select>
-    <button type="submit">Transfer</button>
+    <button type="submit">{{ __('Transfer') }}</button>
   </form>
   @error('user_id') <p class="field-error">{{ $message }}</p> @enderror
   </div>
 @endcan
   <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
-      onsubmit="return confirm({{ Illuminate\Support\Js::from('Leave '.$household->name.'?') }})">
+      onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Leave :name?', ['name' => $household->name])) }})">
   @csrf
   @method('DELETE')
-  <button type="submit" class="btn-danger">Leave household</button>
+  <button type="submit" class="btn-danger">{{ __('Leave household') }}</button>
 </form>
 
   @can('delete', $household)
@@ -156,8 +156,8 @@
            validate a field called "name" server-side otherwise (GAP-4 L4). --}}
       <div class="row">
         <input class="grow" type="text" name="confirm_name" required style="margin-bottom:0"
-               placeholder="Type “{{ $household->name }}” to confirm">
-        <button type="submit" class="btn-danger">Delete household forever</button>
+               placeholder="{{ __('Type “:name” to confirm', ['name' => $household->name]) }}">
+        <button type="submit" class="btn-danger">{{ __('Delete household forever') }}</button>
       </div>
       @error('confirm_name') <p class="field-error">{{ $message }}</p> @enderror
     </form>

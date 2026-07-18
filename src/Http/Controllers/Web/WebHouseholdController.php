@@ -199,7 +199,7 @@ class WebHouseholdController extends Controller
         // so the affected member's devices refresh their capability flags.
         HouseholdChanged::dispatch((int) $household->getKey());
 
-        return back()->withFragment('members')->with('status', 'Member role updated.');
+        return back()->withFragment('members')->with('status', __('Member role updated.'));
     }
 
     public function removeMember(Request $request, Household $household, User $user): RedirectResponse
@@ -215,7 +215,7 @@ class WebHouseholdController extends Controller
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
-        return back()->withFragment('members')->with('status', 'Member removed.');
+        return back()->withFragment('members')->with('status', __('Member removed.'));
     }
 
     public function transferOwnership(Request $request, Household $household): RedirectResponse
@@ -234,7 +234,7 @@ class WebHouseholdController extends Controller
         // row inside the transaction below; the second call ('admin') overwrites
         // the first ('owner'), leaving the household with zero owners. That
         // violates the hard invariant: a household always has exactly one Owner.
-        abort_if($newOwner->getKey() === $currentOwner->getKey(), 422, "You're already the owner.");
+        abort_if($newOwner->getKey() === $currentOwner->getKey(), 422, __("You're already the owner."));
 
         DB::transaction(function () use ($household, $newOwner, $currentOwner) {
             $household->users()->updateExistingPivot($newOwner->getKey(), ['role' => 'owner']);
@@ -243,7 +243,7 @@ class WebHouseholdController extends Controller
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
-        return back()->withFragment('members')->with('status', 'Ownership transferred.');
+        return back()->withFragment('members')->with('status', __('Ownership transferred.'));
     }
 
     /** Same tenancy rule as the API's household.member middleware: 404, never 403. */

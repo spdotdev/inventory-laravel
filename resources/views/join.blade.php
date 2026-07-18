@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ app()->getLocale() }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Join a household — Inventory</title>
+<title>{{ __('Join a household') }} — {{ __('Inventory') }}</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,17 +24,17 @@
 <body>
 <div class="card">
   <div class="mark" aria-hidden="true">📦</div>
-  <h1>You're invited to a household</h1>
-  <p>Open the Inventory app and enter this join code to share the household's storage.</p>
+  <h1>{{ __("You're invited to a household") }}</h1>
+  <p>{{ __("Open the Inventory app and enter this join code to share the household's storage.") }}</p>
 
-  <div class="code-label">Join code</div>
+  <div class="code-label">{{ __('Join code') }}</div>
   <div class="code">{{ $code }}</div>
 
   @if ($appUrl !== '')
-    <a class="btn" href="{{ $appUrl }}">Get the app</a>
+    <a class="btn" href="{{ $appUrl }}">{{ __('Get the app') }}</a>
   @endif
 
-  <p class="hint">Already have the app? Tap <strong>Join a household</strong> and enter the code above.</p>
+  <p class="hint">{!! __('Already have the app? Tap :action and enter the code above.', ['action' => '<strong>'.__('Join a household').'</strong>']) !!}</p>
 </div>
 </body>
 </html>

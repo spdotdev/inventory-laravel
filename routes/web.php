@@ -14,7 +14,7 @@ use Spdotdev\Inventory\Http\Controllers\Web\WebShelfController;
 
 // Marketing landing page + password reset form, served on the configured inventory host.
 Route::domain(config('inventory.domain'))
-    ->middleware('web')
+    ->middleware(['web', 'inventory.locale'])
     ->group(function () {
         Route::get('/', [LandingController::class, 'index'])->name('inventory.landing');
         Route::get('/reset-password', [ResetPasswordController::class, 'show'])->name('inventory.reset-password');
