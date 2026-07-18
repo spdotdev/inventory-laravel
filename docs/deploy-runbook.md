@@ -30,6 +30,20 @@ The deploy runs `composer install`, `php artisan migrate --force`, and cache ref
 on the server — package migrations are additive and `inventory_`-prefixed, so they never
 collide with host tables.
 
+**Publishable assets do NOT auto-publish on deploy.** sd-admin gitignores
+`public/vendor/`; published assets live on the server via the bind mount and survive
+deploys — but any release that ADDS or CHANGES files under this package's `public/`
+(e.g. the vendored Alpine + web-feedback.js from the 2026-07-18 parity program) needs a
+one-time re-publish after the deploy:
+
+```bash
+ssh d051 'cd /opt/sd-admin && docker compose exec -T app \
+  php artisan vendor:publish --tag=inventory-assets --force'
+```
+
+Symptom of forgetting: the web UI still works (progressive enhancement) but the new
+script/CSS URLs 404 and the Alpine interactions silently don't load.
+
 ---
 
 ## 1. Host integration (in place)
