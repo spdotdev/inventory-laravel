@@ -34,10 +34,19 @@
     <label style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
       <input type="checkbox" name="is_mandatory" value="1" style="width:auto;margin:0"
              @checked(old('is_mandatory', $product->is_mandatory))>
-      Should always be stocked (missing when at 0)
+      {{ __('Should always be stocked (missing when at 0)') }}
     </label>
 
-    <button type="submit" style="width:100%">Save</button>
+    <button type="submit" style="width:100%">{{ __('Save') }}</button>
   </form>
+
+  {{-- GAP-6 M6: cross-hint the app-only capabilities this page can't offer
+       (photo upload, barcode scanning) — same hidden-unless-configured
+       pattern as the layout's footer promo. --}}
+  @if (config('inventory.android_app_url'))
+    <p class="muted" style="margin-top:16px">
+      {!! __('Photos and barcode scanning are available in :link.', ['link' => '<a href="'.e(config('inventory.android_app_url')).'">'.__('the Android app').'</a>']) !!}
+    </p>
+  @endif
 </div>
 @endsection
