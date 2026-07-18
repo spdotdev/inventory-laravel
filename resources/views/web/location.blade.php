@@ -25,7 +25,7 @@
        @can('restructure', $household) :style="'order:' + {{ $shelf->is_system ? 99999 : "order.indexOf({$shelf->id})" }}" @endcan
   >
     <div class="row" style="margin-bottom:12px">
-      <h2 class="grow" style="font-size:16px;color:#b8d8f0">{{ $shelf->name }}</h2>
+      <h2 class="grow" style="font-size:16px;color:var(--text-heading)">{{ $shelf->name }}</h2>
       @unless ($shelf->is_system)
         @can('restructure', $household)
           <div class="row" style="gap:4px" x-cloak>
@@ -117,9 +117,9 @@
             <td>
               {{ $product->name }}
               @if ($product->is_mandatory && $product->quantity === 0)
-                <span style="color:#fca5a5"> · {{ __('missing') }}</span>
+                <span style="color:var(--danger-text)"> · {{ __('missing') }}</span>
               @elseif ($product->low_stock_threshold !== null && $product->quantity <= $product->low_stock_threshold)
-                <span style="color:#fbbf24"> · {{ __('running low') }}</span>
+                <span style="color:var(--warning-text)"> · {{ __('running low') }}</span>
               @endif
               @if ($product->code)<div class="muted mono" style="font-size:11px">{{ $product->code }}</div>@endif
             </td>
@@ -160,7 +160,7 @@
 </div>
 
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Add a shelf') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:14px">{{ __('Add a shelf') }}</h2>
   <form method="POST" action="{{ route('inventory.web.shelves.store', [$household, $location]) }}" class="row">
     @csrf
     <input class="grow" type="text" name="name" placeholder="{{ __('e.g. Top shelf') }}" required style="margin-bottom:0">

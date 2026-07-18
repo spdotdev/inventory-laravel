@@ -24,7 +24,7 @@
      })"
      @endcan
 >
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Storage locations') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:14px">{{ __('Storage locations') }}</h2>
   {{-- Alpine reorder: `order` is a reactive copy of the id list; each row's
        visual position is driven by CSS `order` (index in that array), so
        moving a row is an instant, purely-visual optimistic swap before the
@@ -138,16 +138,16 @@
 
 <h2 class="section" id="members-section">{{ __('Members & access') }}</h2>
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Invite someone') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:10px">{{ __('Invite someone') }}</h2>
   <p class="muted" style="margin-bottom:10px">{{ __('Share the code or the link — anyone with it can join.') }}</p>
-  <p class="mono" style="font-size:22px;color:#7dd3fc;letter-spacing:2px;margin-bottom:8px">{{ $household->join_code }}</p>
+  <p class="mono" style="font-size:22px;color:var(--accent);letter-spacing:2px;margin-bottom:8px">{{ $household->join_code }}</p>
   <p class="muted" style="word-break:break-all;margin-bottom:14px">{{ $inviteLink }}</p>
   {{-- Server-rendered QR (white tile so dark-mode scanners keep contrast) --}}
   <div style="background:#fff;border-radius:12px;padding:10px;width:fit-content">{!! $inviteQrSvg !!}</div>
 </div>
 
 <div class="card" id="members">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Members') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:14px">{{ __('Members') }}</h2>
   <div class="table-scroll">
   <table>
     <tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Role') }}</th>@can('manageMembers', $household)<th></th>@endcan</tr>
@@ -183,7 +183,7 @@
 
 <h2 class="section">{{ __('Household') }}</h2>
 <div class="card" id="appearance">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Appearance') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:10px">{{ __('Appearance') }}</h2>
   <p class="muted" style="margin-bottom:14px">{{ __('Pick a colour and icon for this household in the apps — “Default” derives one automatically.') }}</p>
   <form method="POST" action="{{ route('inventory.web.households.update', $household) }}" class="row">
     @csrf @method('PUT')
@@ -204,7 +204,7 @@
 </div>
 
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Your data') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:10px">{{ __('Your data') }}</h2>
   <p class="muted" style="margin-bottom:14px">{{ __('Download everything in this household — locations, shelves, products and members — as a JSON file.') }}</p>
   <a class="btn btn-quiet" href="{{ route('inventory.web.households.export', $household) }}">{{ __('Download export') }}</a>
 </div>
@@ -236,11 +236,11 @@
 </div>
 @endcan
 
-<h2 class="section" style="color:#f0b8b8">{{ __('Danger zone') }}</h2>
-<div class="card" id="danger" style="border-color:rgba(240,120,120,.35)">
+<h2 class="section" style="color:var(--danger-heading)">{{ __('Danger zone') }}</h2>
+<div class="card" id="danger" style="border-color:var(--danger-border)">
 @can('transferOwnership', $household)
   <div style="margin-bottom:18px">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ __('Transfer ownership') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:10px">{{ __('Transfer ownership') }}</h2>
   <p class="muted" style="margin-bottom:14px">{{ __("Make another member the owner. You'll become an admin.") }}</p>
   <form method="POST" action="{{ route('inventory.web.households.transfer-ownership', $household) }}" class="row"
         onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Transfer ownership of :name to', ['name' => $household->name])) }} + ' ' + this.user_id.options[this.user_id.selectedIndex].text + {{ Illuminate\Support\Js::from('? '.__('You will become an admin and only they can transfer it back.')) }})">

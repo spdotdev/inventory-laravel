@@ -17,7 +17,7 @@
 @endforelse
 
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Create a household') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:14px">{{ __('Create a household') }}</h2>
   <form method="POST" action="{{ route('inventory.web.households.store') }}">
     @csrf
     <div class="row">
@@ -29,7 +29,7 @@
 </div>
 
 <div class="card">
-  <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Join with a code') }}</h2>
+  <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:14px">{{ __('Join with a code') }}</h2>
   <form method="POST" action="{{ route('inventory.web.households.join') }}">
     @csrf
     <div class="row">

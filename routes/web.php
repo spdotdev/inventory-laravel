@@ -5,6 +5,7 @@ use Spdotdev\Inventory\Http\Controllers\JoinController;
 use Spdotdev\Inventory\Http\Controllers\LandingController;
 use Spdotdev\Inventory\Http\Controllers\ResetPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebAuthController;
+use Spdotdev\Inventory\Http\Controllers\Web\WebDisplayModeController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebGoogleAuthController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebHouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Web\WebLocationController;
@@ -21,6 +22,10 @@ Route::domain(config('inventory.domain'))
         Route::get('/reset-password', [ResetPasswordController::class, 'show'])->name('inventory.reset-password');
         Route::post('/reset-password', [ResetPasswordController::class, 'update'])->name('inventory.reset-password.update');
         Route::get('/join/{code}', [JoinController::class, 'show'])->name('inventory.join');
+
+        // Web parity T6: light/dark toggle, available on every page (guest or
+        // authed) since the layout it decorates is shared by both.
+        Route::post('/display-mode', [WebDisplayModeController::class, 'update'])->name('inventory.web.display-mode');
 
         // Phase-2 web UI: session auth on the `inventory` guard (inventory_users).
         Route::middleware('throttle:inventory-auth')->group(function () {

@@ -29,7 +29,7 @@
 
   <div class="inv-dialog-backdrop" x-show="open" x-cloak @keydown.escape.window="open = false">
     <div class="card inv-dialog" @click.outside="open = false">
-      <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:10px">{{ $dialogTriggerLabel }}</h2>
+      <h2 style="font-size:16px;color:var(--text-heading);margin-bottom:10px">{{ $dialogTriggerLabel }}</h2>
       @if ($summary !== '')
         <p class="muted" style="margin-bottom:16px">{{ $summary }}</p>
       @endif
