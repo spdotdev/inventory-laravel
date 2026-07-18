@@ -44,7 +44,30 @@ class SearchTest extends TestCase
             // every result is a dead card against the real backend.
             ->assertJsonPath('data.0.household_id', $household->id)
             ->assertJsonPath('data.0.location_id', $location->id)
-            ->assertJsonPath('data.0.shelf_id', $shelf->id);
+            ->assertJsonPath('data.0.shelf_id', $shelf->id)
+            // H4: additive field so the Android client can localize the
+            // Unsorted shelf's name instead of rendering the raw DB literal.
+            ->assertJsonPath('data.0.shelf_is_system', false);
+    }
+
+    public function test_search_hit_on_the_unsorted_shelf_carries_shelf_is_system_true(): void
+    {
+        // H4: a search hit whose shelf is the household's system Unsorted
+        // shelf must flag shelf_is_system so the client can localize it
+        // instead of showing the raw DB literal name verbatim.
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-2222']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+
+        $location = $household->locations()->create(['name' => 'Garage Chest', 'type' => StorageType::Freezer]);
+        $unsorted = $location->unsortedShelf();
+        $unsorted->products()->create(['name' => 'Stray screws', 'quantity' => 1]);
+
+        $this->getJson("http://inventory.test/api/v1/households/{$household->id}/search?q=screws")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.shelf_is_system', true);
     }
 
     public function test_search_treats_like_wildcards_literally(): void
