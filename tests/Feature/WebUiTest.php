@@ -33,6 +33,31 @@ class WebUiTest extends TestCase
         $this->assertDatabaseHas('inventory_users', ['email' => 'stan@example.test']);
     }
 
+    public function test_register_normalizes_email_to_lowercase_like_the_api(): void
+    {
+        $this->post("{$this->base}/register", [
+            'name' => 'Stan',
+            'email' => 'Stan@Example.TEST',
+            'password' => 'secret-password',
+            'password_confirmation' => 'secret-password',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('inventory_users', ['email' => 'stan@example.test']);
+        $this->assertDatabaseMissing('inventory_users', ['email' => 'Stan@Example.TEST']);
+    }
+
+    public function test_login_matches_mixed_case_email_input(): void
+    {
+        $this->user('stan@example.test');
+
+        $this->post("{$this->base}/login", [
+            'email' => 'Stan@Example.TEST',
+            'password' => 'secret-password',
+        ])->assertRedirect(route('inventory.web.households'));
+
+        $this->assertAuthenticated('inventory');
+    }
+
     public function test_login_with_valid_credentials_reaches_households(): void
     {
         $user = $this->user();

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Models\User;
 
@@ -25,6 +26,10 @@ class WebAuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
+        // Mirror the API's LoginRequest (W13): emails are stored lowercase, and
+        // lookups must match on case-sensitive collations (the SQLite test job).
+        $request->merge(['email' => Str::lower((string) $request->input('email'))]);
+
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
@@ -50,6 +55,9 @@ class WebAuthController extends Controller
 
     public function register(Request $request): RedirectResponse
     {
+        // Same normalization as the API's RegisterRequest (W13).
+        $request->merge(['email' => Str::lower((string) $request->input('email'))]);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', 'unique:inventory_users,email'],
