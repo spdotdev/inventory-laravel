@@ -6,11 +6,20 @@ repo's `docs/` (`docs/planning/project-brief.md`, `docs/specs/data-model.md`,
 `inventory-android`.
 
 ## What this is
-A **Composer package** (`spdotdev/inventory`) — a **headless Laravel API + a web
-account/household UI + a marketing landing page** for a private, multi-user,
+A **Composer package** (`spdotdev/inventory`) — a **headless Laravel API + a
+full-parity web app + a marketing landing page** for a private, multi-user,
 multi-household **inventory** app. It is **installed into a host Laravel app
-(sd-admin)**, not run standalone. **Android (Kotlin/Compose) is the only API client**;
-the web UI is a session-guarded Blade surface on the same domain. Modelled on
+(sd-admin)**, not run standalone. **Android (Kotlin/Compose) is the only `/api/v1`
+client**; the web UI is a session-guarded Blade+Alpine surface on the same domain
+and — per the 2026-07-18 decision (spec:
+`docs/superpowers/specs/2026-07-18-web-parity-design.md`) — a **first-class equal
+surface**: full feature parity with the app, with **barcode scanning as the one
+permanent app-only exception**. Alpine.js (vendored, no bundler) is the sanctioned
+interaction layer, used as progressive enhancement over working form fallbacks, and
+every background save follows the spec's binding feedback rules (visible saving
+state, visible success, loud revert + plain-words error + retry on failure). New web
+endpoints are thin wrappers over the same services/policies the API uses (Reorderer,
+Restorer, HierarchyDeleter, HouseholdPolicy) — never duplicated logic. Modelled on
 `spdotdev/scuttle-dev`.
 
 The product is general-purpose inventory; freezer/fridge/pantry are *example* storage

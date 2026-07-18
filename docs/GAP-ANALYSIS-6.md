@@ -62,7 +62,7 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 - **L1 🔴** AuthScreen mode-switch (GAP-5 M5 as-built) styled with
   `onSurface` strips the tappable-link affordance — reads as a caption.
-- **L2 🔴** Web has no light mode; Android's light theme is a different
+- **L2 ✅ (web-parity T6, 1189f6d)** Web has no light mode; Android's light theme is a different
   palette entirely — brand recognition across surfaces only holds in dark
   mode. Document dark-only as a decision or add a light variant.
 

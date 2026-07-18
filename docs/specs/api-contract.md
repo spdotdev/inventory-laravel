@@ -393,3 +393,12 @@ the standard Laravel throttle headers is returned when exceeded):
 - Concurrency is **last-write-wins** — no version / If-Match / optimistic-lock headers.
 - Errors: standard Laravel JSON error envelope; 401 unauth, 403 non-member,
   404 not-found/out-of-tenant, 422 validation, **429 rate-limited** (see *Rate limiting*).
+
+## Web route mirroring (parity program, 2026-07-18)
+
+The session-guarded web surface mirrors the API's mutating endpoints as thin
+wrappers over the same support classes and policies — `Reorderer` (reorder),
+`Restorer` (restore-by-batch), `HierarchyDeleter` + the API's own
+`DeleteLocationRequest`/`DeleteShelfRequest` (delete strategies), and
+`HouseholdPolicy` throughout. When changing an API endpoint's semantics,
+check `routes/web.php` for its web twin — they must move together.
