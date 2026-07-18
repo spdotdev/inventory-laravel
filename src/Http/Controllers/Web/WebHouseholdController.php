@@ -89,7 +89,10 @@ class WebHouseholdController extends Controller
         return view('inventory::web.household', [
             'household' => $household,
             'members' => $household->users()->get(),
-            'locations' => $household->locations()->withCount('shelves')->get(),
+            // Manual order wins, name is the tie-break — same rule as
+            // Api\LocationController::index, so a household reordered via one
+            // surface shows the same order on the other.
+            'locations' => $household->locations()->withCount('shelves')->orderBy('position')->orderBy('name')->get(),
             'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
             'inviteQrSvg' => InviteQr::svg($link),
         ]);

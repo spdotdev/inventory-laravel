@@ -2,17 +2,22 @@
 
 namespace Spdotdev\Inventory\Http\Controllers\Web;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
+use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
+use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Support\HierarchyDeleter;
+use Spdotdev\Inventory\Support\Reorderer;
 
 /**
  * Web CRUD for storage locations (Phase 2 stage 2). Tenancy is enforced by the
@@ -29,6 +34,35 @@ class WebLocationController extends Controller
             ->route('inventory.web.households.show', $household)
             ->withFragment('locations')
             ->with('status', __('Location added.'));
+    }
+
+    /**
+     * Web twin of Api\LocationController::reorder — same Reorderer writer,
+     * same `restructure` gate. Two callers hit this route:
+     *  - Alpine (household.blade.php): PATCHes the full ids[] list as JSON
+     *    after an optimistic swap; Accept: application/json (set by
+     *    web-feedback.js) drives the JSON branch below.
+     *  - The non-JS fallback: a plain form (`@method('PATCH')` spoofed POST)
+     *    per row, whose hidden ids[] already encode the swapped order —
+     *    computed server-side in the Blade view — so this single endpoint
+     *    serves both without any direction/id branching logic here.
+     */
+    public function reorder(ReorderRequest $request, Household $household): RedirectResponse|JsonResponse
+    {
+        Gate::authorize('restructure', $household);
+
+        Reorderer::locations($household, $request->ids());
+
+        HouseholdChanged::dispatch((int) $household->getKey());
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => __('Order saved.')]);
+        }
+
+        return redirect()
+            ->route('inventory.web.households.show', $household)
+            ->withFragment('locations')
+            ->with('status', __('Order saved.'));
     }
 
     public function show(Household $household, StorageLocation $location): View

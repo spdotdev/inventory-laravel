@@ -2,18 +2,23 @@
 
 namespace Spdotdev\Inventory\Http\Controllers\Web;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Enums\ShelfDeleteStrategy;
+use Spdotdev\Inventory\Events\HouseholdChanged;
+use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Http\Requests\ShelfRequest;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Support\HierarchyDeleter;
+use Spdotdev\Inventory\Support\Reorderer;
 
 /** Web CRUD for shelves (Phase 2 stage 2); tenancy + validation as in the API. */
 class WebShelfController extends Controller
@@ -29,6 +34,24 @@ class WebShelfController extends Controller
         return redirect()
             ->route('inventory.web.locations.show', [$household, $location])
             ->with('status', __('Shelf added.'));
+    }
+
+    /** Web twin of Api\ShelfController::reorder — see WebLocationController::reorder for the shared-endpoint rationale (JS + non-JS). */
+    public function reorder(ReorderRequest $request, Household $household, StorageLocation $location): RedirectResponse|JsonResponse
+    {
+        Gate::authorize('restructure', $household);
+
+        Reorderer::shelves($location, $request->ids());
+
+        HouseholdChanged::dispatch((int) $household->getKey());
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => __('Order saved.')]);
+        }
+
+        return redirect()
+            ->route('inventory.web.locations.show', [$household, $location])
+            ->with('status', __('Order saved.'));
     }
 
     public function destroy(Request $request, Household $household, StorageLocation $location, Shelf $shelf): RedirectResponse

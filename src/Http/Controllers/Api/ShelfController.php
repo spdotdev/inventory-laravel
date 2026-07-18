@@ -4,7 +4,6 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Events\HouseholdChanged;
@@ -16,6 +15,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Support\HierarchyDeleter;
+use Spdotdev\Inventory\Support\Reorderer;
 
 /**
  * Shelves within a location. Scoped binding chains {shelf} ⊂ {location} ⊂
@@ -134,30 +134,12 @@ class ShelfController
     {
         Gate::authorize('restructure', $household);
 
-        $ids = $request->ids();
-        // The Unsorted shelf is excluded on both sides of this check: it is
-        // never draggable and always sorts last via is_system, so its position
-        // is meaningless and the client never sends its id. Scoping both counts
-        // to non-system shelves means (a) a payload that omits it still passes
-        // completeness, and (b) a payload that DOES include it is rejected —
-        // its id can't be found among non-system $owned, so the counts mismatch.
-        $owned = $location->shelves()->where('is_system', false)->whereKey($ids)->pluck('id')->all();
-        $total = $location->shelves()->where('is_system', false)->count();
-
-        // Every id must be a live, non-system shelf of THIS location AND every
-        // live non-system shelf must be present — see LocationController::reorder
-        // for why a partial list is just as dangerous as a foreign one.
-        if (count($owned) !== count($ids) || $total !== count($ids)) {
-            throw ValidationException::withMessages([
-                'ids' => ['The list must contain every shelf in this location, and only those.'],
-            ]);
-        }
-
-        DB::transaction(function () use ($ids, $location) {
-            foreach ($ids as $position => $id) {
-                $location->shelves()->whereKey($id)->update(['position' => $position]);
-            }
-        });
+        // The Unsorted shelf is excluded by Reorderer on both sides of the
+        // completeness check: it is never draggable and always sorts last via
+        // is_system, so its position is meaningless and the client never
+        // sends its id — see Reorderer::shelves' docblock. Shared with
+        // Web\WebShelfController::reorder so the two surfaces can never drift.
+        Reorderer::shelves($location, $request->ids());
 
         HouseholdChanged::dispatch((int) $household->getKey());
 

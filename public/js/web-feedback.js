@@ -183,4 +183,56 @@
       retry: 'Retry',
     },
   };
+
+  /**
+   * Alpine component factory for the reorder controls (web parity Task 2:
+   * locations on household.blade.php, shelves on location.blade.php).
+   *
+   * Rows stay in the DOM exactly as Blade rendered them (name, links, counts,
+   * non-JS fallback forms) — this only tracks a reactive `order` array of
+   * ids and each row binds `:style="'order:' + order.indexOf(id)"` to a CSS
+   * flex/grid container, so a move is a purely-visual, instant reorder
+   * (the spec's "optimistic swap") with nothing to re-render.
+   *
+   * @param {object} config
+   * @param {string} config.url - the reorder PATCH endpoint
+   * @param {number[]} config.ids - the current server order (non-system ids
+   *   only, for shelves — the caller excludes the system shelf up front)
+   * @param {string} config.errorMessage - plain-words failure toast copy
+   */
+  window.inventoryReorder = function inventoryReorder(config) {
+    return {
+      order: config.ids.slice(),
+      move(id, direction) {
+        const i = this.order.indexOf(id);
+        const j = i + direction;
+        if (i === -1 || j < 0 || j >= this.order.length) return;
+
+        const previous = this.order.slice();
+        const next = this.order.slice();
+        const tmp = next[i];
+        next[i] = next[j];
+        next[j] = tmp;
+        this.order = next;
+
+        window.InventoryFeedback.save(
+          config.url,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: next }),
+          },
+          {
+            onRevert: () => {
+              this.order = previous;
+            },
+            errorMessage: config.errorMessage,
+          }
+        ).catch(() => {
+          // save() already reverted + toasted; nothing further to do here.
+          // Swallowed so this isn't reported as an unhandled rejection.
+        });
+      },
+    };
+  };
 })();

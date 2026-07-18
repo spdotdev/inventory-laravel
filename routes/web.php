@@ -50,8 +50,13 @@ Route::domain(config('inventory.domain'))
             Route::middleware('household.member')->scopeBindings()->group(function () {
                 Route::get('/households/{household}/search', WebSearchController::class)->name('inventory.web.search');
                 Route::post('/households/{household}/locations', [WebLocationController::class, 'store'])->name('inventory.web.locations.store');
+                // Literal segments precede the {location} wildcard routes below,
+                // same convention as routes/api.php — otherwise "reorder" would
+                // be swallowed as a {location} id.
+                Route::patch('/households/{household}/locations/reorder', [WebLocationController::class, 'reorder'])->name('inventory.web.locations.reorder');
                 Route::get('/households/{household}/locations/{location}', [WebLocationController::class, 'show'])->name('inventory.web.locations.show');
                 Route::delete('/households/{household}/locations/{location}', [WebLocationController::class, 'destroy'])->name('inventory.web.locations.destroy');
+                Route::patch('/households/{household}/locations/{location}/shelves/reorder', [WebShelfController::class, 'reorder'])->name('inventory.web.shelves.reorder');
                 Route::post('/households/{household}/locations/{location}/shelves', [WebShelfController::class, 'store'])->name('inventory.web.shelves.store');
                 Route::delete('/households/{household}/locations/{location}/shelves/{shelf}', [WebShelfController::class, 'destroy'])->name('inventory.web.shelves.destroy');
                 Route::post('/households/{household}/shelves/{shelf}/products', [WebProductController::class, 'store'])->name('inventory.web.products.store');

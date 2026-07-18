@@ -15,19 +15,71 @@
   </form>
 </div>
 
-<div class="card" id="locations">
+<div class="card" id="locations"
+     @can('restructure', $household)
+     x-data="inventoryReorder({
+        url: {{ Illuminate\Support\Js::from(route('inventory.web.locations.reorder', $household)) }},
+        ids: {{ Illuminate\Support\Js::from($locations->pluck('id')->values()) }},
+        errorMessage: {{ Illuminate\Support\Js::from(__("Location order didn't save — check your connection.")) }},
+     })"
+     @endcan
+>
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Storage locations') }}</h2>
+  {{-- Alpine reorder: `order` is a reactive copy of the id list; each row's
+       visual position is driven by CSS `order` (index in that array), so
+       moving a row is an instant, purely-visual optimistic swap before the
+       background PATCH confirms it (spec: optimistic swap + visible revert
+       on failure). No row is re-rendered/removed from the DOM, so nothing
+       else about the row (links, counts) needs to be duplicated in JS. --}}
+  @php $locationIds = $locations->pluck('id')->values()->all(); @endphp
+  <div @can('restructure', $household) style="display:flex;flex-direction:column" @endcan>
   @forelse ($locations as $location)
-    <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)">
+    @php $i = $loop->index; @endphp
+    <div class="row" style="padding:8px 0;border-bottom:1px solid rgba(125,211,252,.08)"
+         @can('restructure', $household) :style="'order:' + order.indexOf({{ $location->id }})" @endcan
+    >
       <div class="grow">
         <a href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ $location->name }}</a>
         <span class="muted">({{ __(ucfirst($location->type->value)) }}, {{ trans_choice(':count shelf|:count shelves', $location->shelves_count, ['count' => $location->shelves_count]) }})</span>
       </div>
+      @can('restructure', $household)
+        <div class="row" style="gap:4px" x-cloak>
+          <button type="button" class="btn-quiet" x-show="order.indexOf({{ $location->id }}) > 0"
+                  @click="move({{ $location->id }}, -1)" aria-label="{{ __('Move up') }}">&uarr;</button>
+          <button type="button" class="btn-quiet" x-show="order.indexOf({{ $location->id }}) < order.length - 1"
+                  @click="move({{ $location->id }}, 1)" aria-label="{{ __('Move down') }}">&darr;</button>
+        </div>
+        {{-- Non-JS fallback: a plain spoofed-PATCH form per direction, whose
+             hidden ids[] already encode the swapped order (computed here in
+             PHP) — same endpoint and payload shape the Alpine path sends, no
+             separate direction/id contract for the controller to support.
+             <noscript> keeps these invisible (and non-interactive) whenever
+             Alpine successfully loads and renders the buttons above. --}}
+        <noscript>
+          @if ($i > 0)
+            @php $swapped = $locationIds; [$swapped[$i - 1], $swapped[$i]] = [$swapped[$i], $swapped[$i - 1]]; @endphp
+            <form method="POST" action="{{ route('inventory.web.locations.reorder', $household) }}" style="display:inline">
+              @csrf @method('PATCH')
+              @foreach ($swapped as $id)<input type="hidden" name="ids[]" value="{{ $id }}">@endforeach
+              <button type="submit" class="btn-quiet" aria-label="{{ __('Move up') }}">&uarr;</button>
+            </form>
+          @endif
+          @if ($i < count($locationIds) - 1)
+            @php $swapped = $locationIds; [$swapped[$i], $swapped[$i + 1]] = [$swapped[$i + 1], $swapped[$i]]; @endphp
+            <form method="POST" action="{{ route('inventory.web.locations.reorder', $household) }}" style="display:inline">
+              @csrf @method('PATCH')
+              @foreach ($swapped as $id)<input type="hidden" name="ids[]" value="{{ $id }}">@endforeach
+              <button type="submit" class="btn-quiet" aria-label="{{ __('Move down') }}">&darr;</button>
+            </form>
+          @endif
+        </noscript>
+      @endcan
       <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ __('Open') }}</a>
     </div>
   @empty
     <p class="muted">{{ __('No locations yet — add your first one below, e.g. Fridge or Pantry.') }}</p>
   @endforelse
+  </div>
 
   <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" style="margin-top:14px">
     @csrf

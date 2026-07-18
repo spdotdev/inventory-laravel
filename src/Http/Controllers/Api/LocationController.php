@@ -4,9 +4,7 @@ namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\ValidationException;
 use Spdotdev\Inventory\Events\HouseholdChanged;
 use Spdotdev\Inventory\Http\Requests\DeleteLocationRequest;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
@@ -15,6 +13,7 @@ use Spdotdev\Inventory\Http\Resources\LocationResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Support\HierarchyDeleter;
+use Spdotdev\Inventory\Support\Reorderer;
 
 /**
  * Storage locations within a household. Scoped route-model binding guarantees
@@ -91,25 +90,10 @@ class LocationController
     {
         Gate::authorize('restructure', $household);
 
-        $ids = $request->ids();
-        $owned = $household->locations()->whereKey($ids)->pluck('id')->all();
-        $total = $household->locations()->count();
-
-        // Every id must be a live location of THIS household (rejects another
-        // household's id, a deleted id, a typo) AND every live location must be
-        // present (rejects a partial list). Either gap would let positions
-        // collide, since they're assigned by array index 0..n-1.
-        if (count($owned) !== count($ids) || $total !== count($ids)) {
-            throw ValidationException::withMessages([
-                'ids' => ['The list must contain every location in this household, and only those.'],
-            ]);
-        }
-
-        DB::transaction(function () use ($ids, $household) {
-            foreach ($ids as $position => $id) {
-                $household->locations()->whereKey($id)->update(['position' => $position]);
-            }
-        });
+        // Validation + the all-or-nothing transaction live in Reorderer,
+        // shared with Web\WebLocationController::reorder so the two surfaces
+        // can never drift on completeness/foreign-id rules.
+        Reorderer::locations($household, $request->ids());
 
         // Query-builder updates fire no Eloquent events, so the observer never
         // sees this. Ping explicitly or other members' lists go stale.

@@ -4,11 +4,60 @@
 <h1>{{ $location->name }} <span class="muted" style="font-size:14px">({{ __(ucfirst($location->type->value)) }})</span></h1>
 <p class="sub"><a href="{{ route('inventory.web.households.show', $household) }}">← {{ $household->name }}</a></p>
 
+{{-- Web parity Task 2: reorder. `order` covers non-system shelves only —
+     the Unsorted shelf is never draggable and always renders last (matches
+     Reorderer::shelves / the API's is_system exclusion). Each card binds
+     `:style="'order:' + ..."` on a flex container so a move is a purely
+     visual, instant reorder (optimistic swap) with no row re-rendered. --}}
+@php $shelfIds = $shelves->where('is_system', false)->pluck('id')->values()->all(); @endphp
+<div @can('restructure', $household)
+     x-data="inventoryReorder({
+        url: {{ Illuminate\Support\Js::from(route('inventory.web.shelves.reorder', [$household, $location])) }},
+        ids: {{ Illuminate\Support\Js::from($shelfIds) }},
+        errorMessage: {{ Illuminate\Support\Js::from(__("Shelf order didn't save — check your connection.")) }},
+     })"
+     style="display:flex;flex-direction:column"
+     @endcan
+>
 @foreach ($shelves as $shelf)
-  <div class="card">
+  @php $i = $loop->index; @endphp
+  <div class="card"
+       @can('restructure', $household) :style="'order:' + {{ $shelf->is_system ? 99999 : "order.indexOf({$shelf->id})" }}" @endcan
+  >
     <div class="row" style="margin-bottom:12px">
       <h2 class="grow" style="font-size:16px;color:#b8d8f0">{{ $shelf->name }}</h2>
       @unless ($shelf->is_system)
+        @can('restructure', $household)
+          <div class="row" style="gap:4px" x-cloak>
+            <button type="button" class="btn-quiet" x-show="order.indexOf({{ $shelf->id }}) > 0"
+                    @click="move({{ $shelf->id }}, -1)" aria-label="{{ __('Move up') }}">&uarr;</button>
+            <button type="button" class="btn-quiet" x-show="order.indexOf({{ $shelf->id }}) < order.length - 1"
+                    @click="move({{ $shelf->id }}, 1)" aria-label="{{ __('Move down') }}">&darr;</button>
+          </div>
+          {{-- Non-JS fallback — same shape as household.blade.php's location
+               rows: a spoofed-PATCH form per direction carrying the
+               pre-swapped full ids[] list, hidden by <noscript> once Alpine
+               renders the buttons above. --}}
+          @php $shelfIndex = array_search($shelf->id, $shelfIds, true); @endphp
+          <noscript>
+            @if ($shelfIndex !== false && $shelfIndex > 0)
+              @php $swapped = $shelfIds; [$swapped[$shelfIndex - 1], $swapped[$shelfIndex]] = [$swapped[$shelfIndex], $swapped[$shelfIndex - 1]]; @endphp
+              <form method="POST" action="{{ route('inventory.web.shelves.reorder', [$household, $location]) }}" style="display:inline">
+                @csrf @method('PATCH')
+                @foreach ($swapped as $id)<input type="hidden" name="ids[]" value="{{ $id }}">@endforeach
+                <button type="submit" class="btn-quiet" aria-label="{{ __('Move up') }}">&uarr;</button>
+              </form>
+            @endif
+            @if ($shelfIndex !== false && $shelfIndex < count($shelfIds) - 1)
+              @php $swapped = $shelfIds; [$swapped[$shelfIndex], $swapped[$shelfIndex + 1]] = [$swapped[$shelfIndex + 1], $swapped[$shelfIndex]]; @endphp
+              <form method="POST" action="{{ route('inventory.web.shelves.reorder', [$household, $location]) }}" style="display:inline">
+                @csrf @method('PATCH')
+                @foreach ($swapped as $id)<input type="hidden" name="ids[]" value="{{ $id }}">@endforeach
+                <button type="submit" class="btn-quiet" aria-label="{{ __('Move down') }}">&darr;</button>
+              </form>
+            @endif
+          </noscript>
+        @endcan
         <form class="inline" method="POST"
               action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
               onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete shelf :name?', ['name' => $shelf->name])) }})">
@@ -76,6 +125,7 @@
     </form>
   </div>
 @endforeach
+</div>
 
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">{{ __('Add a shelf') }}</h2>
