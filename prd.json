@@ -55,8 +55,8 @@
         "Full PHPUnit suite, Larastan, and Pint stay clean"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Genuine audit, no fix needed. (1) Deprecated APIs: full PHPUnit run (382 tests) under PHP 8.5.7 / Laravel 13.16.1 produced zero deprecation notices; grepped for implicit-nullable params (PHP 8.4+ deprecation) - none found, all nullable params are explicitly typed `?Type`. No usage of any Laravel 13-deprecated facade/helper patterns. (2) DB::transaction leaks: all 8 call sites (StorageLocation, WebHouseholdController, OwnershipTransfer, Restorer, Reorderer x2, HierarchyDeleter x2) pass a closure - Laravel commits/rolls back automatically around the closure's return/throw, so early returns inside the closure cannot leave a transaction open; none of them manually call DB::beginTransaction/commit. (3) File-handling leaks: the only file I/O is ProductController::image() and ProductImage::delete(), both exclusively through the Storage facade (->store(), ->exists(), ->delete(), ->url()) - no fopen/fwrite/fclose/file_put_contents anywhere in src/, so no raw handle can leak on an early return. (4) Dead code: scripted a cross-reference of every method name defined in src/ against all call sites in src/routes/resources/tests; the only zero-hit results were framework-invoked hook methods (broadcastOn/broadcastAs/broadcastWith on the ShouldBroadcast event, envelope() on Mailable, casts() overrides on 4 models, prepareForValidation() on 2 FormRequests) - all real, framework-called code, not dead code. Grepped for TODO/FIXME/@deprecated markers - the only 'unreachable' hits are code comments describing intentionally-unreachable *runtime states* (e.g. a household that can never have zero members), not unreachable code paths. Larastan (max level) and Pint both clean throughout. Full PHPUnit suite passes (382 tests, 1297 assertions)."
     }
   ]
 }

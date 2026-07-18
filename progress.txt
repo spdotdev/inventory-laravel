@@ -17,3 +17,12 @@
   - When auditing for this bug class, grep migrations for `unsignedInteger`/`unsignedBigInteger` columns, then check whether every FormRequest field that writes to them has both a min AND a max - Laravel's `integer` rule only checks PHP int-ness, not the target column's range, and SQLite (used in the fast test job) won't even error on overflow the way MySQL would, so a missing max is silent until it hits a real MySQL column.
   - Pagination/search endpoints in this codebase (SearchController, WebSearchController, AdminController) all use a hardcoded `->limit(50)` with no client-controlled page/limit param, so they were not a source of boundary bugs in this pass.
 ---
+
+## 2026-07-19 - US-004
+- Audited for deprecated Laravel 13/PHP 8.5 APIs, DB::transaction early-return leaks, raw file-handle leaks, and dead code.
+- Files changed: prd.json only (notes + passes:true) - no code changes, no defect found.
+- **Learnings for future iterations:**
+  - A quick automated dead-code check: for each `function <name>` in src/, grep the codebase (excluding the definition line) for other references - zero hits flags a candidate. Framework-invoked hooks (broadcastOn/broadcastAs/broadcastWith, Mailable::envelope, model casts() overrides, FormRequest::prepareForValidation) will false-positive since Laravel calls them via convention, not a direct reference - expect and exclude these.
+  - All file I/O in this package goes through the Storage facade (->store/->exists/->delete/->url), never raw fopen/fwrite - so there's no resource-leak surface to audit for file handles specifically, only for future code that might introduce one.
+  - PHPUnit run under PHP 8.5.7 with no deprecation warnings is a reasonable proxy for "no deprecated API usage" in a codebase this size - didn't need extra error_reporting tuning.
+---
