@@ -56,6 +56,18 @@
   .inv-toast-error{background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.45);color:#fca5a5}
   .inv-toast-retry{background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
   @keyframes inv-toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  /* Alpine hides [x-cloak] itself only once it has finished initializing that
+     element; before that (network-slow / script-blocked), this rule is what
+     actually prevents a flash of pre-Alpine markup — Task 2's reorder
+     buttons already relied on x-cloak but this rule was missing until T3. */
+  [x-cloak]{display:none !important}
+  /* Web parity T3: delete-strategy dialog (shared by location.blade.php +
+     household.blade.php). Alpine-only — the <noscript> fallback forms
+     alongside it need none of this. */
+  .inv-dialog-backdrop{position:fixed;inset:0;background:rgba(3,10,16,.72);display:flex;align-items:center;justify-content:center;z-index:70;padding:20px}
+  .inv-dialog{max-width:420px;width:100%;margin-bottom:0}
+  .inv-dialog-option{display:flex;align-items:flex-start;gap:8px;font-weight:400;margin-bottom:10px;cursor:pointer;font-size:14px;color:#eaf6ff}
+  .inv-dialog-option input{margin-top:3px}
 </style>
 </head>
 <body>

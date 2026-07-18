@@ -4,14 +4,11 @@ namespace Spdotdev\Inventory\Http\Controllers\Web;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
-use Spdotdev\Inventory\Enums\LocationDeleteStrategy;
 use Spdotdev\Inventory\Events\HouseholdChanged;
+use Spdotdev\Inventory\Http\Requests\DeleteLocationRequest;
 use Spdotdev\Inventory\Http\Requests\LocationRequest;
 use Spdotdev\Inventory\Http\Requests\ReorderRequest;
 use Spdotdev\Inventory\Models\Household;
@@ -28,6 +25,14 @@ class WebLocationController extends Controller
 {
     public function store(LocationRequest $request, Household $household): RedirectResponse
     {
+        // Fold-in (web parity T3): this action mutates household structure the
+        // same way Api\LocationController::store does, which HAS carried this
+        // gate since the roles release — the web twin never had it, letting a
+        // plain Member create storage via the web while the API and the web's
+        // own update()/reorder() correctly required restructure. See
+        // WebShelfController::store/destroy for the matching fix.
+        Gate::authorize('restructure', $household);
+
         $household->locations()->create($request->validated());
 
         return redirect()
@@ -75,29 +80,27 @@ class WebLocationController extends Controller
             // surface can show Unsorted FIRST, breaking "Unsorted always sorts
             // last" for the one client that reads this order.
             'shelves' => $location->shelves()->with('products')->orderBy('is_system')->orderBy('position')->get(),
+            // Web parity T3: move-target picker for the shelf/location delete
+            // dialogs. Household-wide, not location-scoped — HierarchyDeleter
+            // itself is the only place a target actually gets validated
+            // (same household, not self, not system), matching the API.
+            'allShelves' => $household->shelves()->where('inventory_shelves.is_system', false)->with('location')->orderBy('name')->get(),
+            'otherLocations' => $household->locations()->whereKeyNot($location->getKey())->orderBy('position')->orderBy('name')->get(),
         ]);
     }
 
-    public function destroy(Request $request, Household $household, StorageLocation $location): RedirectResponse
+    /**
+     * Web parity T3: full delete-strategy support, mirroring
+     * Api\LocationController::destroy exactly — DeleteLocationRequest is the
+     * SAME Form Request the API uses, so the strategy/target-location
+     * validation (contents-required, same-household, not-self) can never
+     * drift between the two surfaces. Previously this action hard-coded
+     * delete_contents as the only choice; the Alpine dialog in location.blade
+     * now also offers move_contents with a target-location select.
+     */
+    public function destroy(DeleteLocationRequest $request, Household $household, StorageLocation $location): RedirectResponse
     {
-        // H5: location-level delete has no unsort option (unsort is
-        // shelf-level only — see LocationDeleteStrategy's docblock) and
-        // move_contents is out of scope here too: it needs a target-location
-        // picker, disproportionate for a thin-Blade form. delete_contents is
-        // therefore the ONLY strategy the web form offers, so there is no
-        // meaningful choice to make — but the destructive scope (shelf +
-        // product counts) is still surfaced in the confirm copy in the Blade
-        // view so this is an informed action, not a silent default.
-        //
-        // A strategy param is still validated when present (defence in
-        // depth / a stable contract for the form), and its absence keeps the
-        // historical delete-everything default for full backward
-        // compatibility with any pre-existing caller of this route.
-        if ($request->filled('strategy')) {
-            $request->validate([
-                'strategy' => ['required', Rule::in([LocationDeleteStrategy::DeleteContents->value])],
-            ]);
-        }
+        Gate::authorize('restructure', $household);
 
         // MUST go through HierarchyDeleter. A bare $location->delete() is now a
         // soft delete, which does NOT fire the ON DELETE CASCADE — the shelves
@@ -105,9 +108,9 @@ class WebLocationController extends Controller
         HierarchyDeleter::deleteLocation(
             $household,
             $location,
-            (string) Str::uuid(),
-            LocationDeleteStrategy::DeleteContents,
-            null,
+            $request->batchId(),
+            $request->strategy(),
+            $request->targetLocationId(),
         );
 
         return redirect()

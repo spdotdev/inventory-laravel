@@ -112,6 +112,11 @@
     "Delete location": "Locatie verwijderen",
     "Keep products here (move to Unsorted)": "Producten hier houden (naar Ongesorteerd verplaatsen)",
     "Delete the products too": "Ook de producten verwijderen",
+    "Move products to another shelf": "Producten naar een andere plank verplaatsen",
+    "Move shelves to another location": "Planken naar een andere locatie verplaatsen",
+    "Delete everything with it": "Alles ermee verwijderen",
+    "Cancel": "Annuleren",
+    ":count product on this shelf|:count products on this shelf": ":count product op deze plank|:count producten op deze plank",
 
     "Search :name": "Zoeken in :name",
     "Search products…": "Producten zoeken…",

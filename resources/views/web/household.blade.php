@@ -75,6 +75,45 @@
         </noscript>
       @endcan
       <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">{{ __('Open') }}</a>
+      {{-- T3: delete-location dialog, new on this page (previously only
+           location.blade.php offered it). Same partial, target list is every
+           OTHER location in this household (already loaded, no extra query). --}}
+      @can('restructure', $household)
+        @php
+          $householdHasContents = $location->shelves_count > 0 || $location->products_count > 0;
+          $householdMoveTargets = $locations->where('id', '!=', $location->id)
+            ->map(fn ($l) => ['value' => $l->id, 'label' => $l->name])->values()->all();
+        @endphp
+        @if ($householdHasContents)
+          <div x-cloak>
+            @include('inventory::web.partials.delete-strategy-dialog', [
+              'dialogTriggerLabel' => __('Delete'),
+              'actionUrl' => route('inventory.web.locations.destroy', [$household, $location]),
+              'summary' => trans_choice(':count shelf|:count shelves', $location->shelves_count, ['count' => $location->shelves_count]).', '.trans_choice(':count product|:count products', $location->products_count, ['count' => $location->products_count]),
+              'options' => [
+                ['value' => 'move_contents', 'label' => __('Move shelves to another location'), 'needsTarget' => true],
+                ['value' => 'delete_contents', 'label' => __('Delete everything with it')],
+              ],
+              'targetFieldName' => 'target_location_id',
+              'targets' => $householdMoveTargets,
+            ])
+          </div>
+          <noscript>
+            <form class="inline" method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
+                  onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name?', ['name' => $location->name])) }})">
+              @csrf @method('DELETE')
+              <input type="hidden" name="strategy" value="delete_contents">
+              <button type="submit" class="btn-danger">{{ __('Delete') }}</button>
+            </form>
+          </noscript>
+        @else
+          <form class="inline" method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
+                onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name?', ['name' => $location->name])) }})">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn-danger">{{ __('Delete') }}</button>
+          </form>
+        @endif
+      @endcan
     </div>
   @empty
     <p class="muted">{{ __('No locations yet — add your first one below, e.g. Fridge or Pantry.') }}</p>

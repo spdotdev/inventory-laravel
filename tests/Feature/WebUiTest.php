@@ -144,8 +144,12 @@ class WebUiTest extends TestCase
             ->get(route('inventory.web.locations.show', [$household, $location]))
             ->assertOk()->assertSee('Shelf A');
 
+        // T3: 'Pantry' now holds a shelf ('Shelf A'), so a strategy is
+        // required — mirrors the API's DeleteLocationRequest.
         $this->actingAs($user, 'inventory')
-            ->delete(route('inventory.web.locations.destroy', [$household, $location]))
+            ->delete(route('inventory.web.locations.destroy', [$household, $location]), [
+                'strategy' => 'delete_contents',
+            ])
             ->assertRedirect();
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
     }
@@ -224,8 +228,19 @@ class WebUiTest extends TestCase
         // Regression guard for FINDING 2 (Task 6b review): the API refuses to
         // delete an occupied Unsorted shelf (UnsortedShelfTest covers that),
         // but the web path had no equivalent guard — an easy way to strand
-        // the very products the shelf exists to protect. Redirects with a
-        // flash rather than a 422, matching this surface's idiom.
+        // the very products the shelf exists to protect.
+        //
+        // T3 update: destroy() now validates through the shared
+        // DeleteShelfRequest (same Form Request the API uses), which — like
+        // the API — requires a `strategy` for ANY occupied shelf before the
+        // controller's is_system-specific guard is ever reached. This
+        // bodyless request 422s on 'strategy', exactly like the API's own
+        // UnsortedShelfTest::test_the_unsorted_shelf_cannot_be_deleted_while_occupied
+        // (which only pins the 422 status for the same reason). The
+        // 'shelf' field-specific message stays as defence in depth for a
+        // caller that DOES supply a strategy (move_products/unsort_products)
+        // against an occupied Unsorted shelf — never reachable from this UI,
+        // which never renders a delete control for it (see the next test).
         [$user, $household, $location] = $this->memberSetup();
         $unsorted = $location->unsortedShelf();
         $unsorted->products()->create(['name' => 'Orphan peas', 'quantity' => 1]);
@@ -233,7 +248,7 @@ class WebUiTest extends TestCase
         $this->actingAs($user, 'inventory')
             ->delete(route('inventory.web.shelves.destroy', [$household, $location, $unsorted]))
             ->assertRedirect()
-            ->assertSessionHasErrors('shelf');
+            ->assertSessionHasErrors('strategy');
 
         $this->assertNotSoftDeleted('inventory_shelves', ['id' => $unsorted->id]);
     }

@@ -24,12 +24,18 @@ class WebDeleteCascadeTest extends TestCase
         $this->actingAs($user, 'inventory');
 
         $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'admin']);
         $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
         $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
 
-        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}")
+        // T3: the location has contents (a shelf), so a strategy is now
+        // required — mirrors the API's DeleteLocationRequest. The web UI's
+        // own dialog always sends delete_contents as its default fallback
+        // option; the value is stable across callers.
+        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}", [
+            'strategy' => 'delete_contents',
+        ])
             ->assertRedirect();
 
         $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
@@ -43,12 +49,16 @@ class WebDeleteCascadeTest extends TestCase
         $this->actingAs($user, 'inventory');
 
         $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'admin']);
         $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
         $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
 
-        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}/shelves/{$shelf->id}")
+        // T3: the shelf holds a product, so a strategy is now required —
+        // mirrors the API's DeleteShelfRequest.
+        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}/shelves/{$shelf->id}", [
+            'strategy' => 'delete_products',
+        ])
             ->assertRedirect();
 
         $this->assertSoftDeleted('inventory_shelves', ['id' => $shelf->id]);
@@ -63,12 +73,14 @@ class WebDeleteCascadeTest extends TestCase
         $this->actingAs($user, 'inventory');
 
         $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
-        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'admin']);
         $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
         $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
 
-        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}")
+        $this->delete("http://inventory.test/app/households/{$household->id}/locations/{$location->id}", [
+            'strategy' => 'delete_contents',
+        ])
             ->assertRedirect();
 
         $batch = StorageLocation::withTrashed()

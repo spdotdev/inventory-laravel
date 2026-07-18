@@ -58,22 +58,54 @@
             @endif
           </noscript>
         @endcan
-        <form class="inline" method="POST"
-              action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
-              onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete shelf :name?', ['name' => $shelf->name])) }})">
-          @csrf @method('DELETE')
-          @if ($shelf->products->isNotEmpty())
-            {{-- H5: move_products is deliberately NOT offered here — it needs a
-                 target-shelf picker, disproportionate for a thin-Blade form.
-                 Android's LOCKED delete dialog still exposes it. Default is
-                 the non-destructive choice (unsort), never delete. --}}
-            <select name="strategy" style="width:auto;margin-bottom:0">
-              <option value="unsort_products" selected>{{ __('Keep products here (move to Unsorted)') }}</option>
-              <option value="delete_products">{{ __('Delete the products too') }}</option>
-            </select>
-          @endif
-          <button type="submit" class="btn-danger">{{ __('Delete shelf') }}</button>
-        </form>
+        @if ($shelf->products->isNotEmpty())
+          {{-- T3: full delete-strategy dialog — move_products (target: any
+               other non-system shelf in the household) joins the previous
+               unsort/delete choices. Safest option (keep here, unsorted)
+               stays the default per Android's DeleteStrategyDialog semantics
+               — never default to destruction. --}}
+          @php
+            $shelfMoveTargets = $allShelves->where('id', '!=', $shelf->id)
+              ->map(fn ($s) => ['value' => $s->id, 'label' => $s->location->name.' — '.$s->name])
+              ->values()->all();
+          @endphp
+          <div x-cloak>
+            @include('inventory::web.partials.delete-strategy-dialog', [
+              'dialogTriggerLabel' => __('Delete shelf'),
+              'actionUrl' => route('inventory.web.shelves.destroy', [$household, $location, $shelf]),
+              'summary' => trans_choice(':count product on this shelf|:count products on this shelf', $shelf->products->count(), ['count' => $shelf->products->count()]),
+              'options' => [
+                ['value' => 'unsort_products', 'label' => __('Keep products here (move to Unsorted)')],
+                ['value' => 'move_products', 'label' => __('Move products to another shelf'), 'needsTarget' => true],
+                ['value' => 'delete_products', 'label' => __('Delete the products too')],
+              ],
+              'targetFieldName' => 'target_shelf_id',
+              'targets' => $shelfMoveTargets,
+            ])
+          </div>
+          {{-- Non-JS fallback: the previous unsort/delete subset (no
+               move_products — it needs the JS-driven target picker above).
+               Hidden by <noscript> whenever Alpine renders the dialog. --}}
+          <noscript>
+            <form class="inline" method="POST"
+                  action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
+                  onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete shelf :name?', ['name' => $shelf->name])) }})">
+              @csrf @method('DELETE')
+              <select name="strategy" style="width:auto;margin-bottom:0">
+                <option value="unsort_products" selected>{{ __('Keep products here (move to Unsorted)') }}</option>
+                <option value="delete_products">{{ __('Delete the products too') }}</option>
+              </select>
+              <button type="submit" class="btn-danger">{{ __('Delete shelf') }}</button>
+            </form>
+          </noscript>
+        @else
+          <form class="inline" method="POST"
+                action="{{ route('inventory.web.shelves.destroy', [$household, $location, $shelf]) }}"
+                onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete shelf :name?', ['name' => $shelf->name])) }})">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn-danger">{{ __('Delete shelf') }}</button>
+          </form>
+        @endif
       @endunless
     </div>
 
@@ -137,20 +169,44 @@
 </div>
 
 @php
-  // H5: no strategy PICKER at location level — unsort is shelf-only, and
-  // move_contents needs a target-location picker that's out of scope for
-  // thin-Blade. delete_contents is the only choice, so instead of a select
-  // with one option, the confirm copy states exactly what will be destroyed
-  // so this is still an informed action rather than a silent default.
+  // T3: move_contents (target: another location in this household) joins
+  // delete_contents. Unsort is deliberately still absent here — "unsorted"
+  // means off-shelf but still IN this location, and the location is the
+  // thing being deleted (see LocationDeleteStrategy's docblock).
   $shelfCount = $shelves->where('is_system', false)->count();
   $productCount = $shelves->sum(fn ($s) => $s->products->count());
+  $hasContents = $shelfCount > 0 || $productCount > 0;
+  $locationMoveTargets = $otherLocations->map(fn ($l) => ['value' => $l->id, 'label' => $l->name])->values()->all();
 @endphp
-<form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
-      onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name with', ['name' => $location->name])) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count shelf|:count shelves', $shelfCount, ['count' => $shelfCount])) }} + ' ' + {{ Illuminate\Support\Js::from(__('and')) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count product|:count products', $productCount, ['count' => $productCount])) }} + '?')">
-  @csrf @method('DELETE')
-  <input type="hidden" name="strategy" value="delete_contents">
-  <button type="submit" class="btn-danger">{{ __('Delete location') }}</button>
-</form>
+@if ($hasContents)
+  <div x-cloak>
+    @include('inventory::web.partials.delete-strategy-dialog', [
+      'dialogTriggerLabel' => __('Delete location'),
+      'actionUrl' => route('inventory.web.locations.destroy', [$household, $location]),
+      'summary' => trans_choice(':count shelf|:count shelves', $shelfCount, ['count' => $shelfCount]).', '.trans_choice(':count product|:count products', $productCount, ['count' => $productCount]),
+      'options' => [
+        ['value' => 'move_contents', 'label' => __('Move shelves to another location'), 'needsTarget' => true],
+        ['value' => 'delete_contents', 'label' => __('Delete everything with it')],
+      ],
+      'targetFieldName' => 'target_location_id',
+      'targets' => $locationMoveTargets,
+    ])
+  </div>
+  <noscript>
+    <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
+          onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name with', ['name' => $location->name])) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count shelf|:count shelves', $shelfCount, ['count' => $shelfCount])) }} + ' ' + {{ Illuminate\Support\Js::from(__('and')) }} + ' ' + {{ Illuminate\Support\Js::from(trans_choice(':count product|:count products', $productCount, ['count' => $productCount])) }} + '?')">
+      @csrf @method('DELETE')
+      <input type="hidden" name="strategy" value="delete_contents">
+      <button type="submit" class="btn-danger">{{ __('Delete location') }}</button>
+    </form>
+  </noscript>
+@else
+  <form method="POST" action="{{ route('inventory.web.locations.destroy', [$household, $location]) }}"
+        onsubmit="return confirm({{ Illuminate\Support\Js::from(__('Delete :name?', ['name' => $location->name])) }})">
+    @csrf @method('DELETE')
+    <button type="submit" class="btn-danger">{{ __('Delete location') }}</button>
+  </form>
+@endif
 
 @include('inventory::web.partials.live-updates', ['household' => $household])
 @endsection

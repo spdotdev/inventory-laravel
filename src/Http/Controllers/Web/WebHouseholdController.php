@@ -92,7 +92,11 @@ class WebHouseholdController extends Controller
             // Manual order wins, name is the tie-break — same rule as
             // Api\LocationController::index, so a household reordered via one
             // surface shows the same order on the other.
-            'locations' => $household->locations()->withCount('shelves')->orderBy('position')->orderBy('name')->get(),
+            // 'products' added for T3's location delete-strategy dialog: the
+            // summary line ("N shelves, M products") needs a product count
+            // per location without an N+1; StorageLocation::products() is the
+            // HasManyThrough across all of a location's shelves.
+            'locations' => $household->locations()->withCount(['shelves', 'products'])->orderBy('position')->orderBy('name')->get(),
             'inviteLink' => $link = 'https://'.config('inventory.domain').'/join/'.$household->join_code,
             'inviteQrSvg' => InviteQr::svg($link),
         ]);
