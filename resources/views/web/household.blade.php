@@ -26,18 +26,22 @@
       <a class="btn btn-quiet" href="{{ route('inventory.web.locations.show', [$household, $location]) }}">Open</a>
     </div>
   @empty
-    <p class="muted">No locations yet.</p>
+    <p class="muted">No locations yet — add your first one below, e.g. Fridge or Pantry.</p>
   @endforelse
 
-  <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" class="row" style="margin-top:14px">
+  <form method="POST" action="{{ route('inventory.web.locations.store', $household) }}" style="margin-top:14px">
     @csrf
-    <input class="grow" type="text" name="name" placeholder="e.g. Fridge" required style="margin-bottom:0">
-    <select name="type" required style="width:140px;margin-bottom:0">
-      @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
-        <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
-      @endforeach
-    </select>
-    <button type="submit">Add location</button>
+    <div class="row">
+      <input class="grow" type="text" name="name" placeholder="e.g. Fridge" required style="margin-bottom:0">
+      <select name="type" required style="width:140px;margin-bottom:0">
+        @foreach (\Spdotdev\Inventory\Enums\StorageType::cases() as $type)
+          <option value="{{ $type->value }}">{{ ucfirst($type->value) }}</option>
+        @endforeach
+      </select>
+      <button type="submit">Add location</button>
+    </div>
+    @error('name') <p class="field-error">{{ $message }}</p> @enderror
+    @error('type') <p class="field-error">{{ $message }}</p> @enderror
   </form>
 </div>
 
@@ -53,6 +57,7 @@
 
 <div class="card" id="members">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Members</h2>
+  <div class="table-scroll">
   <table>
     <tr><th>Name</th><th>Email</th><th>Role</th>@can('manageMembers', $household)<th></th>@endcan</tr>
     @foreach ($members as $member)
@@ -82,6 +87,7 @@
       </tr>
     @endforeach
   </table>
+  </div>
 </div>
 
 <h2 class="section">Household</h2>
@@ -130,6 +136,7 @@
     </select>
     <button type="submit">Transfer</button>
   </form>
+  @error('user_id') <p class="field-error">{{ $message }}</p> @enderror
   </div>
 @endcan
   <form method="POST" action="{{ route('inventory.web.households.leave', $household) }}"
@@ -140,13 +147,19 @@
 </form>
 
   @can('delete', $household)
-    <form method="POST" action="{{ route('inventory.web.households.destroy', $household) }}" class="row" style="margin-top:18px">
+    <form method="POST" action="{{ route('inventory.web.households.destroy', $household) }}" style="margin-top:18px">
       @csrf @method('DELETE')
       {{-- Server-verified typed-name confirmation: deleting a household destroys
-           every member's data, so the friction is enforced server-side too. --}}
-      <input class="grow" type="text" name="name" required style="margin-bottom:0"
-             placeholder="Type “{{ $household->name }}” to confirm">
-      <button type="submit" class="btn-danger">Delete household forever</button>
+           every member's data, so the friction is enforced server-side too.
+           Field is named confirm_name (not name) so its error doesn't collide
+           with the location-add form's `name` error on the same page — both
+           validate a field called "name" server-side otherwise (GAP-4 L4). --}}
+      <div class="row">
+        <input class="grow" type="text" name="confirm_name" required style="margin-bottom:0"
+               placeholder="Type “{{ $household->name }}” to confirm">
+        <button type="submit" class="btn-danger">Delete household forever</button>
+      </div>
+      @error('confirm_name') <p class="field-error">{{ $message }}</p> @enderror
     </form>
   @endcan
 </div>

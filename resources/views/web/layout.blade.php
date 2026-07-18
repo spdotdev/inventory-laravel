@@ -32,15 +32,18 @@
   .or::before,.or::after{content:"";flex:1;height:1px;background:rgba(125,211,252,.18)}
   .btn-google{display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
   .error{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:12px 14px;font-size:13px;color:#fca5a5;margin-bottom:20px}
+  .field-error{color:#fca5a5;font-size:12px;margin:-14px 0 16px}
   .flash{background:rgba(125,211,252,.1);border:1px solid rgba(125,211,252,.3);border-radius:10px;padding:12px 14px;font-size:13px;color:#b8e4ff;margin-bottom:20px}
   .mono{font-family:'Space Mono',monospace}
   table{width:100%;border-collapse:collapse;font-size:14px}
   th{color:#7fa8c4;font-weight:600;text-align:left;padding:10px 8px;border-bottom:1px solid rgba(125,211,252,.14)}
   td{padding:12px 8px;border-bottom:1px solid rgba(125,211,252,.08)}
+  .table-scroll{overflow-x:auto}
   .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .grow{flex:1}
   .muted{color:#7fa8c4;font-size:13px}
   form.inline{display:inline}
+  footer.app-promo{max-width:760px;margin:0 auto;padding:0 24px 32px;font-size:13px;color:#7fa8c4;text-align:center}
 </style>
 </head>
 <body>
@@ -67,5 +70,15 @@
   @endif
   @yield('content')
 </main>
+{{-- L7 (GAP-4): cross-promote the Android app on session-guarded /app pages
+     only — never on the public landing page, which has its own view and
+     never extends this layout. Hidden entirely when unconfigured. --}}
+@auth('inventory')
+  @if (config('inventory.android_app_url'))
+    <footer class="app-promo">
+      Inventory is best in the <a href="{{ config('inventory.android_app_url') }}">Android app</a>.
+    </footer>
+  @endif
+@endauth
 </body>
 </html>

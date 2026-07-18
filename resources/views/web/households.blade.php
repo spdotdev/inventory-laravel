@@ -18,19 +18,25 @@
 
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Create a household</h2>
-  <form method="POST" action="{{ route('inventory.web.households.store') }}" class="row">
+  <form method="POST" action="{{ route('inventory.web.households.store') }}">
     @csrf
-    <input class="grow" type="text" name="name" placeholder="e.g. Home" required style="margin-bottom:0">
-    <button type="submit">Create</button>
+    <div class="row">
+      <input class="grow" type="text" name="name" placeholder="e.g. Home" required style="margin-bottom:0">
+      <button type="submit">Create</button>
+    </div>
+    @error('name') <p class="field-error">{{ $message }}</p> @enderror
   </form>
 </div>
 
 <div class="card">
   <h2 style="font-size:16px;color:#b8d8f0;margin-bottom:14px">Join with a code</h2>
-  <form method="POST" action="{{ route('inventory.web.households.join') }}" class="row">
+  <form method="POST" action="{{ route('inventory.web.households.join') }}">
     @csrf
-    <input class="grow mono" type="text" name="code" placeholder="ABCD-1234" required style="margin-bottom:0">
-    <button type="submit">Join</button>
+    <div class="row">
+      <input class="grow mono" type="text" name="code" placeholder="ABCD-1234" required style="margin-bottom:0">
+      <button type="submit">Join</button>
+    </div>
+    @error('code') <p class="field-error">{{ $message }}</p> @enderror
   </form>
 </div>
 @endsection

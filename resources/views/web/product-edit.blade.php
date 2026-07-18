@@ -10,16 +10,20 @@
 
     <label for="name">Name</label>
     <input type="text" id="name" name="name" value="{{ old('name', $product->name) }}" required>
+    @error('name') <p class="field-error">{{ $message }}</p> @enderror
 
     <label for="description">Description</label>
     <input type="text" id="description" name="description" value="{{ old('description', $product->description) }}">
+    @error('description') <p class="field-error">{{ $message }}</p> @enderror
 
     <label for="code">Code / barcode</label>
     <input type="text" id="code" name="code" class="mono" value="{{ old('code', $product->code) }}">
+    @error('code') <p class="field-error">{{ $message }}</p> @enderror
 
     <label for="low_stock_threshold">Low-stock warning at (empty = off)</label>
     <input type="number" id="low_stock_threshold" name="low_stock_threshold" min="1"
            value="{{ old('low_stock_threshold', $product->low_stock_threshold) }}">
+    @error('low_stock_threshold') <p class="field-error">{{ $message }}</p> @enderror
 
     <label style="display:flex;gap:10px;align-items:center;margin-bottom:20px">
       <input type="checkbox" name="is_mandatory" value="1" style="width:auto;margin:0"
