@@ -9,31 +9,31 @@ Status legend: 🔴 open · ✅ fixed (commit noted).
 
 ## High
 
-- **H1 🔴 Delete-household dialog closes before the server answers** —
+- **H1 ✅ (android a3f9395) Delete-household dialog closes before the server answers** —
   `HouseholdEditScreen.kt`: confirm fires `viewModel.delete(...)` and closes
   the dialog unconditionally; on 422/403 the typed name is lost and the error
   surfaces as an unrelated top-of-screen ErrorRetry whose Retry re-fetches
   the list, not the delete. Keep the dialog open until the result, error
   inline, close on success only.
-- **H2 🔴 A second role change silently kills the previous Undo snackbar** —
+- **H2 ✅ (android 3ad1775) A second role change silently kills the previous Undo snackbar** —
   `MembersScreen`/`MembersViewModel`: `roleChangeEvent` is a single slot;
   rapid promote/demote sequences drop all but the last Undo with no cue.
-- **H3 🔴 Cross-household selection reset is silent** — `DrawerViewModel`
+- **H3 ✅ (android 3476e05) Cross-household selection reset is silent** — `DrawerViewModel`
   `toggleSelection`: tapping another household's row replaces the selection
   set; the count just changes. Minimal fix: a "Selection cleared — switched
   to {household}" snackbar.
-- **H4 🔴 Password requirements invisible until the server 422s** —
+- **H4 ✅ (android cedf9a8) Password requirements invisible until the server 422s** —
   `AuthScreen`: no supportingText/hint on the password field in register
   mode; the rule is only learnable by failing.
-- **H5 🔴 Scanner mode (LOOKUP vs ADD) is invisible** — `ScannerScreen` shows
+- **H5 ✅ (android 6d4400f) Scanner mode (LOOKUP vs ADD) is invisible** — `ScannerScreen` shows
   the same title in both modes; nothing tells the user whether the scan will
   search globally or add to the shelf they came from.
-- **H6 🔴 Scan-with-no-match is a dead end** — a scanned code with zero
+- **H6 ✅ (android 281595c, scoped: code not auto-filled into create dialog yet) Scan-with-no-match is a dead end** — a scanned code with zero
   results shows plain "no results"; the app knows the exact code and the
   household — offer "Add a product with this code" pre-filled.
-- **H7 🔴 Search state doesn't survive back-nav** — `SearchViewModel` resets
+- **H7 ✅ (android 10ba877, real cause was autofocus not VM reset) Search state doesn't survive back-nav** — `SearchViewModel` resets
   on household set; returning from a result means retyping the query.
-- **H8 🔴 Product detail never shows quantity** — the detail screen has no
+- **H8 ✅ (android b0242a3) Product detail never shows quantity** — the detail screen has no
   quantity display or stepper; adjusting count requires going back to the
   shelf list. CLAUDE.md describes this screen as "name + quantity."
 
