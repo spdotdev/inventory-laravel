@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -182,6 +183,18 @@ class InventoryServiceProvider extends ServiceProvider
                 PruneClientErrorsCommand::class,
                 PruneDeletedCommand::class,
             ]);
+
+            // The retention windows are enforced by these commands and nothing
+            // else — if they never run, soft-deleted rows (and their image
+            // files) plus client-error rows accumulate forever. The host app
+            // was documented as responsible for scheduling them, but sd-admin
+            // never did; registering here means any host with a running
+            // scheduler gets retention for free. Overnight, off the whole
+            // hours (the host may schedule its own jobs on them).
+            $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+                $schedule->command('inventory:deleted:prune')->dailyAt('04:17');
+                $schedule->command('inventory:client-errors:prune')->dailyAt('04:23');
+            });
         }
     }
 
