@@ -52,6 +52,31 @@ framing — updating that framing is part of this program.
    app-only exception. The API-contract doc notes which web routes mirror
    which API routes.
 
+## Feedback & error visibility (user requirement, 2026-07-18)
+
+Optimistic UI must never hide an outcome. Binding rules for every
+Alpine-backed mutation:
+
+- **Every background save is visible**: a saving indicator while the fetch
+  is in flight (the thin progress-bar idiom from the demo), and a brief
+  visible confirmation on success (toast or inline state change) — never a
+  silent success.
+- **Every failure is loud and recoverable**: on fetch failure the
+  optimistic change VISIBLY reverts (animated snap-back, not a quiet
+  re-render), an error toast states what didn't save in plain words
+  ("Shelf order didn't save — check your connection") and offers Retry.
+  The page must never show state the server doesn't have for longer than
+  the in-flight window.
+- **Navigation guard**: leaving the page while a save is in flight or after
+  a failed save triggers a beforeunload warning — no silently lost changes.
+- **Other people's changes stay visible**: the dirty-form-aware
+  live-update hint (GAP-6 M5) is kept and extended to Alpine pages — a
+  ping while the user has local unsaved/optimistic state shows the
+  "updated elsewhere — refresh to see changes" hint rather than silently
+  merging or reloading.
+- Android's equivalents (GAP-6 H1/H2: flush-on-cancel, reset-on-failure
+  with a specific message) are the reference for tone and behavior.
+
 ## Tech constraints
 
 - **Alpine.js self-hosted** (vendored into `public/`, published like other
