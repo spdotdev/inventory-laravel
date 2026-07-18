@@ -97,27 +97,47 @@
    * Fetch wrapper for optimistic Alpine mutations.
    *
    * @param {string} url
-   * @param {object} [fetchOptions] - standard fetch() init (method, body, ...)
+   * @param {object|Function} [fetchOptionsInput] - standard fetch() init
+   *   (method, body, ...), OR a zero-arg factory returning one. Callers whose
+   *   payload can go stale between the initial attempt and a user-triggered
+   *   Retry (e.g. a reorder body built from live component state) MUST pass
+   *   a factory so it's re-evaluated at retry time instead of resending a
+   *   snapshot captured before the failure.
    * @param {object} [feedback]
    * @param {Function} [feedback.onRevert] - called (with no args) on failure,
    *   to undo the optimistic change already applied to the DOM/Alpine state.
+   * @param {Function} [feedback.onRetry] - called (with no args) instead of
+   *   the default "resend the same request" behavior when Retry is clicked.
+   *   Use this to re-apply the optimistic change against CURRENT state and
+   *   kick off a fresh save() with a freshly computed payload — required
+   *   whenever the optimistic change/body can't just be replayed verbatim
+   *   (see the reorder component below). Omit to fall back to re-invoking
+   *   save() with the original url/fetchOptionsInput/feedback (safe only
+   *   when fetchOptionsInput is a factory or the body truly can't go stale).
    * @param {string} [feedback.successMessage] - defaults to a generic saved message.
    * @param {string} [feedback.errorMessage] - plain-words description of what
    *   didn't save, e.g. "Shelf order didn't save — check your connection".
    * @returns {Promise<Response>} resolves with the Response on 2xx, rejects on
-   *   failure (network error or non-2xx) after handling revert + toast + retry.
+   *   failure (network error or non-2xx) after handling revert + toast + retry
+   *   exactly once (a non-2xx response and a rejected fetch() are both funneled
+   *   through the same single failure handler — see `handled` below).
    */
-  function save(url, fetchOptions = {}, feedback = {}) {
+  function save(url, fetchOptionsInput = {}, feedback = {}) {
     const {
       onRevert = null,
+      onRetry = null,
       successMessage = window.InventoryFeedback.strings.saved,
       errorMessage = window.InventoryFeedback.strings.saveFailed,
     } = feedback;
+
+    const getFetchOptions =
+      typeof fetchOptionsInput === 'function' ? fetchOptionsInput : () => fetchOptionsInput;
 
     inFlightCount += 1;
     setSaving(true);
     updateDirtyFlag();
 
+    const fetchOptions = getFetchOptions() || {};
     const headers = Object.assign(
       {
         'X-CSRF-TOKEN': csrfToken(),
@@ -129,24 +149,42 @@
     const attempt = () =>
       fetch(url, Object.assign({ credentials: 'same-origin' }, fetchOptions, { headers }));
 
+    // Single shared failure handler: whichever path detects the failure
+    // (the !response.ok branch below, or the outer .catch for a rejected
+    // fetch()) calls this exactly once. Fires the revert, the error toast,
+    // and wires Retry to either the caller's onRetry (re-apply + recompute)
+    // or a plain re-save.
+    function handleFailure() {
+      hasFailedSave = true;
+      updateDirtyFlag();
+      if (typeof onRevert === 'function') onRevert();
+      showToast(errorMessage, {
+        variant: 'error',
+        retry: () => {
+          hasFailedSave = false;
+          updateDirtyFlag();
+          if (typeof onRetry === 'function') {
+            onRetry();
+          } else {
+            save(url, fetchOptionsInput, feedback);
+          }
+        },
+      });
+    }
+
     return attempt()
       .then((response) => {
         inFlightCount -= 1;
         if (inFlightCount === 0) setSaving(false);
 
         if (!response.ok) {
-          hasFailedSave = true;
-          updateDirtyFlag();
-          if (typeof onRevert === 'function') onRevert();
-          showToast(errorMessage, {
-            variant: 'error',
-            retry: () => {
-              hasFailedSave = false;
-              updateDirtyFlag();
-              save(url, fetchOptions, feedback);
-            },
-          });
-          throw new Error('inventory-feedback: request failed with status ' + response.status);
+          handleFailure();
+          // Marked `handled` so the .catch below (which this throw flows
+          // into) recognizes the failure was already reported and does not
+          // run handleFailure() a second time.
+          const error = new Error('inventory-feedback: request failed with status ' + response.status);
+          error.inventoryFeedbackHandled = true;
+          throw error;
         }
 
         hasFailedSave = false;
@@ -155,21 +193,17 @@
         return response;
       })
       .catch((error) => {
+        if (error && error.inventoryFeedbackHandled) {
+          throw error;
+        }
+
+        // Network-reject path (fetch() itself threw) — single-fire, never
+        // handled above.
         if (inFlightCount > 0) {
           inFlightCount -= 1;
           if (inFlightCount === 0) setSaving(false);
         }
-        hasFailedSave = true;
-        updateDirtyFlag();
-        if (typeof onRevert === 'function') onRevert();
-        showToast(errorMessage, {
-          variant: 'error',
-          retry: () => {
-            hasFailedSave = false;
-            updateDirtyFlag();
-            save(url, fetchOptions, feedback);
-          },
-        });
+        handleFailure();
         throw error;
       });
   }
@@ -204,6 +238,19 @@
     return {
       order: config.ids.slice(),
       move(id, direction) {
+        this.attemptMove(id, direction);
+      },
+      // Applies the (id, direction) swap to whatever `this.order` is RIGHT
+      // NOW and saves it. Used both for the initial click and for Retry —
+      // Retry calls this again rather than replaying a captured payload, so
+      // a) a successful retry re-applies the optimistic change (the page
+      // never settles on reverted-but-server-has-the-new-state), and b) the
+      // body sent is always freshly computed from current state, not a
+      // snapshot that another move could have made stale in the meantime.
+      // If other moves happened between the failure and the retry click
+      // such that this (id, direction) no longer applies (out of range),
+      // this is a no-op — there is nothing stale left to retry.
+      attemptMove(id, direction) {
         const i = this.order.indexOf(id);
         const j = i + direction;
         if (i === -1 || j < 0 || j >= this.order.length) return;
@@ -217,14 +264,20 @@
 
         window.InventoryFeedback.save(
           config.url,
-          {
+          // Factory, not a static body: re-evaluated on retry so it reads
+          // `this.order` at retry time (set by attemptMove() above, called
+          // again from onRetry) rather than resending this closure's `next`.
+          () => ({
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ids: next }),
-          },
+            body: JSON.stringify({ ids: this.order }),
+          }),
           {
             onRevert: () => {
               this.order = previous;
+            },
+            onRetry: () => {
+              this.attemptMove(id, direction);
             },
             errorMessage: config.errorMessage,
           }
