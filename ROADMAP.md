@@ -22,7 +22,10 @@ Markers: 🟡 TBD · 🔲 TODO · 🛠 in progress · ✅ done (shipped work mov
 | 2 — MVP API | ✅ shipped 2026-06-23 | Households (create/list/invite/join/leave) + search; locations/shelves/products CRUD + add/remove/move. |
 | 3 — CLI + polish | ✅ shipped 2026-06-24 | Artisan commands (household create, …); quality gates green (Pint/Larastan/PHPUnit). |
 | 4 — Phase 2 | ✅ shipped 2026-07-10 | **Unlocked 2026-07-10** (user decision): web account/household UI ✅, `low_stock_threshold` ✅, Reverb live updates ✅, **production deploy (v0.1.5)** ✅. Household JSON export (API + web) + web live updates ✅ shipped **and deployed (v0.1.10)** 2026-07-11; further attributes stay 🟡 TBD. |
-| 5 — Storage architecture editing (backend) | ✅ backend shipped 2026-07-13 | Soft delete + client-minted `deletion_batch_id` + batch restore (undo), required delete *strategies* for a non-empty location/shelf (move/delete/unsort), manual drag `position` + bulk reorder for locations/shelves, the lazily-created per-location **Unsorted** system shelf, a `HouseholdPolicy@restructure` seam ahead of roles, per-product `is_starred`, and `inventory:deleted:prune` retention. Spec: `docs/superpowers/specs/2026-07-13-storage-architecture-editing-design.md`; plan: `docs/superpowers/plans/2026-07-13-storage-architecture-editing-backend.md`. **Not yet deployed to prod**; the Android UI (nav rework, edit mode, delete-strategy dialog, tabs⇄list toggle) is a separate, not-yet-scheduled phase. |
+| 5 — Storage architecture editing (backend) | ✅ shipped 2026-07-13, deployed 2026-07-15 (v0.1.11) | Soft delete + client-minted `deletion_batch_id` + batch restore (undo), required delete *strategies* for a non-empty location/shelf (move/delete/unsort), manual drag `position` + bulk reorder for locations/shelves, the lazily-created per-location **Unsorted** system shelf, a `HouseholdPolicy@restructure` seam ahead of roles, per-product `is_starred`, and `inventory:deleted:prune` retention. Spec: `docs/superpowers/specs/2026-07-13-storage-architecture-editing-design.md`; plan: `docs/superpowers/plans/2026-07-13-storage-architecture-editing-backend.md`. Android UI shipped 2026-07-15 (v0.1.9 prerelease). |
+| 6 — Household roles (Owner/Admin/Member) | ✅ shipped + deployed 2026-07-17 | `role` column on `inventory_household_user` + backfill; `HouseholdPolicy@restructure`/`manageMembers` role-gated (was "any member"); `manageMembers`/`transferOwnership`/`delete` capability gates; member promote/demote/remove + transfer-ownership on API + web. A household always has exactly one Owner. Spec: `docs/superpowers/specs/2026-07-17-household-roles-design.md`. |
+| 7 — Web parity | ✅ shipped + deployed 2026-07-18 | Web app promoted to a first-class equal surface (full feature parity with barcode scanning as the one permanent app-only exception): storage-architecture editing (delete strategies, reorder, restore), roles/member management, household delete, and the "Recently deleted" browser (`Support\RecentlyDeleted`) landed on web. Spec: `docs/superpowers/specs/2026-07-18-web-parity-design.md`. |
+| 8 — GAP audit waves 4-8 + 2026-07-19 bug audit | ✅ shipped, prod on v0.1.21 | Iterative parity/stability audits (see `BACKLOG.md` → Done for the full list) plus the 2026-07-19 comprehensive bug audit: an N+1 in `HouseholdResource::roleOf()` and a missing upper bound on shelf `position` (same class as the earlier W14 product-quantity fix). The API/Android twin of "Recently deleted" — `GET .../households/{household}/deleted` — shipped the same day, closing the one real Android parity gap `ROADMAP.md`/android had open. |
 
 Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
 [`docs/backend-plan.md`](docs/backend-plan.md).
@@ -129,10 +132,11 @@ Detailed build order: [`CLAUDE.md`](CLAUDE.md) → "Build order" and
   gained the new columns/endpoints; config + command docs picked up
   `deleted_retention_days` / `inventory:deleted:prune`.
 
-**Deliberately out of scope here** (by the design doc, `docs/superpowers/specs/2026-07-13-storage-architecture-editing-design.md`):
+**Was deliberately out of scope here** (by the design doc, `docs/superpowers/specs/2026-07-13-storage-architecture-editing-design.md`):
 all Android-side work — nav rework, edit mode, tabs⇄list toggle, collapsible groups,
 the household edit page, the delete-strategy dialog as rendered — tracked separately
-in the Android plan. Production deploy of this backend work is also still pending.
+in the `inventory-android` roadmap. Both the Android UI and the production deploy of
+this backend work have since shipped — see the phased plan table above.
 
 ### REMAINING (need a decision or external dependency — not autonomous)
 - [x] **Google sign-in on the web UI** — shipped 2026-07-11 (14d28eb, tagged v0.1.9;

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Spdotdev\Inventory\Http\Controllers\Api\AdminController;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
 use Spdotdev\Inventory\Http\Controllers\Api\ClientErrorController;
+use Spdotdev\Inventory\Http\Controllers\Api\DeletedBatchController;
 use Spdotdev\Inventory\Http\Controllers\Api\ForgotPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
@@ -84,6 +85,9 @@ Route::domain(config('inventory.domain'))
                 // docblock for why a shelf/location/product-scoped restore route
                 // could never be reached once the row is soft-deleted.
                 Route::post('households/{household}/restore/{batch}', RestoreController::class)->name('inventory.api.restore');
+                // Read-only listing of restorable batches — the API/Android twin of
+                // the web's "Recently deleted" section (Support\RecentlyDeleted).
+                Route::get('households/{household}/deleted', DeletedBatchController::class)->name('inventory.api.deleted');
 
                 // Stock actions (defined before the resource so the /add|remove|move
                 // suffixes aren't shadowed by the {product} show route).

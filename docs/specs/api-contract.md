@@ -96,6 +96,9 @@ DELETE /api/v1/households/{household}      { name }           -> Owner-only hard
                                                                  typed confirmation (422 mismatch,
                                                                  403 non-owner)
 GET    /api/v1/households/{household}/export                  -> versioned JSON export of the tree
+GET    /api/v1/households/{household}/deleted                 -> restorable deletion batches
+                                                                 (any member; read-only twin of the
+                                                                 web "Recently deleted" section)
 GET    /api/v1/households/{household}/search?q=               -> matching products (see Search result)
 ```
 
