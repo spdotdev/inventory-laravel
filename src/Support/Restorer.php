@@ -44,11 +44,34 @@ class Restorer
      * class docblock for why both kinds exist. Every row in one batch was
      * stamped by the same HierarchyDeleter/controller call, so deleted_by is
      * identical across all of them; reading it off any single row in the
-     * batch is enough. Returns null for an unknown/already-purged batch —
-     * the caller (RestoreController/WebRestoreController) must treat that as
-     * "nothing to restore", not "no one may restore it".
+     * batch is enough. Returns null both for an unknown/already-purged batch
+     * AND for a batch that predates the `deleted_by` column (any row
+     * soft-deleted before this feature shipped) — callers MUST NOT treat a
+     * null return as "batch doesn't exist" (see `batchExists()`, which they
+     * need to distinguish those two cases before deciding whether to gate).
      */
     public static function batchOwnerId(Household $household, string $batch): ?int
+    {
+        $row = self::firstRowInBatch($household, $batch);
+
+        return $row !== null && $row->deleted_by !== null ? (int) $row->deleted_by : null;
+    }
+
+    /**
+     * Whether ANY row (location/shelf/product) actually belongs to this
+     * batch, regardless of whether `deleted_by` was ever stamped on it.
+     * Callers gate authorization on THIS, not on `batchOwnerId() !== null` —
+     * a real, pre-`deleted_by` batch has an owner id of null but still very
+     * much exists, and skipping the gate for it would let any Member
+     * restore any household's legacy batch (fail-open on rows soft-deleted
+     * before this column existed).
+     */
+    public static function batchExists(Household $household, string $batch): bool
+    {
+        return self::firstRowInBatch($household, $batch) !== null;
+    }
+
+    private static function firstRowInBatch(Household $household, string $batch): StorageLocation|Shelf|Product|null
     {
         $householdLocationIds = StorageLocation::withTrashed()
             ->where('household_id', $household->getKey())
@@ -61,30 +84,25 @@ class Restorer
         $location = StorageLocation::withTrashed()
             ->where('household_id', $household->getKey())
             ->where('deletion_batch_id', $batch)
-            ->whereNotNull('deleted_by')
             ->first();
 
         if ($location !== null) {
-            return (int) $location->deleted_by;
+            return $location;
         }
 
         $shelf = Shelf::withTrashed()
             ->whereIn('location_id', $householdLocationIds)
             ->where('deletion_batch_id', $batch)
-            ->whereNotNull('deleted_by')
             ->first();
 
         if ($shelf !== null) {
-            return (int) $shelf->deleted_by;
+            return $shelf;
         }
 
-        $product = Product::withTrashed()
+        return Product::withTrashed()
             ->whereIn('shelf_id', $householdShelfIds)
             ->where('deletion_batch_id', $batch)
-            ->whereNotNull('deleted_by')
             ->first();
-
-        return $product !== null ? (int) $product->deleted_by : null;
     }
 
     /**

@@ -96,6 +96,21 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-19` — **Fixed a fail-open in the restore-permission fix, same day it
+  shipped** (caught by post-commit security review). `Restorer::batchOwnerId()`
+  only reads `deleted_by` off rows where it's non-null, so a batch soft-deleted
+  BEFORE the `deleted_by` column existed (any pre-existing production row)
+  resolves to a null owner — but `RestoreController`/`WebRestoreController` were
+  skipping `Gate::authorize` entirely whenever the owner was null, on the
+  (wrong) assumption that meant the batch didn't exist. It meant any Member
+  could restore any household's legacy batch, restructure permission or not.
+  Added `Restorer::batchExists()` (existence check with no `deleted_by` filter)
+  and gate on THAT instead — `restoreBatch` already requires `restructure` when
+  the owner is null, so a legacy batch is safe once actually gated. New test
+  `test_a_member_cannot_restore_a_legacy_batch_with_no_deleted_by` (simulates a
+  pre-migration row via a direct query-builder update, bypassing the API so
+  `deleted_by` is never stamped) confirms a Member gets 403 and the Owner still
+  restores it fine. 401 tests, Pint/Larastan green.
 - ✅ `2026-07-19` — **A Member can restore their own soft-delete.** Restoring a batch
   (`RestoreController`/`WebRestoreController`) was gated unconditionally on
   `Gate::authorize('restructure', $household)`, Owner/Admin only — but a plain Member

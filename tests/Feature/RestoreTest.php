@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Events\HouseholdChanged;
@@ -159,6 +160,46 @@ class RestoreTest extends TestCase
             ->assertJsonPath('restored', 1);
 
         $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_a_member_cannot_restore_a_legacy_batch_with_no_deleted_by(): void
+    {
+        // Regression: batchOwnerId() used to return null for a batch that
+        // pre-dates the deleted_by column (any row soft-deleted before this
+        // feature shipped), and RestoreController skipped Gate::authorize
+        // entirely whenever batchOwnerId was null — a fail-open that let any
+        // Member restore any household's legacy batch. Fixed by gating on
+        // Restorer::batchExists() instead, which is true here even though
+        // deleted_by is null.
+        $owner = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'EEEE-5555']);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        // Simulate a pre-migration delete: soft-deleted with a batch id but
+        // no deleted_by, bypassing the API so deleted_by is never stamped.
+        $batch = (string) Str::uuid();
+        $product->newQuery()->whereKey($product->getKey())->update([
+            'deletion_batch_id' => $batch,
+            'deleted_at' => now(),
+        ]);
+
+        $member = User::create(['name' => 'Mel', 'email' => 'mel@example.test', 'password' => 'secret-password']);
+        $household->users()->attach($member->getKey(), ['joined_at' => now(), 'role' => 'member']);
+        Sanctum::actingAs($member);
+
+        $this->postJson("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertStatus(403);
+
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+
+        Sanctum::actingAs($owner);
+        $this->postJson("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 1);
     }
 
     public function test_a_batch_from_another_household_cannot_be_restored(): void

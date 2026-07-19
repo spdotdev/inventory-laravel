@@ -28,14 +28,14 @@ class WebRestoreController extends Controller
 {
     public function __invoke(Request $request, Household $household, string $batch): RedirectResponse|JsonResponse
     {
-        // See Api\RestoreController for the full reasoning: gate only when a
-        // batch owner was actually found, so probing an unknown/already
-        // restored batch id falls through to STATUS_NOTHING (409) instead of
-        // leaking existence via a 403.
-        $batchOwnerId = Restorer::batchOwnerId($household, $batch);
-
-        if ($batchOwnerId !== null) {
-            Gate::authorize('restoreBatch', [$household, $batchOwnerId]);
+        // See Api\RestoreController for the full reasoning: gate on whether
+        // the batch EXISTS (not on whether an owner was found for it — a
+        // pre-deleted_by legacy batch exists but has a null owner, and
+        // skipping the gate for it would fail open for any Member). Probing
+        // a batch id that truly doesn't exist still falls through to
+        // STATUS_NOTHING (409) instead of leaking existence via a 403.
+        if (Restorer::batchExists($household, $batch)) {
+            Gate::authorize('restoreBatch', [$household, Restorer::batchOwnerId($household, $batch)]);
         }
 
         $result = Restorer::restore($household, $batch);
