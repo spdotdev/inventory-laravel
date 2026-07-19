@@ -158,10 +158,25 @@ class RestructureGateCoverageTest extends TestCase
 
     public function test_restore_is_gated(): void
     {
+        // A batch with zero rows never reaches the gate at all (see
+        // RestoreController: an unknown batch owner falls straight through to
+        // STATUS_NOTHING/409, so a Member probing a guessed id can't tell
+        // "403 = once existed" from "409 = never did"). Plant a REAL,
+        // real-owner batch directly (bypassing the gated endpoint) so
+        // batchOwnerId resolves non-null and the restoreBatch gate is
+        // actually exercised.
         $h = $this->memberHousehold();
+        $user = User::where('email', 'stan@example.test')->sole();
+        $location = $h->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $batch = '33333333-3333-4333-8333-333333333333';
+        $location->deletion_batch_id = $batch;
+        $location->deleted_by = $user->getKey();
+        $location->save();
+        $location->delete();
+
         $this->denyRestructure();
 
-        $this->postJson("{$this->base}/households/{$h->id}/restore/33333333-3333-4333-8333-333333333333")
+        $this->postJson("{$this->base}/households/{$h->id}/restore/{$batch}")
             ->assertStatus(403);
     }
 }

@@ -74,6 +74,7 @@ class LocationController
             $request->batchId(),
             $request->strategy(),
             $request->targetLocationId(),
+            (int) $request->user()->getKey(),
         );
 
         return response()->json([

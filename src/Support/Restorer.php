@@ -34,6 +34,60 @@ class Restorer
     public const STATUS_BLOCKED = 'blocked';
 
     /**
+     * Who ran the delete gesture that produced this batch, so
+     * HouseholdPolicy::restoreBatch can let a Member restore a batch they
+     * minted themselves without granting them restructure generally.
+     *
+     * A batch can span all three tables (a location delete cascades into its
+     * shelves and products) and can include MOVED rows (still live,
+     * restore_parent_id set) as well as soft-deleted ones — see Restorer's
+     * class docblock for why both kinds exist. Every row in one batch was
+     * stamped by the same HierarchyDeleter/controller call, so deleted_by is
+     * identical across all of them; reading it off any single row in the
+     * batch is enough. Returns null for an unknown/already-purged batch —
+     * the caller (RestoreController/WebRestoreController) must treat that as
+     * "nothing to restore", not "no one may restore it".
+     */
+    public static function batchOwnerId(Household $household, string $batch): ?int
+    {
+        $householdLocationIds = StorageLocation::withTrashed()
+            ->where('household_id', $household->getKey())
+            ->pluck('id');
+
+        $householdShelfIds = Shelf::withTrashed()
+            ->whereIn('location_id', $householdLocationIds)
+            ->pluck('id');
+
+        $location = StorageLocation::withTrashed()
+            ->where('household_id', $household->getKey())
+            ->where('deletion_batch_id', $batch)
+            ->whereNotNull('deleted_by')
+            ->first();
+
+        if ($location !== null) {
+            return (int) $location->deleted_by;
+        }
+
+        $shelf = Shelf::withTrashed()
+            ->whereIn('location_id', $householdLocationIds)
+            ->where('deletion_batch_id', $batch)
+            ->whereNotNull('deleted_by')
+            ->first();
+
+        if ($shelf !== null) {
+            return (int) $shelf->deleted_by;
+        }
+
+        $product = Product::withTrashed()
+            ->whereIn('shelf_id', $householdShelfIds)
+            ->where('deletion_batch_id', $batch)
+            ->whereNotNull('deleted_by')
+            ->first();
+
+        return $product !== null ? (int) $product->deleted_by : null;
+    }
+
+    /**
      * @return array{status: string, restored: int}
      */
     public static function restore(Household $household, string $batch): array

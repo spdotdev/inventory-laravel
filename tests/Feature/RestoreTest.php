@@ -82,6 +82,85 @@ class RestoreTest extends TestCase
             ->assertStatus(409);
     }
 
+    public function test_a_member_can_restore_a_batch_they_deleted_themselves(): void
+    {
+        // Reversed 2026-07-19: a plain Member could soft-delete a product but
+        // could not undo their own mistake, since restore used to be gated
+        // on `restructure` unconditionally (Owner/Admin only). A Member
+        // deletes their own product via the API's ProductController::destroy
+        // (no restructure gate on products), then restores that exact batch.
+        $user = User::create(['name' => 'Mel', 'email' => 'mel@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'BBBB-2222']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now(), 'role' => 'member']);
+
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $deleteResponse = $this->deleteJson("{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}")
+            ->assertOk();
+        $batch = $deleteResponse->json('deletion_batch_id');
+
+        $this->postJson("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 1);
+
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_a_member_cannot_restore_a_batch_deleted_by_someone_else(): void
+    {
+        $owner = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'CCCC-3333']);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        Sanctum::actingAs($owner);
+        $deleteResponse = $this->deleteJson("{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}")
+            ->assertOk();
+        $batch = $deleteResponse->json('deletion_batch_id');
+
+        $member = User::create(['name' => 'Mel', 'email' => 'mel@example.test', 'password' => 'secret-password']);
+        $household->users()->attach($member->getKey(), ['joined_at' => now(), 'role' => 'member']);
+        Sanctum::actingAs($member);
+
+        $this->postJson("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertStatus(403);
+
+        $this->assertSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
+    public function test_owner_can_still_restore_a_batch_a_member_deleted(): void
+    {
+        // Owner/Admin restore ANY batch, unchanged by the batch-ownership fix.
+        $owner = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'DDDD-4444']);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+        $member = User::create(['name' => 'Mel', 'email' => 'mel@example.test', 'password' => 'secret-password']);
+        $household->users()->attach($member->getKey(), ['joined_at' => now(), 'role' => 'member']);
+
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        Sanctum::actingAs($member);
+        $deleteResponse = $this->deleteJson("{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}")
+            ->assertOk();
+        $batch = $deleteResponse->json('deletion_batch_id');
+
+        Sanctum::actingAs($owner);
+        $this->postJson("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertOk()
+            ->assertJsonPath('restored', 1);
+
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
+    }
+
     public function test_a_batch_from_another_household_cannot_be_restored(): void
     {
         // Batch ids are client-minted, so a malicious client could guess one.

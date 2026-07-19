@@ -36,9 +36,27 @@ class HouseholdPolicy
         return $household->roleOf($user) === 'owner';
     }
 
-    /** Owner only: deleting the household itself (not yet wired to a route). */
+    /** Owner only: deleting the household itself (wired to HouseholdController::destroy). */
     public function delete(User $user, Household $household): bool
     {
         return $household->roleOf($user) === 'owner';
+    }
+
+    /**
+     * Owner/Admin can restore ANY batch (restructure), same as always. A
+     * plain Member has no restructure grant but must still be able to undo
+     * their OWN mistake — a Member who soft-deletes a product/shelf/location
+     * had no way to bring it back before this method existed, which meant
+     * the very first accidental delete was permanent for them in practice.
+     * $batchOwnerId is Restorer::batchOwnerId's result: null means the batch
+     * is unknown/already purged, which the caller must treat as "nothing to
+     * restore" (see RestoreController), never reach this method with null to
+     * mean "deny" — a Member probing random/expired batch ids should get the
+     * same 409 an Owner would, not a 403 that leaks whether it ever existed.
+     */
+    public function restoreBatch(User $user, Household $household, ?int $batchOwnerId): bool
+    {
+        return $this->restructure($user, $household)
+            || ($batchOwnerId !== null && $batchOwnerId === (int) $user->getKey());
     }
 }

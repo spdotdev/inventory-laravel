@@ -44,6 +44,7 @@ class HierarchyDeleter
         string $batchId,
         ?ShelfDeleteStrategy $strategy,
         ?int $targetShelfId,
+        int $deletedBy,
     ): void {
         // Resolved to an id, not a model, so the closure below cannot be handed a
         // half-validated Shelf: non-null here means "validated, move there".
@@ -79,7 +80,7 @@ class HierarchyDeleter
         // back on THIS shelf specifically, not wherever the strategy sent them.
         $originalShelfId = (int) $shelf->getKey();
 
-        DB::transaction(function () use ($shelf, $batchId, $strategy, $moveToShelfId, $unsortedShelfId, $originalShelfId) {
+        DB::transaction(function () use ($shelf, $batchId, $strategy, $moveToShelfId, $unsortedShelfId, $originalShelfId, $deletedBy) {
             $now = now();
 
             // Serialize against Restorer: a concurrent restore of a product
@@ -95,12 +96,16 @@ class HierarchyDeleter
             // (so a live row can still be located as part of this batch) and
             // restore_parent_id (so RestoreController knows to put shelf_id
             // back to $originalShelfId, not merely clear a soft-delete that
-            // never happened).
+            // never happened). deleted_by rides along too, since these rows
+            // are as much part of THIS gesture as any soft-deleted row below
+            // — Restorer::batchOwnerId reads whichever row in the batch it
+            // finds first, moved or killed.
             if ($moveToShelfId !== null) {
                 $shelf->products()->update([
                     'shelf_id' => $moveToShelfId,
                     'deletion_batch_id' => $batchId,
                     'restore_parent_id' => $originalShelfId,
+                    'deleted_by' => $deletedBy,
                 ]);
             }
 
@@ -109,6 +114,7 @@ class HierarchyDeleter
                     'shelf_id' => $unsortedShelfId,
                     'deletion_batch_id' => $batchId,
                     'restore_parent_id' => $originalShelfId,
+                    'deleted_by' => $deletedBy,
                 ]);
             }
 
@@ -116,12 +122,14 @@ class HierarchyDeleter
                 $shelf->products()->update([
                     'deleted_at' => $now,
                     'deletion_batch_id' => $batchId,
+                    'deleted_by' => $deletedBy,
                 ]);
             }
 
             $shelf->newQuery()->whereKey($shelf->getKey())->update([
                 'deleted_at' => $now,
                 'deletion_batch_id' => $batchId,
+                'deleted_by' => $deletedBy,
             ]);
         });
 
@@ -143,6 +151,7 @@ class HierarchyDeleter
         string $batchId,
         ?LocationDeleteStrategy $strategy,
         ?int $targetLocationId,
+        int $deletedBy,
     ): void {
         // Resolved to an id, not a model, so the closure below cannot be handed a
         // half-validated StorageLocation: non-null here means "validated, move there".
@@ -210,7 +219,7 @@ class HierarchyDeleter
         // THIS location specifically.
         $originalLocationId = (int) $location->getKey();
 
-        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId, $originalLocationId, $sourceUnsortedShelfIds, $targetUnsortedShelfId) {
+        DB::transaction(function () use ($location, $batchId, $strategy, $moveToLocationId, $originalLocationId, $sourceUnsortedShelfIds, $targetUnsortedShelfId, $deletedBy) {
             $now = now();
 
             // Serialize against Restorer — same reasoning as deleteShelf's
@@ -233,6 +242,7 @@ class HierarchyDeleter
                     'location_id' => $moveToLocationId,
                     'deletion_batch_id' => $batchId,
                     'restore_parent_id' => $originalLocationId,
+                    'deleted_by' => $deletedBy,
                 ]);
 
                 if ($sourceUnsortedShelfIds !== []) {
@@ -247,6 +257,7 @@ class HierarchyDeleter
                                 'shelf_id' => $targetUnsortedShelfId,
                                 'deletion_batch_id' => $batchId,
                                 'restore_parent_id' => $sourceUnsortedShelfId,
+                                'deleted_by' => $deletedBy,
                             ]);
                         }
                     }
@@ -257,6 +268,7 @@ class HierarchyDeleter
                     Shelf::query()->whereKey($sourceUnsortedShelfIds)->update([
                         'deleted_at' => $now,
                         'deletion_batch_id' => $batchId,
+                        'deleted_by' => $deletedBy,
                     ]);
                 }
             }
@@ -268,17 +280,20 @@ class HierarchyDeleter
                 Product::query()->whereIn('shelf_id', $shelfIds)->update([
                     'deleted_at' => $now,
                     'deletion_batch_id' => $batchId,
+                    'deleted_by' => $deletedBy,
                 ]);
 
                 $location->shelves()->update([
                     'deleted_at' => $now,
                     'deletion_batch_id' => $batchId,
+                    'deleted_by' => $deletedBy,
                 ]);
             }
 
             $location->newQuery()->whereKey($location->getKey())->update([
                 'deleted_at' => $now,
                 'deletion_batch_id' => $batchId,
+                'deleted_by' => $deletedBy,
             ]);
         });
 

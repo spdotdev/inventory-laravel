@@ -118,6 +118,7 @@ class ShelfController
             $request->batchId(),
             $request->strategy(),
             $request->targetShelfId(),
+            (int) $request->user()->getKey(),
         );
 
         return response()->json([

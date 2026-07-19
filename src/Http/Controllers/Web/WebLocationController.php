@@ -130,6 +130,7 @@ class WebLocationController extends Controller
             $batchId,
             $request->strategy(),
             $request->targetLocationId(),
+            (int) $request->user()->getKey(),
         );
 
         // Web parity T4: the redirect carries the batch id so the layout can

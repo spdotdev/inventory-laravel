@@ -45,7 +45,7 @@ class ProductController
         return new ProductResource($product);
     }
 
-    public function destroy(Household $household, Shelf $shelf, Product $product): JsonResponse
+    public function destroy(Request $request, Household $household, Shelf $shelf, Product $product): JsonResponse
     {
         // A solo product delete has no shelf/location delete to ride along
         // with, so mint a batch-of-one here: without it the row lands with a
@@ -53,9 +53,15 @@ class ProductController
         // (POST .../restore/{batch}) has no id to reach it by — permanently
         // unrestorable, unlike a product caught up in a shelf/location delete.
         // Stamped via the query builder (no model event) so the delete()
-        // below still fires exactly one `deleted` event/broadcast.
+        // below still fires exactly one `deleted` event/broadcast. deleted_by
+        // records who ran this gesture so a Member (who has no restructure
+        // grant) can still restore this specific batch themselves — see
+        // HouseholdPolicy::restoreBatch.
         $batchId = (string) Str::uuid();
-        $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
+        $product->newQuery()->whereKey($product->getKey())->update([
+            'deletion_batch_id' => $batchId,
+            'deleted_by' => (int) $request->user()->getKey(),
+        ]);
 
         // $product->delete() is a SOFT delete (an UPDATE) — the row survives so
         // Undo can restore it. The image file must survive with it: the row's

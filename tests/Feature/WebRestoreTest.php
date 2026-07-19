@@ -122,12 +122,55 @@ class WebRestoreTest extends TestCase
             ->assertSessionHasErrors('restore');
     }
 
-    public function test_a_plain_member_cannot_restore(): void
+    public function test_a_plain_member_cannot_restore_an_unknown_batch(): void
     {
+        // An unknown batch owner falls straight through to the existing
+        // nothing-to-restore path rather than a 403 — see
+        // Api\RestoreController's docblock: a Member probing a guessed batch
+        // id must not be able to tell "403 = it once existed" apart from
+        // "409 = it never did".
         [, $household] = $this->member('member');
 
         $this->post("{$this->base}/households/{$household->id}/restore/33333333-3333-4333-8333-333333333333")
+            ->assertRedirect()
+            ->assertSessionHasErrors('restore');
+    }
+
+    public function test_a_plain_member_cannot_restore_someone_elses_batch(): void
+    {
+        [$member, $household] = $this->member('member');
+        $owner = User::create(['name' => 'Owner', 'email' => 'owner@example.test', 'password' => 'secret-password']);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $batch = '33333333-3333-4333-8333-333333333333';
+        $location->deletion_batch_id = $batch;
+        $location->deleted_by = $owner->getKey();
+        $location->save();
+        $location->delete();
+
+        $this->actingAs($member, 'inventory');
+        $this->post("{$this->base}/households/{$household->id}/restore/{$batch}")
             ->assertForbidden();
+
+        $this->assertSoftDeleted('inventory_storage_locations', ['id' => $location->id]);
+    }
+
+    public function test_a_plain_member_can_restore_a_batch_they_deleted_themselves(): void
+    {
+        [, $household] = $this->member('member');
+        $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
+        $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
+        $product = $shelf->products()->create(['name' => 'Peas', 'quantity' => 2]);
+
+        $this->delete("{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}")
+            ->assertRedirect();
+        $batch = session('undo')['batch'];
+
+        $this->post("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertRedirect();
+
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
     }
 
     public function test_recently_deleted_view_lists_a_batch_and_its_restore_button_works(): void
@@ -182,10 +225,14 @@ class WebRestoreTest extends TestCase
             ->assertDontSee(__('Recently deleted'));
     }
 
-    public function test_a_plain_member_deleting_a_product_gets_no_undo_flash(): void
+    public function test_a_plain_member_deleting_a_product_still_gets_an_undo_flash_for_their_own_batch(): void
     {
-        // WebRestoreController is restructure-gated, so flashing `undo` to a
-        // Member rendered an Undo button that 403ed on click (audit #8).
+        // Reversed since HouseholdPolicy::restoreBatch shipped (see this
+        // file's other Member-restore tests): a Member always owns the
+        // batch-of-one they just minted, so WebRestoreController being
+        // restoreBatch-gated (not restructure-only) means the Undo button
+        // this flash renders no longer 403s for them (audit #8's original
+        // fix was to hide it; the real fix is letting them use it).
         [, $household] = $this->member(role: 'member');
         $location = $household->locations()->create(['name' => 'Chest', 'type' => StorageType::Freezer]);
         $shelf = $location->shelves()->create(['name' => 'Top', 'position' => 0]);
@@ -194,6 +241,13 @@ class WebRestoreTest extends TestCase
         $this->delete("{$this->base}/households/{$household->id}/shelves/{$shelf->id}/products/{$product->id}")
             ->assertRedirect()
             ->assertSessionHas('status')
-            ->assertSessionMissing('undo');
+            ->assertSessionHas('undo');
+
+        $batch = session('undo')['batch'];
+
+        $this->post("{$this->base}/households/{$household->id}/restore/{$batch}")
+            ->assertRedirect();
+
+        $this->assertNotSoftDeleted('inventory_products', ['id' => $product->id]);
     }
 }

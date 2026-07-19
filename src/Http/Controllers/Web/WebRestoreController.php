@@ -12,7 +12,9 @@ use Spdotdev\Inventory\Support\Restorer;
 
 /**
  * Web twin of Api\RestoreController — same Restorer writer, same
- * `restructure` gate. Two callers hit this route: the Undo button on the
+ * `restoreBatch` gate (Owner/Admin restore any batch; a Member may restore a
+ * batch they minted themselves). Two callers hit this route: the Undo button
+ * on the
  * post-delete flash toast (Task 1's toast, upgraded with a countdown by
  * web-feedback.js) and the "Recently deleted" section's per-batch Restore
  * button — both are plain `<form method="POST">` submits (no Alpine fetch:
@@ -26,7 +28,15 @@ class WebRestoreController extends Controller
 {
     public function __invoke(Request $request, Household $household, string $batch): RedirectResponse|JsonResponse
     {
-        Gate::authorize('restructure', $household);
+        // See Api\RestoreController for the full reasoning: gate only when a
+        // batch owner was actually found, so probing an unknown/already
+        // restored batch id falls through to STATUS_NOTHING (409) instead of
+        // leaking existence via a 403.
+        $batchOwnerId = Restorer::batchOwnerId($household, $batch);
+
+        if ($batchOwnerId !== null) {
+            Gate::authorize('restoreBatch', [$household, $batchOwnerId]);
+        }
 
         $result = Restorer::restore($household, $batch);
 

@@ -128,23 +128,30 @@ class WebProductController extends Controller
         return redirect()->back(fallback: route('inventory.web.locations.show', [$household, $shelf->location_id]));
     }
 
-    public function destroy(Household $household, Shelf $shelf, Product $product): RedirectResponse
+    public function destroy(Request $request, Household $household, Shelf $shelf, Product $product): RedirectResponse
     {
         // Mint a batch-of-one server-side (the web UI has no client to supply
         // one) so a solo product delete is restorable via the same
         // batch-keyed restore surface as a shelf/location delete — see the
         // API's ProductController::destroy for the full reasoning. Image
         // cleanup on delete is still deliberately NOT done here — see there too.
+        // deleted_by records the acting user so they can restore THIS batch
+        // themselves even without restructure — see HouseholdPolicy::restoreBatch.
+        $deletedBy = (int) $request->user()->getKey();
         $batchId = (string) Str::uuid();
-        $product->newQuery()->whereKey($product->getKey())->update(['deletion_batch_id' => $batchId]);
+        $product->newQuery()->whereKey($product->getKey())->update([
+            'deletion_batch_id' => $batchId,
+            'deleted_by' => $deletedBy,
+        ]);
         $product->delete();
 
         // Web parity T4: see WebLocationController::destroy for the undo-flash
         // rationale. The Undo flash only renders for users who can actually
-        // restore — WebRestoreController is restructure-gated, so showing a
-        // Member an Undo button meant a bare 403 on click (audit #8).
+        // restore this batch — restructure grants it unconditionally, and a
+        // Member always owns the batch they just minted above (audit #8's fix
+        // no longer needs to hide Undo from a Member for their OWN delete).
         $redirect = $this->backToLocation($household, $shelf)->with('status', __('Product deleted.'));
-        if (Gate::allows('restructure', $household)) {
+        if (Gate::allows('restoreBatch', [$household, $deletedBy])) {
             $redirect->with('undo', ['batch' => $batchId, 'household' => (int) $household->getKey()]);
         }
 

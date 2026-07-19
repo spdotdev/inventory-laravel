@@ -115,6 +115,7 @@ class WebShelfController extends Controller
             $batchId,
             $request->strategy(),
             $request->targetShelfId(),
+            (int) $request->user()->getKey(),
         );
 
         // Web parity T4: see WebLocationController::destroy for the undo-flash rationale.

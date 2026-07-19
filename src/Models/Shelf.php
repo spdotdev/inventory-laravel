@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
  * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property int|null $deleted_by The inventory_users.id that deleted this row —
+ *                                see StorageLocation's $deleted_by docblock for the full reasoning.
  * @property int|null $restore_parent_id The location_id this shelf lived under
  *                                       before a location-delete's move_contents strategy reparented it here.
  *                                       Null unless a move is pending undo — RestoreController writes it back to
@@ -42,6 +44,7 @@ class Shelf extends Model
         'position',
         'is_system',
         'deletion_batch_id',
+        'deleted_by',
         'restore_parent_id',
     ];
 

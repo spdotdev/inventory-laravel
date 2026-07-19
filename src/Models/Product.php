@@ -22,6 +22,8 @@ use Spdotdev\Inventory\Events\HouseholdChanged;
  * @property int|null $low_stock_threshold
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property int|null $deleted_by The inventory_users.id that deleted this row —
+ *                                see StorageLocation's $deleted_by docblock for the full reasoning.
  * @property int|null $restore_parent_id The shelf_id this product lived under
  *                                       before a move_products/unsort_products strategy reassigned it. Null
  *                                       unless a move is pending undo — RestoreController writes it back to
@@ -47,6 +49,7 @@ class Product extends Model
         'quantity',
         'low_stock_threshold',
         'deletion_batch_id',
+        'deleted_by',
         'restore_parent_id',
     ];
 

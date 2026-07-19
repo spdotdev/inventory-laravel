@@ -20,6 +20,11 @@ use Spdotdev\Inventory\Enums\StorageType;
  * @property bool $is_system
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
+ * @property int|null $deleted_by The inventory_users.id that deleted this row
+ *                                (whichever gesture stamped deletion_batch_id — HierarchyDeleter or a
+ *                                controller's batch-of-one). FK-less, like the rest of this hierarchy.
+ *                                Lets HouseholdPolicy::restoreBatch grant a Member restore of a batch
+ *                                they minted themselves without granting restructure generally.
  * @property-read int|null $shelf_count Only set when the query eager-loads it
  *   via withCount('shelvesWithContents as shelf_count') (see
  *   LocationController::index()); null otherwise. LocationResource reads this
@@ -45,6 +50,7 @@ class StorageLocation extends Model
         'position',
         'is_system',
         'deletion_batch_id',
+        'deleted_by',
     ];
 
     /** @var array<string, mixed> */
