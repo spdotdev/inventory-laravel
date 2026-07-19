@@ -260,6 +260,15 @@
                 { "name": "product_id", "type": "integer", "required": true },
                 { "name": "target_shelf_id", "type": "integer", "required": true }
             ]
+        },
+        {
+            "key": "search_household",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "q", "type": "string", "required": true }
+            ]
         }
     ]
 }
