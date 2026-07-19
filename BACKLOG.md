@@ -80,6 +80,12 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Ideas — parking lot
+- 💡 Web account/profile settings page (name/email/password change), thin wrapper over
+  the same `ProfileController`/`UpdateProfileRequest`/`UpdatePasswordRequest` the API
+  uses. Added 2026-07-19 — the API-side self-service endpoints shipped this pass, but
+  no `resources/views/web` page calls them yet, which is a real gap against the
+  2026-07-18 web-parity decision ("full feature parity"), not a permanent app-only
+  exception like barcode scanning.
 - 💡 Filament admin resources for households/locations/products (Phase 2 web UI).
   *Deferred 2026-07-04, unlocked 2026-07-10 (user decision) — folded into the web
   account/household UI commitment in [`ROADMAP.md`](ROADMAP.md) → Phase 2.*
@@ -90,6 +96,68 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-19` — **A Member can restore their own soft-delete.** Restoring a batch
+  (`RestoreController`/`WebRestoreController`) was gated unconditionally on
+  `Gate::authorize('restructure', $household)`, Owner/Admin only — but a plain Member
+  can soft-delete a product with no restructure grant at all (`ProductController::
+  destroy`), so a Member who deleted something by mistake had no way to undo their own
+  action. Added a nullable `deleted_by` column (mirrors `deletion_batch_id`) to
+  `inventory_storage_locations`/`inventory_shelves`/`inventory_products`, stamped
+  everywhere `deletion_batch_id` already is — `HierarchyDeleter::deleteShelf`/
+  `deleteLocation` (new `$deletedBy` parameter, threaded through every API + web
+  controller caller) and the product batch-of-one mints in `ProductController`/
+  `WebProductController`. `Restorer::batchOwnerId()` reads it off any one row of a
+  batch (locations, shelves, or products — whichever the batch touched). New
+  `HouseholdPolicy::restoreBatch(User, Household, ?int $batchOwnerId)`: true if
+  `restructure()` is true OR the caller IS the batch owner. Both restore controllers
+  now look up the batch owner first and only invoke the gate when one was found — an
+  unknown/already-purged/already-restored batch (`$batchOwnerId === null`) falls
+  straight through to the existing `STATUS_NOTHING`/409 path instead of a 403, so
+  probing a guessed batch id can't distinguish "never existed" from "existed but isn't
+  yours" (matches the 403-vs-404 posture in `HouseholdPolicy`'s class docblock).
+  `WebProductController::destroy`'s undo-flash gate was flipped from `restructure` to
+  `restoreBatch` too — it was hiding the Undo button from the very Member who just
+  deleted their own product (audit #8's original fix hid the button instead of letting
+  the restore work). Owner/Admin restore of any batch is unchanged. Tests: extended
+  `RestoreTest`/`WebRestoreTest` (Member restores their own batch, Member is refused
+  someone else's batch with a 403, Owner still restores a Member's batch, unknown-batch
+  probing stays a 409 not a 403) and `RestructureGateCoverageTest::test_restore_is_gated`
+  (now plants a real owned batch so the `restoreBatch` gate is actually exercised, since
+  an unknown batch no longer reaches the gate at all). **Left as-is (noted, not
+  fixed)**: `resources/views/web/household.blade.php`'s "Recently deleted" section is
+  still wrapped in `@can('restructure', $household)`, so a Member still can't see or use
+  that page-level restore list for their own batches — only the inline undo-toast flash
+  works for them today. A full per-batch `can_restore` field on the batch-list resource
+  would fix it but is more than this fix strictly needs; flagged here for whoever picks
+  up the "Recently deleted" UI next.
+- ✅ `2026-07-19` — **Admin listing pagination + self-service account management** (fresh
+  audit, 2 medium gaps). `AdminController::listUsers`/`listHouseholds` ran unbounded
+  `->get()` over the whole table; capped both at 50 with `->limit(50)`, matching the
+  existing convention already used by `searchUsers`/`SearchController`/
+  `WebSearchController` rather than introducing pagination metadata as a new shape.
+  Separately, no endpoint let an authenticated user manage their own account — only the
+  enumeration-safe forgot-password email flow existed. Added `ProfileController`
+  (`GET/PATCH /api/v1/me`, `PATCH /api/v1/me/password`) behind `auth:sanctum`, with
+  `UpdateProfileRequest` (name/email, email uniqueness excludes self, same
+  lowercase-normalization as `RegisterRequest`/`LoginRequest`) and
+  `UpdatePasswordRequest` (requires `current_password` verified via `Hash::check`
+  before the new password is accepted; the `User::password` `hashed` cast hashes it on
+  assignment). Tests: `AdminApiTest` (pagination cap on both endpoints) + new
+  `ProfileTest` (update own name/email, resubmitting own unchanged email, rejecting
+  another user's email, 401 unauthenticated, correct/wrong current-password on password
+  change). **Web-side scoped out**: no self-service account/profile page exists yet in
+  `resources/views/web`; per the 2026-07-18 web-parity decision this is a real gap
+  against "full feature parity," logged as an idea below rather than done silently.
+- ✅ `2026-07-19` — **Admin API rate limiting + stale docblock.** `/api/v1/admin/*` (the
+  static-bearer-token surface) was the only credential/abuse-prone route group in
+  `routes/api.php` with no throttle at all — auth/join/errors all had one. Added a new
+  `inventory-admin` limiter (`InventoryServiceProvider::registerRateLimiters`, IP-keyed
+  since the bearer token has no per-identity concept), config knob
+  `inventory.rate_limits.admin_per_ip` (env `INVENTORY_RL_ADMIN_IP`, default 60/min),
+  applied via `throttle:inventory-admin` alongside the existing `inventory.admin`
+  middleware. Test: `RateLimitTest::test_admin_api_throttles_per_ip`. Also fixed
+  `HouseholdPolicy::delete()`'s stale docblock claiming it was "not yet wired to a
+  route" — it has been since `HouseholdController::destroy()`.
 - ✅ `2026-07-11` — **Live updates on the web UI.** The Blade household + location pages
   now subscribe to the same private `inventory.household.{id}` Reverb channel as the
   Android client, via a dependency-free vanilla Pusher-protocol `<script>` partial
