@@ -165,6 +165,101 @@
                 { "name": "target_shelf_id", "type": "integer", "required": false },
                 { "name": "deletion_batch_id", "type": "string", "required": false }
             ]
+        },
+        {
+            "key": "list_products",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "get_product",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "product_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "create_product",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": true },
+                { "name": "description", "type": "string", "required": false },
+                { "name": "code", "type": "string", "required": false },
+                { "name": "is_mandatory", "type": "boolean", "required": false },
+                { "name": "is_starred", "type": "boolean", "required": false },
+                { "name": "quantity", "type": "integer", "required": false },
+                { "name": "low_stock_threshold", "type": "integer", "required": false }
+            ]
+        },
+        {
+            "key": "update_product",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "product_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": false },
+                { "name": "description", "type": "string", "required": false },
+                { "name": "code", "type": "string", "required": false },
+                { "name": "is_mandatory", "type": "boolean", "required": false },
+                { "name": "is_starred", "type": "boolean", "required": false },
+                { "name": "quantity", "type": "integer", "required": false },
+                { "name": "low_stock_threshold", "type": "integer", "required": false }
+            ]
+        },
+        {
+            "key": "delete_product",
+            "scope": "household",
+            "destructive": true,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "product_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "add_product_quantity",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "product_id", "type": "integer", "required": true },
+                { "name": "amount", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "remove_product_quantity",
+            "scope": "household",
+            "destructive": true,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "product_id", "type": "integer", "required": true },
+                { "name": "amount", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "move_product",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "product_id", "type": "integer", "required": true },
+                { "name": "target_shelf_id", "type": "integer", "required": true }
+            ]
         }
     ]
 }

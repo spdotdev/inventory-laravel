@@ -111,13 +111,17 @@ class McpToolManifestTest extends TestCase
     {
         // laravel/mcp v0.8 has no destructive/read-only tool annotations, so the
         // embedded side can't express hints; the manifest's destructive flags are
-        // validated structurally here (every delete_* tool and nothing else) and
-        // against real annotations by the standalone server's conformance test.
+        // validated structurally here (every delete_* tool, plus any explicitly
+        // allow-listed non-delete tool whose real-world effect is destructive —
+        // e.g. it can zero out/remove a resource's presence) and against real
+        // annotations by the standalone server's conformance test.
+        $nonDeleteDestructive = ['remove_product_quantity'];
+
         foreach ($this->manifestTools() as $key => $tool) {
             $this->assertSame(
-                str_starts_with($key, 'delete_'),
+                str_starts_with($key, 'delete_') || in_array($key, $nonDeleteDestructive, true),
                 $tool['destructive'],
-                "Manifest destructive flag for '{$key}' doesn't match its delete_* naming.",
+                "Manifest destructive flag for '{$key}' doesn't match its delete_*/allow-listed naming.",
             );
         }
     }
