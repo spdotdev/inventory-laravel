@@ -11,6 +11,7 @@ use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
 use Spdotdev\Inventory\Http\Controllers\Api\MemberController;
 use Spdotdev\Inventory\Http\Controllers\Api\ProductController;
+use Spdotdev\Inventory\Http\Controllers\Api\ProfileController;
 use Spdotdev\Inventory\Http\Controllers\Api\RestoreController;
 use Spdotdev\Inventory\Http\Controllers\Api\SearchController;
 use Spdotdev\Inventory\Http\Controllers\Api\ShelfController;
@@ -31,7 +32,7 @@ Route::domain(config('inventory.domain'))
 
         // Admin API — protected by a static bearer token (INVENTORY_ADMIN_TOKEN).
         // Not tied to Sanctum user auth; intended for MCP / operator access only.
-        Route::middleware('inventory.admin')->prefix('admin')->group(function () {
+        Route::middleware(['inventory.admin', 'throttle:inventory-admin'])->prefix('admin')->group(function () {
             Route::get('users', [AdminController::class, 'listUsers']);
             Route::get('users/search', [AdminController::class, 'searchUsers']);
             Route::get('users/{id}', [AdminController::class, 'getUser']);
@@ -57,6 +58,12 @@ Route::domain(config('inventory.domain'))
         });
 
         Route::middleware('auth:sanctum')->group(function () {
+            // Self-service account management for the caller — distinct from
+            // the operator-only /admin surface above.
+            Route::get('me', [ProfileController::class, 'show'])->name('inventory.api.me.show');
+            Route::patch('me', [ProfileController::class, 'update'])->name('inventory.api.me.update');
+            Route::patch('me/password', [ProfileController::class, 'updatePassword'])->name('inventory.api.me.password');
+
             Route::get('households', [HouseholdController::class, 'index'])->name('inventory.api.households.index');
             Route::post('households', [HouseholdController::class, 'store'])->name('inventory.api.households.store');
             // Defined before the {household} routes so "join" isn't captured as an id.

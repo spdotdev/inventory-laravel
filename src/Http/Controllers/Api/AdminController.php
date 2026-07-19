@@ -15,9 +15,13 @@ class AdminController
 
     public function listUsers(): JsonResponse
     {
+        // Capped like searchUsers/SearchController/WebSearchController elsewhere
+        // in the codebase — an unbounded ->get() over the whole table doesn't
+        // scale and this is the existing pagination convention, not a new one.
         $users = User::query()
             ->withCount('households')
             ->orderBy('created_at', 'desc')
+            ->limit(50)
             ->get()
             ->map(fn (User $u) => $this->userPayload($u));
 
@@ -72,9 +76,11 @@ class AdminController
 
     public function listHouseholds(): JsonResponse
     {
+        // Same cap/convention as listUsers above.
         $households = Household::query()
             ->withCount(['users', 'locations', 'shelves'])
             ->orderBy('created_at', 'desc')
+            ->limit(50)
             ->get()
             ->map(fn (Household $h) => $this->householdPayload($h));
 

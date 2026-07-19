@@ -63,6 +63,32 @@ class AdminApiTest extends TestCase
             ->assertJsonPath('data.0.email', 'stan@example.test');
     }
 
+    /**
+     * Audit gap: listUsers/listHouseholds ran an unbounded ->get() over the
+     * whole table. Capped at 50, same convention as searchUsers.
+     */
+    public function test_listing_users_is_capped(): void
+    {
+        for ($i = 0; $i < 55; $i++) {
+            User::create(['name' => "U{$i}", 'email' => "u{$i}@example.test", 'password' => 'secret-password']);
+        }
+
+        $response = $this->getJson("{$this->base}/users", $this->auth())->assertOk();
+
+        $this->assertCount(50, $response->json('data'));
+    }
+
+    public function test_listing_households_is_capped(): void
+    {
+        for ($i = 0; $i < 55; $i++) {
+            Household::create(['name' => "H{$i}", 'join_code' => sprintf('AAAA-%04d', $i)]);
+        }
+
+        $response = $this->getJson("{$this->base}/households", $this->auth())->assertOk();
+
+        $this->assertCount(50, $response->json('data'));
+    }
+
     public function test_deleting_a_household_cascades_to_its_tree(): void
     {
         $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
