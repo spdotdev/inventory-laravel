@@ -19,7 +19,7 @@ use Spdotdev\Inventory\Tests\TestCase;
  */
 class McpToolManifestTest extends TestCase
 {
-    /** @return array<string, array{destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}> */
+    /** @return array<string, array{scope: string, destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}> */
     private function manifestTools(): array
     {
         $path = dirname(__DIR__, 2).'/docs/specs/mcp-tools.json';
@@ -31,12 +31,27 @@ class McpToolManifestTest extends TestCase
         $tools = [];
         foreach ($manifest['tools'] as $tool) {
             $tools[$tool['key']] = [
+                'scope' => $tool['scope'] ?? 'admin',
                 'destructive' => $tool['destructive'],
                 'params' => $tool['params'],
             ];
         }
 
         return $tools;
+    }
+
+    /**
+     * The embedded server is protected only by the static admin token — it has
+     * no per-user auth context, so 'household' scoped tools (personal Sanctum
+     * token, standalone stdio server only) are exempt from the 1:1 equality
+     * check below.
+     *
+     * @param array<string, array{scope: string, destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}> $tools
+     * @return array<string, array{scope: string, destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}>
+     */
+    private function adminScoped(array $tools): array
+    {
+        return array_filter($tools, fn (array $tool): bool => $tool['scope'] === 'admin');
     }
 
     /** @return array<string, array{params: array<int, array{name: string, type: string, required: bool}>}> */
@@ -74,7 +89,7 @@ class McpToolManifestTest extends TestCase
 
     public function test_embedded_tool_surface_matches_the_manifest(): void
     {
-        $manifest = $this->manifestTools();
+        $manifest = $this->adminScoped($this->manifestTools());
         $server = $this->serverTools();
 
         $this->assertSame(

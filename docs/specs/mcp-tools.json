@@ -1,14 +1,16 @@
 {
-    "comment": "Canonical machine-readable manifest of the Inventory admin MCP tool surface. Two servers must expose exactly these tools: the EMBEDDED HTTP server (this repo, src/Mcp/, wire names kebab-case with a -tool suffix, e.g. list-users-tool) and the STANDALONE stdio server (https://github.com/spdotdev/inventory-mcp, wire names snake_case, e.g. list_users). 'key' is the normalized logical name: strip the -tool suffix, kebab -> snake. Guards: tests/Feature/McpToolManifestTest.php (this repo) and the conformance test in inventory-mcp CI. Change this file and both guards together when the surface grows.",
-    "version": 1,
+    "comment": "Canonical machine-readable manifest of the Inventory MCP tool surface. 'scope' is 'admin' (static admin-token auth, mirrored 1:1 by the EMBEDDED HTTP server in this repo, src/Mcp/, wire names kebab-case with a -tool suffix, e.g. list-users-tool) or 'household' (personal Sanctum-token auth, standalone stdio server only — the embedded server has no per-user auth context to run these against). The STANDALONE stdio server (https://github.com/spdotdev/inventory-mcp) implements both scopes, wire names snake_case, e.g. list_users. 'key' is the normalized logical name: strip the -tool suffix, kebab -> snake. Guards: tests/Feature/McpToolManifestTest.php (this repo, admin-scope tools only) and the conformance test in inventory-mcp CI (all tools). Change this file and both guards together when the surface grows.",
+    "version": 2,
     "tools": [
         {
             "key": "list_users",
+            "scope": "admin",
             "destructive": false,
             "params": []
         },
         {
             "key": "search_users",
+            "scope": "admin",
             "destructive": false,
             "params": [
                 { "name": "q", "type": "string", "required": true }
@@ -16,6 +18,7 @@
         },
         {
             "key": "get_user",
+            "scope": "admin",
             "destructive": false,
             "params": [
                 { "name": "id", "type": "integer", "required": true }
@@ -23,6 +26,7 @@
         },
         {
             "key": "delete_user",
+            "scope": "admin",
             "destructive": true,
             "params": [
                 { "name": "id", "type": "integer", "required": true }
@@ -30,11 +34,13 @@
         },
         {
             "key": "list_households",
+            "scope": "admin",
             "destructive": false,
             "params": []
         },
         {
             "key": "get_household",
+            "scope": "admin",
             "destructive": false,
             "params": [
                 { "name": "id", "type": "integer", "required": true }
@@ -42,10 +48,17 @@
         },
         {
             "key": "delete_household",
+            "scope": "admin",
             "destructive": true,
             "params": [
                 { "name": "id", "type": "integer", "required": true }
             ]
+        },
+        {
+            "key": "list_my_households",
+            "scope": "household",
+            "destructive": false,
+            "params": []
         }
     ]
 }
