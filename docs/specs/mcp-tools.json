@@ -61,6 +61,102 @@
             "params": []
         },
         {
+            "key": "create_household",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "name", "type": "string", "required": true }
+            ]
+        },
+        {
+            "key": "update_household",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": false },
+                { "name": "color", "required": false },
+                { "name": "icon", "required": false }
+            ]
+        },
+        {
+            "key": "join_household",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "code", "type": "string", "required": true }
+            ]
+        },
+        {
+            "key": "leave_household",
+            "scope": "household",
+            "destructive": true,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "list_members",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "get_household_invite",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "update_member_role",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "user_id", "type": "integer", "required": true },
+                { "name": "role", "type": "string", "required": true }
+            ]
+        },
+        {
+            "key": "remove_member",
+            "scope": "household",
+            "destructive": true,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "user_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "transfer_ownership",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "user_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "list_deleted",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "restore_batch",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "batch", "type": "string", "required": true }
+            ]
+        },
+        {
             "key": "list_locations",
             "scope": "household",
             "destructive": false,
@@ -108,6 +204,15 @@
                 { "name": "strategy", "type": "string", "required": false },
                 { "name": "target_location_id", "type": "integer", "required": false },
                 { "name": "deletion_batch_id", "type": "string", "required": false }
+            ]
+        },
+        {
+            "key": "reorder_locations",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "ids", "type": "array", "required": true }
             ]
         },
         {
@@ -164,6 +269,16 @@
                 { "name": "strategy", "type": "string", "required": false },
                 { "name": "target_shelf_id", "type": "integer", "required": false },
                 { "name": "deletion_batch_id", "type": "string", "required": false }
+            ]
+        },
+        {
+            "key": "reorder_shelves",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "ids", "type": "array", "required": true }
             ]
         },
         {

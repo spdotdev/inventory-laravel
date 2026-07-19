@@ -46,7 +46,7 @@ class McpToolManifestTest extends TestCase
      * token, standalone stdio server only) are exempt from the 1:1 equality
      * check below.
      *
-     * @param array<string, array{scope: string, destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}> $tools
+     * @param  array<string, array{scope: string, destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}>  $tools
      * @return array<string, array{scope: string, destructive: bool, params: array<int, array{name: string, type: string, required: bool}>}>
      */
     private function adminScoped(array $tools): array
@@ -115,7 +115,7 @@ class McpToolManifestTest extends TestCase
         // allow-listed non-delete tool whose real-world effect is destructive —
         // e.g. it can zero out/remove a resource's presence) and against real
         // annotations by the standalone server's conformance test.
-        $nonDeleteDestructive = ['remove_product_quantity'];
+        $nonDeleteDestructive = ['remove_product_quantity', 'leave_household', 'remove_member'];
 
         foreach ($this->manifestTools() as $key => $tool) {
             $this->assertSame(
