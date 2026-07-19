@@ -141,4 +141,47 @@ class AdminApiTest extends TestCase
         // The household itself is shared, so it survives losing one member.
         $this->assertDatabaseHas('inventory_households', ['id' => $household->id]);
     }
+
+    /**
+     * Audit gap: deleteUser relied solely on cascadeOnDelete and never healed
+     * the single-Owner invariant that HouseholdController::leave() enforces
+     * (it 409s a sole owner rather than let them leave ownerless). Deleting an
+     * Owner through the admin API must promote another member in their place.
+     */
+    public function test_deleting_the_sole_owner_promotes_another_member(): void
+    {
+        $owner = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $member = User::create(['name' => 'Alex', 'email' => 'alex@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+        $household->users()->attach($member->getKey(), ['joined_at' => now(), 'role' => 'member']);
+
+        $this->deleteJson("{$this->base}/users/{$owner->id}", [], $this->auth())->assertOk();
+
+        $this->assertDatabaseMissing('inventory_users', ['id' => $owner->id]);
+        $this->assertDatabaseHas('inventory_households', ['id' => $household->id]);
+        $this->assertDatabaseHas('inventory_household_user', [
+            'household_id' => $household->id,
+            'user_id' => $member->id,
+            'role' => 'owner',
+        ]);
+    }
+
+    /**
+     * Audit gap (same as above): when the deleted Owner was the household's
+     * only member, there's no one left to promote — the household would
+     * otherwise survive ownerless and unreachable, exactly the state
+     * HouseholdController::leave()'s last-member cleanup exists to prevent.
+     */
+    public function test_deleting_the_sole_owner_of_a_single_member_household_deletes_it(): void
+    {
+        $owner = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($owner->getKey(), ['joined_at' => now(), 'role' => 'owner']);
+
+        $this->deleteJson("{$this->base}/users/{$owner->id}", [], $this->auth())->assertOk();
+
+        $this->assertDatabaseMissing('inventory_users', ['id' => $owner->id]);
+        $this->assertDatabaseMissing('inventory_households', ['id' => $household->id]);
+    }
 }

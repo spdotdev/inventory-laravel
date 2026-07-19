@@ -96,6 +96,25 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-19` — **Admin `deleteUser` now heals the single-Owner invariant.**
+  Gap audit: `AdminController::deleteUser` relied solely on the pivot's
+  `cascadeOnDelete` and never ran the "household needs at least one Owner"
+  logic that `HouseholdController::leave()` enforces (it 409s a sole Owner
+  rather than let them leave ownerless) — deleting a household's sole Owner (or
+  last member) through `/api/v1/admin/*` could leave a household with zero
+  owners, or an orphaned zero-member household that's never cleaned up. Fixed:
+  for each household the deleted user owned, promote the earliest-joined
+  remaining member to Owner, or delete the household outright if they were the
+  sole member (mirrors `leave()`'s last-member cleanup). Two new regression
+  tests (`test_deleting_the_sole_owner_promotes_another_member`,
+  `test_deleting_the_sole_owner_of_a_single_member_household_deletes_it`); all
+  403 tests + Pint + Larastan green. (The audit's other two findings —
+  `deleteHousehold` hard-deleting vs. the soft-delete/batch posture, and
+  `ShelfRequest`'s unscoped `location_id` validation — turned out to be
+  non-issues: `HouseholdController::destroy()` itself hard-deletes households
+  too, so admin is already consistent, and the `ShelfRequest` gap is an
+  already-documented, deliberate tradeoff — a Form Request can't see the
+  household to scope a `Rule::exists` against, and the controller enforces it.)
 - ✅ `2026-07-19` — **Fixed a fail-open in the restore-permission fix, same day it
   shipped** (caught by post-commit security review). `Restorer::batchOwnerId()`
   only reads `deleted_by` off rows where it's non-null, so a batch soft-deleted

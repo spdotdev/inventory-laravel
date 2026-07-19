@@ -46,7 +46,31 @@ class AdminController
 
     public function deleteUser(int $id): JsonResponse
     {
-        $user = User::query()->findOrFail($id);
+        $user = User::query()->with('households')->findOrFail($id);
+
+        // Deleting a user detaches them from every household via the pivot's
+        // cascadeOnDelete, unlike HouseholdController::leave() this has no
+        // "transfer ownership first" gate to lean on. Heal the single-Owner
+        // invariant per household the same way leave()'s last-member cleanup
+        // does: promote another member, or if this was the sole member, the
+        // household would otherwise survive ownerless and unreachable.
+        foreach ($user->households as $household) {
+            if ($household->roleOf($user) !== 'owner') {
+                continue;
+            }
+
+            $nextOwner = $household->users()
+                ->where('inventory_household_user.user_id', '!=', $user->getKey())
+                ->orderBy('inventory_household_user.joined_at')
+                ->first();
+
+            if ($nextOwner) {
+                $household->users()->updateExistingPivot($nextOwner->getKey(), ['role' => 'owner']);
+            } else {
+                $household->delete();
+            }
+        }
+
         $user->delete();
 
         return response()->json(['message' => "User {$id} deleted."]);
