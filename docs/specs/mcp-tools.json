@@ -59,6 +59,56 @@
             "scope": "household",
             "destructive": false,
             "params": []
+        },
+        {
+            "key": "list_locations",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "get_location",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "create_location",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": true },
+                { "name": "type", "type": "string", "required": true }
+            ]
+        },
+        {
+            "key": "update_location",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": false },
+                { "name": "type", "type": "string", "required": false }
+            ]
+        },
+        {
+            "key": "delete_location",
+            "scope": "household",
+            "destructive": true,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "strategy", "type": "string", "required": false },
+                { "name": "target_location_id", "type": "integer", "required": false },
+                { "name": "deletion_batch_id", "type": "string", "required": false }
+            ]
         }
     ]
 }
