@@ -79,6 +79,10 @@ return [
         // POST /errors (unauthenticated crash intake), keyed by device_id + IP,
         // to stop a single client flooding the inventory_client_errors table.
         'errors_per_device' => (int) env('INVENTORY_RL_ERRORS_DEVICE', 20),
+        // /api/v1/admin/* (static bearer token, not Sanctum), keyed by IP — the
+        // token has no per-identity concept, so this is the only layer possible;
+        // it guards against brute-forcing a leaked/weak INVENTORY_ADMIN_TOKEN.
+        'admin_per_ip' => (int) env('INVENTORY_RL_ADMIN_IP', 60),
     ],
 
     /*

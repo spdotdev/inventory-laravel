@@ -287,5 +287,14 @@ class InventoryServiceProvider extends ServiceProvider
 
             return Limit::perMinute($perDevice)->by('errors|'.($device !== '' ? $device : $ip).'|'.$ip);
         });
+
+        RateLimiter::for('inventory-admin', function (Request $request) {
+            $perIp = (int) $this->app['config']->get('inventory.rate_limits.admin_per_ip');
+            if ($perIp <= 0) {
+                return Limit::none();
+            }
+
+            return Limit::perMinute($perIp)->by('admin|'.(string) $request->ip());
+        });
     }
 }

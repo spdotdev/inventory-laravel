@@ -102,4 +102,18 @@ class RateLimitTest extends TestCase
         Sanctum::actingAs($bob);
         $this->postJson('http://inventory.test/api/v1/households/join', ['code' => 'JOIN-CODE'])->assertOk();
     }
+
+    public function test_admin_api_throttles_per_ip(): void
+    {
+        config()->set('inventory.rate_limits.admin_per_ip', 2);
+        config()->set('inventory.admin_token', 'super-secret-admin-token');
+
+        $headers = ['Authorization' => 'Bearer super-secret-admin-token'];
+
+        for ($i = 0; $i < 2; $i++) {
+            $this->getJson('http://inventory.test/api/v1/admin/users', $headers)->assertOk();
+        }
+
+        $this->getJson('http://inventory.test/api/v1/admin/users', $headers)->assertStatus(429);
+    }
 }
