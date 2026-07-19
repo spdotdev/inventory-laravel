@@ -109,6 +109,62 @@
                 { "name": "target_location_id", "type": "integer", "required": false },
                 { "name": "deletion_batch_id", "type": "string", "required": false }
             ]
+        },
+        {
+            "key": "list_shelves",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "get_shelf",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true }
+            ]
+        },
+        {
+            "key": "create_shelf",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": true },
+                { "name": "position", "type": "integer", "required": false }
+            ]
+        },
+        {
+            "key": "update_shelf",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "name", "type": "string", "required": false },
+                { "name": "position", "type": "integer", "required": false },
+                { "name": "new_location_id", "type": "integer", "required": false }
+            ]
+        },
+        {
+            "key": "delete_shelf",
+            "scope": "household",
+            "destructive": true,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "location_id", "type": "integer", "required": true },
+                { "name": "shelf_id", "type": "integer", "required": true },
+                { "name": "strategy", "type": "string", "required": false },
+                { "name": "target_shelf_id", "type": "integer", "required": false },
+                { "name": "deletion_batch_id", "type": "string", "required": false }
+            ]
         }
     ]
 }
