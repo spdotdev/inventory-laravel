@@ -109,4 +109,39 @@ class StoreAppReleaseRequestTest extends TestCase
         $this->assertTrue($validator->fails());
         $this->assertArrayHasKey('min_supported_version_code', $validator->errors()->toArray());
     }
+
+    // Exercises the $existing->min_supported_version_code fallback branch specifically:
+    // the payload omits min_supported_version_code entirely, so $hasMin must be derived
+    // from the existing record rather than from request input.
+    public function test_update_rejects_is_breaking_false_when_existing_min_supported_version_code_is_set(): void
+    {
+        $existing = AppRelease::create([
+            'version_code' => 21,
+            'version_name' => '0.1.20',
+            'is_breaking' => true,
+            'min_supported_version_code' => 20,
+            'changelog' => 'existing',
+            'download_url' => 'https://example.test/existing.apk',
+            'published_at' => now(),
+        ]);
+
+        $data = [
+            'is_breaking' => false,
+        ];
+
+        $request = UpdateAppReleaseRequest::create('/', 'PATCH', $data);
+        $request->setRouteResolver(function () use ($existing, $request) {
+            $route = new Route('PATCH', '/', []);
+            $route->bind($request);
+            $route->setParameter('appRelease', $existing);
+
+            return $route;
+        });
+
+        $validator = Validator::make($data, $request->rules());
+        $request->withValidator($validator);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('min_supported_version_code', $validator->errors()->toArray());
+    }
 }
