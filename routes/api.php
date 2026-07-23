@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Spdotdev\Inventory\Http\Controllers\Api\AdminController;
+use Spdotdev\Inventory\Http\Controllers\Api\AppReleaseController;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
 use Spdotdev\Inventory\Http\Controllers\Api\ClientErrorController;
 use Spdotdev\Inventory\Http\Controllers\Api\DeletedBatchController;
@@ -24,6 +25,9 @@ Route::domain(config('inventory.domain'))
     ->middleware('api')
     ->group(function () {
         Route::get('/health', HealthController::class)->name('inventory.api.health');
+        // Public app-version check — the Android client polls this, unauthenticated,
+        // to learn about the latest published release (in-app update nudge).
+        Route::get('/app-version', [AppReleaseController::class, 'latest'])->name('inventory.api.app-version');
         // Unauthenticated crash intake — throttled per device+IP so it can't flood
         // the inventory_client_errors table (pruned by inventory:client-errors:prune).
         Route::post('/errors', ClientErrorController::class)
@@ -41,6 +45,10 @@ Route::domain(config('inventory.domain'))
             Route::get('households', [AdminController::class, 'listHouseholds']);
             Route::get('households/{id}', [AdminController::class, 'getHousehold']);
             Route::delete('households/{id}', [AdminController::class, 'deleteHousehold']);
+
+            Route::get('app-releases', [AppReleaseController::class, 'index']);
+            Route::post('app-releases', [AppReleaseController::class, 'store']);
+            Route::patch('app-releases/{appRelease}', [AppReleaseController::class, 'update']);
         });
 
         Route::prefix('auth')->group(function () {
