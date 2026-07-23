@@ -3,6 +3,9 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Validator;
+use Spdotdev\Inventory\Http\Requests\UpdateAppReleaseRequest;
 use Spdotdev\Inventory\Models\AppRelease;
 use Spdotdev\Inventory\Tests\TestCase;
 
@@ -69,5 +72,41 @@ class StoreAppReleaseRequestTest extends TestCase
         ], $this->auth())
             ->assertStatus(422)
             ->assertJsonValidationErrors('version_code');
+    }
+
+    // No admin app-releases PATCH route exists yet (Task 3 hasn't landed), so this
+    // exercises UpdateAppReleaseRequest's validation logic directly rather than via
+    // a live route.
+    public function test_update_rejects_min_supported_version_code_when_effective_is_breaking_false(): void
+    {
+        $existing = AppRelease::create([
+            'version_code' => 21,
+            'version_name' => '0.1.20',
+            'is_breaking' => true,
+            'min_supported_version_code' => 20,
+            'changelog' => 'existing',
+            'download_url' => 'https://example.test/existing.apk',
+            'published_at' => now(),
+        ]);
+
+        $data = [
+            'is_breaking' => false,
+            'min_supported_version_code' => 5,
+        ];
+
+        $request = UpdateAppReleaseRequest::create('/', 'PATCH', $data);
+        $request->setRouteResolver(function () use ($existing, $request) {
+            $route = new Route('PATCH', '/', []);
+            $route->bind($request);
+            $route->setParameter('appRelease', $existing);
+
+            return $route;
+        });
+
+        $validator = Validator::make($data, $request->rules());
+        $request->withValidator($validator);
+
+        $this->assertTrue($validator->fails());
+        $this->assertArrayHasKey('min_supported_version_code', $validator->errors()->toArray());
     }
 }

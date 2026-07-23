@@ -50,6 +50,13 @@ class UpdateAppReleaseRequest extends FormRequest
                     'min_supported_version_code is required when is_breaking is true.',
                 );
             }
+
+            if (! $isBreaking && $hasMin) {
+                $validator->errors()->add(
+                    'min_supported_version_code',
+                    'min_supported_version_code must be omitted when is_breaking is false.',
+                );
+            }
         });
     }
 }
