@@ -61,17 +61,21 @@ class HouseholdController
         // Idempotent: joining a household you're already in is a no-op. New
         // joiners land as 'member' (the pivot column default) — never a role
         // parameter from the request.
+        $wasAlreadyMember = $household->users()->whereKey($user->getKey())->exists();
+
         $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now()]]);
 
-        ActivityLog::record(
-            (int) $household->getKey(),
-            (int) $user->getKey(),
-            'member.added',
-            'HouseholdUserPivot',
-            (int) $user->getKey(),
-            $user->name,
-            null,
-        );
+        if (! $wasAlreadyMember) {
+            ActivityLog::record(
+                (int) $household->getKey(),
+                (int) $user->getKey(),
+                'member.added',
+                'HouseholdUserPivot',
+                (int) $user->getKey(),
+                $user->name,
+                null,
+            );
+        }
 
         // Heal an owner-less household (single-Owner invariant): normally
         // impossible, but the artisan command can create a household with no

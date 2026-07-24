@@ -77,6 +77,25 @@ class ActivityLogManualCaptureTest extends TestCase
         $this->assertDatabaseHas('inventory_activity_log', ['action' => 'member.added', 'actor_id' => $joiner->getKey()]);
     }
 
+    public function test_rejoining_a_household_does_not_log_a_second_member_added(): void
+    {
+        [$household, ] = $this->ownedHousehold();
+        $joiner = $this->makeUser();
+
+        $this->actingAs($joiner)
+            ->postJson('http://inventory.test/api/v1/households/join', ['code' => $household->join_code])
+            ->assertOk();
+
+        $this->actingAs($joiner)
+            ->postJson('http://inventory.test/api/v1/households/join', ['code' => $household->join_code])
+            ->assertOk();
+
+        $this->assertSame(
+            1,
+            ActivityLogEntry::where('action', 'member.added')->where('actor_id', $joiner->getKey())->count(),
+        );
+    }
+
     public function test_transferring_ownership_logs_household_ownership_transferred(): void
     {
         [$household, $owner] = $this->ownedHousehold();
