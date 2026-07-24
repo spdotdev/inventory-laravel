@@ -96,6 +96,17 @@ demand, keep the landing page marketing-only.
 ---
 
 ## Done
+- ✅ `2026-07-24` — **Household activity/audit log (MCP-only).** Immutable
+  `inventory_activity_log` trail of household/location/shelf/product
+  create/update/delete + member add/remove/role-change/ownership-transfer,
+  captured automatically via `RecordActivityLog` (mirroring
+  `BroadcastHouseholdChange`'s registration) plus explicit
+  `ActivityLog::record()` calls at the handful of sites that bypass Eloquent
+  events. Two read-only surfaces, both MCP-only (no Android/web UI):
+  `GET /admin/activity` (cross-household, admin token) and
+  `GET /households/{household}/activity` (any member, Sanctum). Kept forever,
+  no prune job. Spec:
+  `docs/superpowers/specs/2026-07-24-household-activity-log-design.md`.
 - ✅ `2026-07-19` — **Admin `deleteUser` now heals the single-Owner invariant.**
   Gap audit: `AdminController::deleteUser` relied solely on the pivot's
   `cascadeOnDelete` and never ran the "household needs at least one Owner"
