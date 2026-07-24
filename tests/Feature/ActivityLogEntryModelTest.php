@@ -24,7 +24,10 @@ class ActivityLogEntryModelTest extends TestCase
 
         $fresh = ActivityLogEntry::find($entry->id);
 
-        $this->assertSame(['quantity' => ['from' => 3, 'to' => 0]], $fresh->changes);
+        // assertEquals, not assertSame: MySQL's JSON column type doesn't
+        // preserve object key insertion order the way SQLite does, so the
+        // decoded array's key order isn't guaranteed - only the values matter.
+        $this->assertEquals(['quantity' => ['from' => 3, 'to' => 0]], $fresh->changes);
         $this->assertNotNull($fresh->created_at);
         $this->assertArrayNotHasKey('updated_at', $fresh->getAttributes());
     }

@@ -51,7 +51,10 @@ class RecordActivityLogObserverTest extends TestCase
 
         $entry = ActivityLogEntry::where('action', 'product.updated')->firstOrFail();
         $this->assertSame('Milk', $entry->subject_label);
-        $this->assertSame(['from' => 3, 'to' => 0], $entry->changes['quantity']);
+        // assertEquals, not assertSame: MySQL's JSON column type doesn't
+        // preserve object key insertion order the way SQLite does, so the
+        // decoded array's key order isn't guaranteed - only the values matter.
+        $this->assertEquals(['from' => 3, 'to' => 0], $entry->changes['quantity']);
     }
 
     public function test_deleting_a_shelf_via_eloquent_logs_shelf_deleted(): void

@@ -50,7 +50,10 @@ class ActivityLogManualCaptureTest extends TestCase
 
         $entry = ActivityLogEntry::where('action', 'member.role_changed')->firstOrFail();
         $this->assertSame((int) $owner->getKey(), $entry->actor_id);
-        $this->assertSame(['from' => 'member', 'to' => 'admin'], $entry->changes['role']);
+        // assertEquals, not assertSame: MySQL's JSON column type doesn't
+        // preserve object key insertion order the way SQLite does, so the
+        // decoded array's key order isn't guaranteed - only the values matter.
+        $this->assertEquals(['from' => 'member', 'to' => 'admin'], $entry->changes['role']);
     }
 
     public function test_removing_a_member_logs_member_removed(): void
@@ -121,7 +124,8 @@ class ActivityLogManualCaptureTest extends TestCase
         $product->addStock(2, 10);
 
         $entry = ActivityLogEntry::where('action', 'product.stock_added')->firstOrFail();
-        $this->assertSame(['from' => 0, 'to' => 2], $entry->changes['quantity']);
+        // assertEquals, not assertSame - see the note in the role_changed test above.
+        $this->assertEquals(['from' => 0, 'to' => 2], $entry->changes['quantity']);
     }
 
     public function test_cascading_shelf_delete_logs_one_summarized_batch_entry(): void
