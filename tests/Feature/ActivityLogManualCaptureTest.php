@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Spdotdev\Inventory\Enums\ShelfDeleteStrategy;
 use Spdotdev\Inventory\Enums\StorageType;
 use Spdotdev\Inventory\Models\ActivityLogEntry;
@@ -67,7 +68,7 @@ class ActivityLogManualCaptureTest extends TestCase
 
     public function test_joining_a_household_logs_member_added(): void
     {
-        [$household, ] = $this->ownedHousehold();
+        [$household] = $this->ownedHousehold();
         $joiner = $this->makeUser();
 
         $this->actingAs($joiner)
@@ -79,7 +80,7 @@ class ActivityLogManualCaptureTest extends TestCase
 
     public function test_rejoining_a_household_does_not_log_a_second_member_added(): void
     {
-        [$household, ] = $this->ownedHousehold();
+        [$household] = $this->ownedHousehold();
         $joiner = $this->makeUser();
 
         $this->actingAs($joiner)
@@ -131,7 +132,7 @@ class ActivityLogManualCaptureTest extends TestCase
         Product::create(['shelf_id' => $shelf->getKey(), 'name' => 'Milk', 'quantity' => 1]);
         Product::create(['shelf_id' => $shelf->getKey(), 'name' => 'Eggs', 'quantity' => 1]);
 
-        HierarchyDeleter::deleteShelf($household, $shelf, (string) \Illuminate\Support\Str::uuid(), ShelfDeleteStrategy::DeleteProducts, null, (int) $owner->getKey());
+        HierarchyDeleter::deleteShelf($household, $shelf, (string) Str::uuid(), ShelfDeleteStrategy::DeleteProducts, null, (int) $owner->getKey());
 
         $entry = ActivityLogEntry::where('action', 'shelf.deleted_batch')->firstOrFail();
         $this->assertSame('Pantry', $entry->subject_label);
@@ -143,7 +144,7 @@ class ActivityLogManualCaptureTest extends TestCase
         [$household, $owner] = $this->ownedHousehold();
         $location = StorageLocation::create(['household_id' => $household->getKey(), 'name' => 'Kitchen', 'type' => StorageType::Pantry]);
         $shelf = Shelf::create(['location_id' => $location->getKey(), 'name' => 'Pantry']);
-        $batch = (string) \Illuminate\Support\Str::uuid();
+        $batch = (string) Str::uuid();
         HierarchyDeleter::deleteShelf($household, $shelf, $batch, ShelfDeleteStrategy::DeleteProducts, null, (int) $owner->getKey());
 
         Restorer::restore($household, $batch);

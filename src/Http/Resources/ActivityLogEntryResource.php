@@ -23,7 +23,7 @@ class ActivityLogEntryResource extends JsonResource
             'subject_id' => $this->subject_id,
             'subject_label' => $this->subject_label,
             'changes' => $this->changes,
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => $this->created_at->toIso8601String(),
         ];
     }
 }

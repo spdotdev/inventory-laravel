@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * Immutable audit-trail row. Never updated after creation — see the
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $subject_id
  * @property string $subject_label
  * @property array<string, array{from: mixed, to: mixed}>|array{cascaded: array<string, int>}|null $changes
+ * @property Carbon $created_at
  */
 class ActivityLogEntry extends Model
 {

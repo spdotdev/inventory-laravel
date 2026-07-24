@@ -32,8 +32,8 @@ use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Observers\BroadcastHouseholdChange;
-use Spdotdev\Inventory\Observers\RecordActivityLog;
 use Spdotdev\Inventory\Observers\ReclaimHouseholdProductImages;
+use Spdotdev\Inventory\Observers\RecordActivityLog;
 use Spdotdev\Inventory\Policies\HouseholdPolicy;
 
 class InventoryServiceProvider extends ServiceProvider

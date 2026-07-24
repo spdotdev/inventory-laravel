@@ -11,7 +11,6 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
-use Spdotdev\Inventory\Support\ActivityLog;
 
 /**
  * Executes a structural delete as one transaction, stamping every row it kills
