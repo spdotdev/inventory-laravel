@@ -21,6 +21,7 @@ class AdminController
         $paginator = User::query()
             ->withCount('households')
             ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         $paginator->getCollection()->transform(fn (User $u) => $this->userPayload($u));
@@ -99,6 +100,7 @@ class AdminController
                     ->orWhereRaw("email LIKE ? ESCAPE '!'", ["%{$escaped}%"]);
             })
             ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         $paginator->getCollection()->transform(fn (User $u) => $this->userPayload($u));
@@ -124,6 +126,7 @@ class AdminController
         $paginator = Household::query()
             ->withCount(['users', 'locations', 'shelves'])
             ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         $paginator->getCollection()->transform(fn (Household $h) => $this->householdPayload($h));

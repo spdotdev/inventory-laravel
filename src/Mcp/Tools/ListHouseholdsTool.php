@@ -28,6 +28,7 @@ class ListHouseholdsTool extends Tool
         $paginator = Household::query()
             ->withCount(['users', 'locations', 'shelves'])
             ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return Response::json([

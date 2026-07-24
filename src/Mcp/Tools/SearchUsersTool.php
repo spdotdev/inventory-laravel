@@ -37,6 +37,7 @@ class SearchUsersTool extends Tool
                     ->orWhereRaw("email LIKE ? ESCAPE '!'", ["%{$escaped}%"]);
             })
             ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($perPage, ['*'], 'page', $page);
 
         return Response::json([
