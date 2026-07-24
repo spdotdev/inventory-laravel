@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Spdotdev\Inventory\Http\Controllers\Api\ActivityLogController;
 use Spdotdev\Inventory\Http\Controllers\Api\AdminController;
 use Spdotdev\Inventory\Http\Controllers\Api\AppReleaseController;
 use Spdotdev\Inventory\Http\Controllers\Api\AuthController;
@@ -110,6 +111,7 @@ Route::domain(config('inventory.domain'))
                 // Read-only listing of restorable batches — the API/Android twin of
                 // the web's "Recently deleted" section (Support\RecentlyDeleted).
                 Route::get('households/{household}/deleted', DeletedBatchController::class)->name('inventory.api.deleted');
+                Route::get('households/{household}/activity', ActivityLogController::class)->name('inventory.api.activity');
 
                 // Stock actions (defined before the resource so the /add|remove|move
                 // suffixes aren't shadowed by the {product} show route).
