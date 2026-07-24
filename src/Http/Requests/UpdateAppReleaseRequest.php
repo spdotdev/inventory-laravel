@@ -25,7 +25,7 @@ class UpdateAppReleaseRequest extends FormRequest
             'is_breaking' => ['sometimes', 'boolean'],
             'min_supported_version_code' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'changelog' => ['sometimes', 'string'],
-            'download_url' => ['sometimes', 'url'],
+            'download_url' => ['sometimes', 'url:https'],
             'publish' => ['sometimes', 'boolean'],
         ];
     }

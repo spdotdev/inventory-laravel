@@ -54,6 +54,18 @@ class StoreAppReleaseRequestTest extends TestCase
             ->assertJsonValidationErrors('min_supported_version_code');
     }
 
+    public function test_non_https_download_url_is_rejected(): void
+    {
+        $this->postJson('http://inventory.test/api/v1/admin/app-releases', [
+            'version_code' => 22,
+            'version_name' => '0.1.21',
+            'changelog' => 'insecure url',
+            'download_url' => 'http://example.test/app.apk',
+        ], $this->auth())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('download_url');
+    }
+
     public function test_duplicate_version_code_is_rejected(): void
     {
         AppRelease::create([

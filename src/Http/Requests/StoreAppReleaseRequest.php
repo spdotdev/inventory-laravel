@@ -21,7 +21,7 @@ class StoreAppReleaseRequest extends FormRequest
             'is_breaking' => ['sometimes', 'boolean'],
             'min_supported_version_code' => ['nullable', 'integer', 'min:1'],
             'changelog' => ['required', 'string'],
-            'download_url' => ['required', 'url'],
+            'download_url' => ['required', 'url:https'],
             'publish' => ['sometimes', 'boolean'],
         ];
     }
