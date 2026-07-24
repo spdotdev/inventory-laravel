@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 use Spdotdev\Inventory\Events\HouseholdChanged;
@@ -11,6 +12,7 @@ use Spdotdev\Inventory\Http\Requests\UpdateMemberRoleRequest;
 use Spdotdev\Inventory\Http\Resources\HouseholdMemberResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\ActivityLog;
 use Spdotdev\Inventory\Support\OwnershipTransfer;
 
 /**
@@ -43,6 +45,16 @@ class MemberController
 
         $household->users()->updateExistingPivot($user->getKey(), ['role' => $data['role']]);
 
+        ActivityLog::record(
+            (int) $household->getKey(),
+            $request->user()?->getKey() !== null ? (int) $request->user()->getKey() : null,
+            'member.role_changed',
+            'HouseholdUserPivot',
+            (int) $user->getKey(),
+            $user->name,
+            ['role' => ['from' => $targetRole, 'to' => $data['role']]],
+        );
+
         // Pivot writes fire no Eloquent events, so the observers stay silent —
         // ping the household channel explicitly so the affected member's other
         // devices refresh their role/capability flags (same reasoning as the
@@ -52,7 +64,7 @@ class MemberController
         return (new HouseholdMemberResource($household->users()->whereKey($user->getKey())->first()))->response();
     }
 
-    public function destroy(Household $household, User $user): JsonResponse
+    public function destroy(Request $request, Household $household, User $user): JsonResponse
     {
         Gate::authorize('manageMembers', $household);
 
@@ -61,6 +73,16 @@ class MemberController
         abort_if($targetRole === 'owner', 403, 'The owner cannot be removed.');
 
         $household->users()->detach($user->getKey());
+
+        ActivityLog::record(
+            (int) $household->getKey(),
+            $request->user()?->getKey() !== null ? (int) $request->user()->getKey() : null,
+            'member.removed',
+            'HouseholdUserPivot',
+            (int) $user->getKey(),
+            $user->name,
+            null,
+        );
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
@@ -93,6 +115,16 @@ class MemberController
         // double-submitting to two different targets passes the gate twice,
         // and unguarded pivot writes would crown two owners.
         abort_unless(OwnershipTransfer::transfer($household, $newOwner, $currentOwner), 409, 'Ownership has already been transferred.');
+
+        ActivityLog::record(
+            (int) $household->getKey(),
+            (int) $currentOwner->getKey(),
+            'household.ownership_transferred',
+            'Household',
+            (int) $household->getKey(),
+            $household->name,
+            ['owner' => ['from' => $currentOwner->name, 'to' => $newOwner->name]],
+        );
 
         HouseholdChanged::dispatch((int) $household->getKey());
 

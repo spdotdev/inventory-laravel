@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spdotdev\Inventory\Events\HouseholdChanged;
+use Spdotdev\Inventory\Support\ActivityLog;
 
 /**
  * @property int $id
@@ -84,12 +85,25 @@ class Product extends Model
      */
     public function addStock(int $amount, int $max): void
     {
+        $before = $this->quantity;
+
         static::query()->whereKey($this->getKey())->update([
             'quantity' => DB::raw(
                 'CASE WHEN quantity + '.$amount.' > '.$max.' THEN '.$max.' ELSE quantity + '.$amount.' END',
             ),
         ]);
         $this->refresh();
+
+        ActivityLog::record(
+            $this->householdId() ?? 0,
+            auth()->id(),
+            'product.stock_added',
+            'Product',
+            (int) $this->getKey(),
+            $this->name,
+            ['quantity' => ['from' => $before, 'to' => $this->quantity]],
+        );
+
         $this->broadcastChange();
     }
 
@@ -103,12 +117,25 @@ class Product extends Model
      */
     public function removeStock(int $amount): void
     {
+        $before = $this->quantity;
+
         static::query()->whereKey($this->getKey())->update([
             'quantity' => DB::raw(
                 'CASE WHEN quantity < '.$amount.' THEN 0 ELSE quantity - '.$amount.' END',
             ),
         ]);
         $this->refresh();
+
+        ActivityLog::record(
+            $this->householdId() ?? 0,
+            auth()->id(),
+            'product.stock_removed',
+            'Product',
+            (int) $this->getKey(),
+            $this->name,
+            ['quantity' => ['from' => $before, 'to' => $this->quantity]],
+        );
+
         $this->broadcastChange();
     }
 

@@ -14,6 +14,7 @@ use Spdotdev\Inventory\Http\Requests\UpdateHouseholdRequest;
 use Spdotdev\Inventory\Http\Resources\HouseholdResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
+use Spdotdev\Inventory\Support\ActivityLog;
 use Spdotdev\Inventory\Support\HouseholdExport;
 
 class HouseholdController
@@ -61,6 +62,16 @@ class HouseholdController
         // joiners land as 'member' (the pivot column default) — never a role
         // parameter from the request.
         $household->users()->syncWithoutDetaching([$user->getKey() => ['joined_at' => now()]]);
+
+        ActivityLog::record(
+            (int) $household->getKey(),
+            (int) $user->getKey(),
+            'member.added',
+            'HouseholdUserPivot',
+            (int) $user->getKey(),
+            $user->name,
+            null,
+        );
 
         // Heal an owner-less household (single-Owner invariant): normally
         // impossible, but the artisan command can create a household with no

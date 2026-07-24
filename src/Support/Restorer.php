@@ -8,6 +8,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\ActivityLog;
 
 /**
  * Shared undo-one-deletion-gesture writer — used by both
@@ -125,6 +126,16 @@ class Restorer
         });
 
         if ($result['status'] === self::STATUS_RESTORED) {
+            ActivityLog::record(
+                (int) $household->getKey(),
+                auth()->id(),
+                'household.restored_batch',
+                'Household',
+                (int) $household->getKey(),
+                $household->name,
+                ['restored' => ['count' => $result['restored']]],
+            );
+
             HouseholdChanged::dispatch((int) $household->getKey());
         }
 

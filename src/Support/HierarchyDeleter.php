@@ -11,6 +11,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Support\ActivityLog;
 
 /**
  * Executes a structural delete as one transaction, stamping every row it kills
@@ -132,6 +133,16 @@ class HierarchyDeleter
                 'deleted_by' => $deletedBy,
             ]);
         });
+
+        ActivityLog::record(
+            (int) $household->getKey(),
+            $deletedBy,
+            'shelf.deleted_batch',
+            'Shelf',
+            $originalShelfId,
+            $shelf->name,
+            ['cascaded' => ['products' => Product::withTrashed()->where('deletion_batch_id', $batchId)->count()]],
+        );
 
         HouseholdChanged::dispatch((int) $household->getKey());
     }
@@ -296,6 +307,19 @@ class HierarchyDeleter
                 'deleted_by' => $deletedBy,
             ]);
         });
+
+        ActivityLog::record(
+            (int) $household->getKey(),
+            $deletedBy,
+            'location.deleted_batch',
+            'StorageLocation',
+            $originalLocationId,
+            $location->name,
+            ['cascaded' => [
+                'shelves' => Shelf::withTrashed()->where('deletion_batch_id', $batchId)->count(),
+                'products' => Product::withTrashed()->where('deletion_batch_id', $batchId)->count(),
+            ]],
+        );
 
         HouseholdChanged::dispatch((int) $household->getKey());
     }
