@@ -50,6 +50,8 @@ Route::domain(config('inventory.domain'))
             Route::get('app-releases', [AppReleaseController::class, 'index']);
             Route::post('app-releases', [AppReleaseController::class, 'store']);
             Route::patch('app-releases/{appRelease}', [AppReleaseController::class, 'update']);
+
+            Route::get('activity', [AdminController::class, 'listActivity']);
         });
 
         Route::prefix('auth')->group(function () {
