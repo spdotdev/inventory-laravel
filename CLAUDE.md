@@ -94,14 +94,20 @@ public/                               landing assets (publishable)
 - Secrets via `.env` only. Validate input at every boundary.
 
 ## Scope guardrails — deliberately cut; refuse to add
-No recipes, no shopping list, no activity/audit log, no GDPR machinery (private for
-now — flag if it goes public). No expiry-date reminders/tracking specifically (still
-cut).
+No recipes, no shopping list, no app-facing activity/audit log, no GDPR machinery
+(private for now — flag if it goes public). No expiry-date reminders/tracking
+specifically (still cut).
 **Daily missing-items reminder unlocked 2026-07-24** (user decision, narrow carve-out
 from the "no reminders" cut — this is a notification about items already missing
 right now, computed from existing `is_mandatory`/`quantity` state, not an expiry-date
 reminder system): backend exposes `GET /api/v1/missing-items/count`. Spec:
 `docs/superpowers/specs/2026-07-24-daily-missing-items-reminder-design.md`.
+**MCP-only activity/audit log unlocked 2026-07-24** (user decision, narrow carve-out
+from the "no activity/audit log" cut — explicitly *not* an app-facing feature: no
+Android/web UI, ever. Two API surfaces exist purely as an MCP backing store: an
+admin-token cross-household endpoint and a Sanctum household-scoped endpoint (any
+member) that only the MCP server calls. Spec:
+`docs/superpowers/specs/2026-07-24-household-activity-log-design.md`.
 **Phase 2 unlocked 2026-07-10** (user decision) and since shipped: the web
 account/household UI (thin Blade, session guard) and `low_stock_threshold`. The API
 stays headless and versioned; the web surface is additive on the same domain, never a
