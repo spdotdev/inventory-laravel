@@ -13,19 +13,27 @@ class AdminController
 {
     // ─── Users ───────────────────────────────────────────────────────────────
 
-    public function listUsers(): JsonResponse
+    public function listUsers(Request $request): JsonResponse
     {
-        // Capped like searchUsers/SearchController/WebSearchController elsewhere
-        // in the codebase — an unbounded ->get() over the whole table doesn't
-        // scale and this is the existing pagination convention, not a new one.
-        $users = User::query()
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
+
+        $paginator = User::query()
             ->withCount('households')
             ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get()
-            ->map(fn (User $u) => $this->userPayload($u));
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        return response()->json(['data' => $users]);
+        $paginator->getCollection()->transform(fn (User $u) => $this->userPayload($u));
+
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
     }
 
     public function getUser(int $id): JsonResponse
@@ -79,36 +87,56 @@ class AdminController
     public function searchUsers(Request $request): JsonResponse
     {
         $query = (string) $request->input('q', '');
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
 
         $escaped = Like::escape($query);
 
-        $users = User::query()
+        $paginator = User::query()
             ->withCount('households')
             ->where(function ($q) use ($escaped) {
                 $q->whereRaw("name LIKE ? ESCAPE '!'", ["%{$escaped}%"])
                     ->orWhereRaw("email LIKE ? ESCAPE '!'", ["%{$escaped}%"]);
             })
             ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get()
-            ->map(fn (User $u) => $this->userPayload($u));
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        return response()->json(['data' => $users]);
+        $paginator->getCollection()->transform(fn (User $u) => $this->userPayload($u));
+
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
     }
 
     // ─── Households ──────────────────────────────────────────────────────────
 
-    public function listHouseholds(): JsonResponse
+    public function listHouseholds(Request $request): JsonResponse
     {
-        // Same cap/convention as listUsers above.
-        $households = Household::query()
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(100, max(1, (int) $request->input('per_page', 50)));
+
+        $paginator = Household::query()
             ->withCount(['users', 'locations', 'shelves'])
             ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get()
-            ->map(fn (Household $h) => $this->householdPayload($h));
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        return response()->json(['data' => $households]);
+        $paginator->getCollection()->transform(fn (Household $h) => $this->householdPayload($h));
+
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ]);
     }
 
     public function getHousehold(int $id): JsonResponse

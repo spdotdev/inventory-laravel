@@ -184,4 +184,69 @@ class AdminApiTest extends TestCase
         $this->assertDatabaseMissing('inventory_users', ['id' => $owner->id]);
         $this->assertDatabaseMissing('inventory_households', ['id' => $household->id]);
     }
+
+    public function test_listing_users_respects_per_page(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            User::create(['name' => "U{$i}", 'email' => "u{$i}@example.test", 'password' => 'secret-password']);
+        }
+
+        $response = $this->getJson("{$this->base}/users?per_page=10", $this->auth())->assertOk();
+
+        $this->assertCount(10, $response->json('data'));
+        $this->assertSame(10, $response->json('meta.per_page'));
+        $this->assertSame(15, $response->json('meta.total'));
+        $this->assertSame(2, $response->json('meta.last_page'));
+    }
+
+    public function test_listing_users_page_two_returns_the_next_slice(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            User::create(['name' => "U{$i}", 'email' => "u{$i}@example.test", 'password' => 'secret-password']);
+        }
+
+        $page1 = $this->getJson("{$this->base}/users?per_page=10&page=1", $this->auth())->assertOk()->json('data');
+        $page2 = $this->getJson("{$this->base}/users?per_page=10&page=2", $this->auth())->assertOk()->json('data');
+
+        $page1Ids = array_column($page1, 'id');
+        $page2Ids = array_column($page2, 'id');
+
+        $this->assertCount(10, $page1);
+        $this->assertCount(5, $page2);
+        $this->assertEmpty(array_intersect($page1Ids, $page2Ids));
+    }
+
+    public function test_listing_users_clamps_per_page_to_one_hundred(): void
+    {
+        User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+
+        $response = $this->getJson("{$this->base}/users?per_page=500", $this->auth())->assertOk();
+
+        $this->assertSame(100, $response->json('meta.per_page'));
+    }
+
+    public function test_listing_households_respects_per_page(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            Household::create(['name' => "H{$i}", 'join_code' => sprintf('AAAA-%04d', $i)]);
+        }
+
+        $response = $this->getJson("{$this->base}/households?per_page=10", $this->auth())->assertOk();
+
+        $this->assertCount(10, $response->json('data'));
+        $this->assertSame(15, $response->json('meta.total'));
+    }
+
+    public function test_search_users_respects_pagination(): void
+    {
+        for ($i = 0; $i < 15; $i++) {
+            User::create(['name' => "Match{$i}", 'email' => "match{$i}@example.test", 'password' => 'secret-password']);
+        }
+        User::create(['name' => 'Different', 'email' => 'different@example.test', 'password' => 'secret-password']);
+
+        $response = $this->getJson("{$this->base}/users/search?q=Match&per_page=10", $this->auth())->assertOk();
+
+        $this->assertCount(10, $response->json('data'));
+        $this->assertSame(15, $response->json('meta.total'));
+    }
 }
