@@ -32,6 +32,7 @@ use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Observers\BroadcastHouseholdChange;
+use Spdotdev\Inventory\Observers\RecordActivityLog;
 use Spdotdev\Inventory\Observers\ReclaimHouseholdProductImages;
 use Spdotdev\Inventory\Policies\HouseholdPolicy;
 
@@ -97,6 +98,7 @@ class InventoryServiceProvider extends ServiceProvider
         });
 
         $this->registerBroadcasting();
+        $this->registerActivityLog();
 
         // Households are the one row this package still hard-deletes (see
         // ReclaimHouseholdProductImages's docblock). Reclaim every product
@@ -205,6 +207,19 @@ class InventoryServiceProvider extends ServiceProvider
      * With no broadcaster configured on the host, dispatching is a no-op, so
      * the package works unchanged without Reverb.
      */
+    /**
+     * Mirrors registerBroadcasting()'s model list — every mutation that pings
+     * the household channel also gets a permanent audit row. See
+     * RecordActivityLog's docblock for what this observer does and doesn't
+     * cover (query-builder writes bypass it entirely).
+     */
+    private function registerActivityLog(): void
+    {
+        foreach ([Household::class, StorageLocation::class, Shelf::class, Product::class] as $model) {
+            $model::observe(RecordActivityLog::class);
+        }
+    }
+
     private function registerBroadcasting(): void
     {
         foreach ([Household::class, StorageLocation::class, Shelf::class, Product::class] as $model) {
