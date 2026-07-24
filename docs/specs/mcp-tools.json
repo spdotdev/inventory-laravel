@@ -6,14 +6,19 @@
             "key": "list_users",
             "scope": "admin",
             "destructive": false,
-            "params": []
+            "params": [
+                { "name": "page", "type": "integer", "required": false },
+                { "name": "per_page", "type": "integer", "required": false }
+            ]
         },
         {
             "key": "search_users",
             "scope": "admin",
             "destructive": false,
             "params": [
-                { "name": "q", "type": "string", "required": true }
+                { "name": "q", "type": "string", "required": true },
+                { "name": "page", "type": "integer", "required": false },
+                { "name": "per_page", "type": "integer", "required": false }
             ]
         },
         {
@@ -36,7 +41,10 @@
             "key": "list_households",
             "scope": "admin",
             "destructive": false,
-            "params": []
+            "params": [
+                { "name": "page", "type": "integer", "required": false },
+                { "name": "per_page", "type": "integer", "required": false }
+            ]
         },
         {
             "key": "get_household",
