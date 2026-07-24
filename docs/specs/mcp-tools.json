@@ -140,6 +140,14 @@
             ]
         },
         {
+            "key": "export_household",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true }
+            ]
+        },
+        {
             "key": "list_deleted",
             "scope": "household",
             "destructive": false,
