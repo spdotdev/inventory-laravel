@@ -12,6 +12,7 @@ use Spdotdev\Inventory\Mcp\Tools\DeleteHouseholdTool;
 use Spdotdev\Inventory\Mcp\Tools\DeleteUserTool;
 use Spdotdev\Inventory\Mcp\Tools\GetHouseholdTool;
 use Spdotdev\Inventory\Mcp\Tools\GetUserTool;
+use Spdotdev\Inventory\Mcp\Tools\ListActivityLogTool;
 use Spdotdev\Inventory\Mcp\Tools\ListAppReleasesTool;
 use Spdotdev\Inventory\Mcp\Tools\ListHouseholdsTool;
 use Spdotdev\Inventory\Mcp\Tools\ListUsersTool;
@@ -43,5 +44,6 @@ class InventoryAdminServer extends Server
         ListAppReleasesTool::class,
         CreateAppReleaseTool::class,
         UpdateAppReleaseTool::class,
+        ListActivityLogTool::class,
     ];
 }

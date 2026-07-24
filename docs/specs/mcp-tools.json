@@ -1,6 +1,6 @@
 {
     "comment": "Canonical machine-readable manifest of the Inventory MCP tool surface. 'scope' is 'admin' (static admin-token auth, mirrored 1:1 by the EMBEDDED HTTP server in this repo, src/Mcp/, wire names kebab-case with a -tool suffix, e.g. list-users-tool) or 'household' (personal Sanctum-token auth, standalone stdio server only — the embedded server has no per-user auth context to run these against). The STANDALONE stdio server (https://github.com/spdotdev/inventory-mcp) implements both scopes, wire names snake_case, e.g. list_users. 'key' is the normalized logical name: strip the -tool suffix, kebab -> snake. Guards: tests/Feature/McpToolManifestTest.php (this repo, admin-scope tools only) and the conformance test in inventory-mcp CI (all tools). Change this file and both guards together when the surface grows.",
-    "version": 2,
+    "version": 3,
     "tools": [
         {
             "key": "list_users",
@@ -434,6 +434,36 @@
                 { "name": "changelog", "type": "string", "required": false },
                 { "name": "download_url", "type": "string", "required": false },
                 { "name": "publish", "type": "boolean", "required": false }
+            ]
+        },
+        {
+            "key": "list_activity_log",
+            "scope": "admin",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": false },
+                { "name": "actor_id", "type": "integer", "required": false },
+                { "name": "action", "type": "string", "required": false },
+                { "name": "subject_type", "type": "string", "required": false },
+                { "name": "from", "type": "string", "required": false },
+                { "name": "to", "type": "string", "required": false },
+                { "name": "page", "type": "integer", "required": false },
+                { "name": "per_page", "type": "integer", "required": false }
+            ]
+        },
+        {
+            "key": "get_household_activity",
+            "scope": "household",
+            "destructive": false,
+            "params": [
+                { "name": "household_id", "type": "integer", "required": true },
+                { "name": "actor_id", "type": "integer", "required": false },
+                { "name": "action", "type": "string", "required": false },
+                { "name": "subject_type", "type": "string", "required": false },
+                { "name": "from", "type": "string", "required": false },
+                { "name": "to", "type": "string", "required": false },
+                { "name": "page", "type": "integer", "required": false },
+                { "name": "per_page", "type": "integer", "required": false }
             ]
         }
     ]
