@@ -5,6 +5,7 @@ namespace Spdotdev\Inventory\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
+use Spdotdev\Inventory\Models\ActivityLogEntry;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Tests\TestCase;
@@ -165,6 +166,25 @@ class HouseholdTest extends TestCase
             'household_id' => $household->id,
             'user_id' => $other->getKey(),
         ]);
+    }
+
+    public function test_leaving_logs_member_removed_with_the_leaving_user_as_actor(): void
+    {
+        $user = $this->actingAsUser();
+        $other = User::create(['name' => 'Other', 'email' => 'other@example.test', 'password' => 'secret-password']);
+        $household = Household::create(['name' => 'Garage', 'join_code' => 'AAAA-1111']);
+        $household->users()->attach($user->getKey(), ['joined_at' => now()]);
+        $household->users()->attach($other->getKey(), ['joined_at' => now()]);
+
+        $this->deleteJson("http://inventory.test/api/v1/households/{$household->id}/leave")
+            ->assertOk();
+
+        $entry = ActivityLogEntry::where('household_id', $household->id)
+            ->where('action', 'member.removed')
+            ->firstOrFail();
+        $this->assertSame((int) $user->getKey(), $entry->actor_id);
+        $this->assertSame((int) $user->getKey(), $entry->subject_id);
+        $this->assertSame('Stan', $entry->subject_label);
     }
 
     public function test_non_member_cannot_access_household_routes(): void

@@ -144,6 +144,16 @@ class HouseholdController
 
         $household->users()->detach($user->getKey());
 
+        ActivityLog::record(
+            (int) $household->getKey(),
+            (int) $user->getKey(),
+            'member.removed',
+            'HouseholdUserPivot',
+            (int) $user->getKey(),
+            $user->name,
+            null,
+        );
+
         // If that was the last member, the household + its whole location→shelf→
         // product tree would otherwise survive with zero members — unreachable by
         // anyone (tenancy 404s non-members), dead data that only grows. Delete it;

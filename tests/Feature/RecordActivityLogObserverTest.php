@@ -65,4 +65,44 @@ class RecordActivityLogObserverTest extends TestCase
         $entry = ActivityLogEntry::where('action', 'shelf.deleted')->firstOrFail();
         $this->assertSame('Pantry', $entry->subject_label);
     }
+
+    public function test_deleting_a_household_logs_household_deleted(): void
+    {
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        $this->actingAs($user);
+
+        $household = Household::create(['name' => 'Casa', 'join_code' => 'DEL123']);
+        $householdId = $household->getKey();
+
+        $household->delete();
+
+        $entry = ActivityLogEntry::where('household_id', $householdId)
+            ->where('action', 'household.deleted')
+            ->firstOrFail();
+        $this->assertSame('Casa', $entry->subject_label);
+    }
+
+    public function test_storage_location_events_use_location_action_prefix(): void
+    {
+        $household = $this->household();
+
+        $location = StorageLocation::create(['household_id' => $household->getKey(), 'name' => 'Kitchen', 'type' => StorageType::Pantry]);
+        $this->assertTrue(
+            ActivityLogEntry::where('action', 'location.created')->where('subject_label', 'Kitchen')->exists()
+        );
+
+        $location->update(['name' => 'Garage']);
+        $this->assertTrue(
+            ActivityLogEntry::where('action', 'location.updated')->exists()
+        );
+
+        $location->delete();
+        $this->assertTrue(
+            ActivityLogEntry::where('action', 'location.deleted')->exists()
+        );
+
+        $this->assertFalse(
+            ActivityLogEntry::where('action', 'like', 'storagelocation.%')->exists()
+        );
+    }
 }

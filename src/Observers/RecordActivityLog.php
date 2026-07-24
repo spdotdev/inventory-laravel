@@ -60,7 +60,12 @@ class RecordActivityLog
         }
 
         $subjectType = class_basename($model);
-        $action = strtolower($subjectType).'.'.$verb;
+        // StorageLocation's action verb namespace is `location.*` (matching the
+        // manual cascade-delete path in HierarchyDeleter::deleteLocation and the
+        // spec's documented vocabulary) even though subject_type stays
+        // "StorageLocation" — only the action prefix differs from the class name.
+        $verbPrefix = $model instanceof StorageLocation ? 'location' : strtolower($subjectType);
+        $action = $verbPrefix.'.'.$verb;
         $label = (string) ($model->name ?? $model->getKey());
 
         ActivityLog::record(
@@ -77,7 +82,11 @@ class RecordActivityLog
     private function householdId(Model $model): ?int
     {
         return match (true) {
-            $model instanceof Household => $model->exists ? (int) $model->getKey() : null,
+            // Household is hard-deleted (no SoftDeletes trait), so $model->exists
+            // is already false by the time the `deleted` event fires observers —
+            // getKey() still works mid-delete-event, so resolve it unconditionally
+            // to avoid silently dropping every household.deleted log entry.
+            $model instanceof Household => (int) $model->getKey(),
             $model instanceof StorageLocation => (int) $model->household_id,
             $model instanceof Shelf => $model->location?->household_id !== null
                 ? (int) $model->location->household_id
