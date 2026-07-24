@@ -7,13 +7,16 @@ use Laravel\Mcp\Server\Attributes\Instructions;
 use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 use Laravel\Mcp\Server\Tool;
+use Spdotdev\Inventory\Mcp\Tools\CreateAppReleaseTool;
 use Spdotdev\Inventory\Mcp\Tools\DeleteHouseholdTool;
 use Spdotdev\Inventory\Mcp\Tools\DeleteUserTool;
 use Spdotdev\Inventory\Mcp\Tools\GetHouseholdTool;
 use Spdotdev\Inventory\Mcp\Tools\GetUserTool;
+use Spdotdev\Inventory\Mcp\Tools\ListAppReleasesTool;
 use Spdotdev\Inventory\Mcp\Tools\ListHouseholdsTool;
 use Spdotdev\Inventory\Mcp\Tools\ListUsersTool;
 use Spdotdev\Inventory\Mcp\Tools\SearchUsersTool;
+use Spdotdev\Inventory\Mcp\Tools\UpdateAppReleaseTool;
 
 /**
  * The EMBEDDED (HTTP, in-process, Eloquent-backed) admin MCP surface. The same seven
@@ -37,5 +40,8 @@ class InventoryAdminServer extends Server
         ListHouseholdsTool::class,
         GetHouseholdTool::class,
         DeleteHouseholdTool::class,
+        ListAppReleasesTool::class,
+        CreateAppReleaseTool::class,
+        UpdateAppReleaseTool::class,
     ];
 }

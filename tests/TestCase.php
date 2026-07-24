@@ -3,6 +3,7 @@
 namespace Spdotdev\Inventory\Tests;
 
 use Illuminate\Foundation\Application;
+use Laravel\Mcp\Server\McpServiceProvider;
 use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 use Spdotdev\Inventory\InventoryServiceProvider;
@@ -18,9 +19,15 @@ abstract class TestCase extends BaseTestCase
         // SanctumServiceProvider: the `sanctum` guard the auth endpoints use.
         // SanctumMigrationsProvider: registers Sanctum's migration path (it
         //   isn't auto-loaded in testbench) so RefreshDatabase migrates it.
+        // McpServiceProvider: registers the resolving(Request::class, ...) hook
+        // that copies the current call's arguments onto an injected MCP
+        // Request — without it, every embedded Tool::handle(Request $request)
+        // silently receives an EMPTY request in tests (only surfaces once a
+        // test actually passes tool arguments, which none did before this).
         return [
             SanctumServiceProvider::class,
             SanctumMigrationsProvider::class,
+            McpServiceProvider::class,
             InventoryServiceProvider::class,
         ];
     }

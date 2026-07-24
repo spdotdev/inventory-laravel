@@ -384,6 +384,41 @@
                 { "name": "household_id", "type": "integer", "required": true },
                 { "name": "q", "type": "string", "required": true }
             ]
+        },
+        {
+            "key": "list_app_releases",
+            "scope": "admin",
+            "destructive": false,
+            "params": []
+        },
+        {
+            "key": "create_app_release",
+            "scope": "admin",
+            "destructive": false,
+            "params": [
+                { "name": "version_code", "type": "integer", "required": true },
+                { "name": "version_name", "type": "string", "required": true },
+                { "name": "is_breaking", "type": "boolean", "required": false },
+                { "name": "min_supported_version_code", "type": "integer", "required": false },
+                { "name": "changelog", "type": "string", "required": true },
+                { "name": "download_url", "type": "string", "required": true },
+                { "name": "publish", "type": "boolean", "required": false }
+            ]
+        },
+        {
+            "key": "update_app_release",
+            "scope": "admin",
+            "destructive": false,
+            "params": [
+                { "name": "id", "type": "integer", "required": true },
+                { "name": "version_code", "type": "integer", "required": false },
+                { "name": "version_name", "type": "string", "required": false },
+                { "name": "is_breaking", "type": "boolean", "required": false },
+                { "name": "min_supported_version_code", "type": "integer", "required": false },
+                { "name": "changelog", "type": "string", "required": false },
+                { "name": "download_url", "type": "string", "required": false },
+                { "name": "publish", "type": "boolean", "required": false }
+            ]
         }
     ]
 }
