@@ -94,8 +94,14 @@ public/                               landing assets (publishable)
 - Secrets via `.env` only. Validate input at every boundary.
 
 ## Scope guardrails — deliberately cut; refuse to add
-No expiry/reminders, no recipes, no shopping list, no activity/audit log, no GDPR
-machinery (private for now — flag if it goes public).
+No recipes, no shopping list, no activity/audit log, no GDPR machinery (private for
+now — flag if it goes public). No expiry-date reminders/tracking specifically (still
+cut).
+**Daily missing-items reminder unlocked 2026-07-24** (user decision, narrow carve-out
+from the "no reminders" cut — this is a notification about items already missing
+right now, computed from existing `is_mandatory`/`quantity` state, not an expiry-date
+reminder system): backend exposes `GET /api/v1/missing-items/count`. Spec:
+`docs/superpowers/specs/2026-07-24-daily-missing-items-reminder-design.md`.
 **Phase 2 unlocked 2026-07-10** (user decision) and since shipped: the web
 account/household UI (thin Blade, session guard) and `low_stock_threshold`. The API
 stays headless and versioned; the web surface is additive on the same domain, never a
