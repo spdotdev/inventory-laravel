@@ -44,6 +44,10 @@ class UpdateProfileRequest extends FormRequest
                 'max:255',
                 Rule::unique('inventory_users', 'email')->ignore($this->user()?->getKey()),
             ],
+            // Free text, not an enum: a fixed list forces every user into one of a few
+            // boxes. Nullable/sometimes so it can be cleared back to unset, same as
+            // household color/icon (see the Android CLAUDE.md's asymmetric-nullable note).
+            'gender' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 }

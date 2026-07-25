@@ -36,6 +36,22 @@ class ProfileTest extends TestCase
         $this->assertDatabaseHas('inventory_users', ['id' => $user->id, 'name' => 'Stanley', 'email' => 'stanley@example.test']);
     }
 
+    public function test_user_can_set_and_clear_gender(): void
+    {
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+
+        $this->patchJson("{$this->base}/me", ['gender' => 'Non-binary'])
+            ->assertOk()
+            ->assertJsonPath('data.gender', 'Non-binary');
+        $this->assertDatabaseHas('inventory_users', ['id' => $user->id, 'gender' => 'Non-binary']);
+
+        $this->patchJson("{$this->base}/me", ['gender' => null])
+            ->assertOk()
+            ->assertJsonPath('data.gender', null);
+        $this->assertDatabaseHas('inventory_users', ['id' => $user->id, 'gender' => null]);
+    }
+
     public function test_user_can_resubmit_their_own_unchanged_email(): void
     {
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);

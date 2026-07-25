@@ -56,11 +56,16 @@ On success it finds-or-creates the `inventory_users` row (matching on `google_id
 The `user` returned by register/login/google is the **User resource** (`UserResource`):
 
 ```
-{ id, name, email,
-  avatar_url | null }          # absolute URL of the Google profile picture; null for
-                               # password-only accounts. Client field is required —
-                               # a rename breaks deserialization.
+{ id, name, email, gender | null,
+  avatar_url | null }          # avatar_url: absolute URL of the Google profile
+                               # picture; null for password-only accounts. gender:
+                               # free-text, self-reported, null until set. Client
+                               # fields are required — a rename breaks deserialization.
 ```
+
+`GET /me` returns the same resource for the authenticated caller; `PATCH /me` accepts
+`{ name?, email?, gender? }` (all `sometimes`; `gender` is also `nullable` — send `null`
+to clear it) and returns the updated resource.
 
 Emails are **normalized to lowercase** at the boundary (register/login/Google), so
 lookups are case-insensitive.
