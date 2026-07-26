@@ -22,6 +22,7 @@ use Spdotdev\Inventory\Console\Commands\CreateHouseholdCommand;
 use Spdotdev\Inventory\Console\Commands\ListHouseholdsCommand;
 use Spdotdev\Inventory\Console\Commands\PruneClientErrorsCommand;
 use Spdotdev\Inventory\Console\Commands\PruneDeletedCommand;
+use Spdotdev\Inventory\Console\Commands\PruneNotificationsCommand;
 use Spdotdev\Inventory\Console\Commands\RegenerateJoinCodeCommand;
 use Spdotdev\Inventory\Http\Middleware\EnsureAdminToken;
 use Spdotdev\Inventory\Http\Middleware\EnsureHouseholdMember;
@@ -184,6 +185,7 @@ class InventoryServiceProvider extends ServiceProvider
                 RegenerateJoinCodeCommand::class,
                 PruneClientErrorsCommand::class,
                 PruneDeletedCommand::class,
+                PruneNotificationsCommand::class,
             ]);
 
             // The retention windows are enforced by these commands and nothing
@@ -196,6 +198,7 @@ class InventoryServiceProvider extends ServiceProvider
             $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
                 $schedule->command('inventory:deleted:prune')->dailyAt('04:17');
                 $schedule->command('inventory:client-errors:prune')->dailyAt('04:23');
+                $schedule->command('inventory:notifications:prune')->dailyAt('04:29');
             });
         }
     }
