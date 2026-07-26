@@ -16,6 +16,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Support\ActivityLog;
 use Spdotdev\Inventory\Support\HouseholdExport;
+use Spdotdev\Inventory\Support\NotificationFeed;
 
 class HouseholdController
 {
@@ -75,6 +76,8 @@ class HouseholdController
                 $user->name,
                 null,
             );
+
+            NotificationFeed::toManagers($household, (int) $user->getKey(), 'member_joined', ['name' => $user->name]);
         }
 
         // Heal an owner-less household (single-Owner invariant): normally
@@ -153,6 +156,12 @@ class HouseholdController
             $user->name,
             null,
         );
+
+        // Skip the feed write entirely when this leave hard-deletes the
+        // household (last member left) — there is nobody left to notify.
+        if ($household->users()->count() > 0) {
+            NotificationFeed::toOtherMembers($household, (int) $user->getKey(), 'activity', ['actor' => $user->name, 'kind' => 'member_left', 'count' => 1]);
+        }
 
         // If that was the last member, the household + its whole location→shelf→
         // product tree would otherwise survive with zero members — unreachable by

@@ -13,6 +13,7 @@ use Spdotdev\Inventory\Http\Resources\HouseholdMemberResource;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
 use Spdotdev\Inventory\Support\ActivityLog;
+use Spdotdev\Inventory\Support\NotificationFeed;
 use Spdotdev\Inventory\Support\OwnershipTransfer;
 
 /**
@@ -55,6 +56,8 @@ class MemberController
             ['role' => ['from' => $targetRole, 'to' => $data['role']]],
         );
 
+        NotificationFeed::toUser((int) $user->getKey(), (int) $household->getKey(), 'role_changed', ['role' => ['from' => $targetRole, 'to' => $data['role']]]);
+
         // Pivot writes fire no Eloquent events, so the observers stay silent —
         // ping the household channel explicitly so the affected member's other
         // devices refresh their role/capability flags (same reasoning as the
@@ -74,15 +77,20 @@ class MemberController
 
         $household->users()->detach($user->getKey());
 
+        /** @var User|null $actor */
+        $actor = $request->user();
+
         ActivityLog::record(
             (int) $household->getKey(),
-            $request->user()?->getKey() !== null ? (int) $request->user()->getKey() : null,
+            $actor?->getKey() !== null ? (int) $actor->getKey() : null,
             'member.removed',
             'HouseholdUserPivot',
             (int) $user->getKey(),
             $user->name,
             null,
         );
+
+        NotificationFeed::toOtherMembers($household, $actor?->getKey() !== null ? (int) $actor->getKey() : null, 'activity', ['actor' => $actor?->name, 'kind' => 'member_removed', 'count' => 1]);
 
         HouseholdChanged::dispatch((int) $household->getKey());
 
@@ -125,6 +133,8 @@ class MemberController
             $household->name,
             ['owner' => ['from' => $currentOwner->name, 'to' => $newOwner->name]],
         );
+
+        NotificationFeed::toUser((int) $newOwner->getKey(), (int) $household->getKey(), 'role_changed', ['role' => ['to' => 'owner']]);
 
         HouseholdChanged::dispatch((int) $household->getKey());
 

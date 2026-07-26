@@ -11,6 +11,7 @@ use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\Product;
 use Spdotdev\Inventory\Models\Shelf;
 use Spdotdev\Inventory\Models\StorageLocation;
+use Spdotdev\Inventory\Models\User;
 
 /**
  * Executes a structural delete as one transaction, stamping every row it kills
@@ -133,6 +134,8 @@ class HierarchyDeleter
             ]);
         });
 
+        $cascadedProducts = Product::withTrashed()->where('deletion_batch_id', $batchId)->count();
+
         ActivityLog::record(
             (int) $household->getKey(),
             $deletedBy,
@@ -140,8 +143,14 @@ class HierarchyDeleter
             'Shelf',
             $originalShelfId,
             $shelf->name,
-            ['cascaded' => ['products' => Product::withTrashed()->where('deletion_batch_id', $batchId)->count()]],
+            ['cascaded' => ['products' => $cascadedProducts]],
         );
+
+        NotificationFeed::toOtherMembers($household, $deletedBy, 'activity', [
+            'actor' => User::query()->whereKey($deletedBy)->value('name'),
+            'kind' => 'items_deleted',
+            'count' => 1 + $cascadedProducts,
+        ]);
 
         HouseholdChanged::dispatch((int) $household->getKey());
     }
@@ -307,6 +316,9 @@ class HierarchyDeleter
             ]);
         });
 
+        $cascadedShelves = Shelf::withTrashed()->where('deletion_batch_id', $batchId)->count();
+        $cascadedProducts = Product::withTrashed()->where('deletion_batch_id', $batchId)->count();
+
         ActivityLog::record(
             (int) $household->getKey(),
             $deletedBy,
@@ -315,10 +327,16 @@ class HierarchyDeleter
             $originalLocationId,
             $location->name,
             ['cascaded' => [
-                'shelves' => Shelf::withTrashed()->where('deletion_batch_id', $batchId)->count(),
-                'products' => Product::withTrashed()->where('deletion_batch_id', $batchId)->count(),
+                'shelves' => $cascadedShelves,
+                'products' => $cascadedProducts,
             ]],
         );
+
+        NotificationFeed::toOtherMembers($household, $deletedBy, 'activity', [
+            'actor' => User::query()->whereKey($deletedBy)->value('name'),
+            'kind' => 'items_deleted',
+            'count' => 1 + $cascadedShelves + $cascadedProducts,
+        ]);
 
         HouseholdChanged::dispatch((int) $household->getKey());
     }
