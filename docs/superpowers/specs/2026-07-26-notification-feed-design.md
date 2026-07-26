@@ -159,3 +159,10 @@ the design above:
    (forward-compatible with the existing "unknown type" skip rule). In practice the
    server always populates these fields, so this is a defensive client-side guard
    against malformed data, not an observed server behaviour.
+5. **Instrumented settings-screen flow test deferred.** The planned androidTest flow
+   test for the five-section Notifications screen was not shipped in v1; JVM
+   ViewModel tests cover persistence/rescheduling logic.
+6. **First-run baseline.** A fresh or cleared feed cursor (lastSeenId=0) performs a
+   baseline fetch that persists the cursor without posting notifications, preventing
+   stale-backlog bursts on reinstall or account switch; the feed cursor and
+   weekly-summary marker are cleared on logout.
