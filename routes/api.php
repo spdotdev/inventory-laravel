@@ -13,6 +13,7 @@ use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
 use Spdotdev\Inventory\Http\Controllers\Api\MemberController;
 use Spdotdev\Inventory\Http\Controllers\Api\MissingItemsController;
+use Spdotdev\Inventory\Http\Controllers\Api\NotificationsController;
 use Spdotdev\Inventory\Http\Controllers\Api\ProductController;
 use Spdotdev\Inventory\Http\Controllers\Api\ProfileController;
 use Spdotdev\Inventory\Http\Controllers\Api\RestoreController;
@@ -87,6 +88,10 @@ Route::domain(config('inventory.domain'))
             // Account-wide: every household the caller belongs to, not scoped
             // to a single one — backs the Android background missing-items check.
             Route::get('missing-items/count', [MissingItemsController::class, 'count'])->name('inventory.api.missing-items.count');
+
+            // Account-wide notification feed for the caller — cursor-paginated
+            // by id, up to 50 rows per page.
+            Route::get('notifications', [NotificationsController::class, 'index'])->name('inventory.api.notifications.index');
 
             // Tenancy: household.member verifies the caller is a member;
             // scopeBindings verifies each nested resource belongs to its parent
