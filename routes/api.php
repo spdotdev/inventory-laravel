@@ -11,6 +11,7 @@ use Spdotdev\Inventory\Http\Controllers\Api\ForgotPasswordController;
 use Spdotdev\Inventory\Http\Controllers\Api\HealthController;
 use Spdotdev\Inventory\Http\Controllers\Api\HouseholdController;
 use Spdotdev\Inventory\Http\Controllers\Api\LocationController;
+use Spdotdev\Inventory\Http\Controllers\Api\LowStockController;
 use Spdotdev\Inventory\Http\Controllers\Api\MemberController;
 use Spdotdev\Inventory\Http\Controllers\Api\MissingItemsController;
 use Spdotdev\Inventory\Http\Controllers\Api\NotificationsController;
@@ -88,6 +89,10 @@ Route::domain(config('inventory.domain'))
             // Account-wide: every household the caller belongs to, not scoped
             // to a single one — backs the Android background missing-items check.
             Route::get('missing-items/count', [MissingItemsController::class, 'count'])->name('inventory.api.missing-items.count');
+            // Account-wide: mirrors missing-items/count but for the "low stock"
+            // definition (threshold set and at/below it, excluding items that are
+            // already fully missing — those are surfaced by missing-items instead).
+            Route::get('low-stock/count', [LowStockController::class, 'count'])->name('inventory.api.low-stock.count');
 
             // Account-wide notification feed for the caller — cursor-paginated
             // by id, up to 50 rows per page.
