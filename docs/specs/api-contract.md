@@ -386,6 +386,52 @@ is stored on the configured filesystem disk (`INVENTORY_IMAGE_DISK`, default `pu
 returned. Uploading a replacement deletes the previous file. Validation failures (missing
 part, wrong mimetype, too large) → **422**.
 
+## Account-wide counters & notification feed (shipped 2026-07-26)
+
+Three endpoints are **account-wide** (not household-URL-scoped): they aggregate across
+every household the caller belongs to. All require `auth:sanctum`.
+
+```
+GET /api/v1/missing-items/count                                -> { data: { count } }
+GET /api/v1/low-stock/count                                     -> { data: { count } }
+GET /api/v1/notifications?after=<id>                             -> cursor-paginated feed
+```
+
+`GET /missing-items/count` — count of products with `is_mandatory: true` and
+`quantity == 0` across the caller's households. Backs the Android daily missing-items
+reminder.
+
+`GET /low-stock/count` — count of products with a non-null `low_stock_threshold` where
+`quantity <= low_stock_threshold`, **excluding** products already counted by
+missing-items (mandatory-at-zero) so the two counters never double-count the same row.
+Backs the Android low-stock daily reminder.
+
+`GET /notifications?after=<id>` — the caller's personal notification feed
+(`inventory_notifications`), cursor-paginated by row id:
+
+- `after` (optional, default 0) — return rows with `id > after`.
+- Returns up to **50** rows, ordered **ascending** by id (oldest first).
+- Response:
+  ```
+  { data: [ { id, type, household: { id, name } | null, payload, created_at } ],
+    meta: { last_id } }
+  ```
+  `type` is one of `member_joined`, `role_changed`, `activity` (more may be added later
+  — clients must skip unknown types and still advance their cursor). `payload` shape
+  varies by type:
+  - `member_joined`: `{ name }` — the joiner's name.
+  - `role_changed`: `{ role: { from?, to } }` — `from` omitted on ownership transfer.
+  - `activity`: `{ actor, kind, count }` — `kind` is `items_deleted` | `member_left` |
+    `member_removed`.
+  - `last_id` — the id of the last row returned, for the client's next `after`; on an
+    **empty** page (nothing new), `last_id` echoes the `after` the client sent, so the
+    cursor never regresses.
+- This feed is user-addressed and deliberately **coarse** — it is not an audit trail.
+  The full activity log (`inventory_activity_log`) remains MCP-only and is never
+  exposed through this or any client-facing endpoint.
+- Rows older than 30 days are pruned daily (`inventory:notifications:prune`, 04:29) —
+  see the scheduler registration in `InventoryServiceProvider`.
+
 ## Operator / internal endpoints
 
 Not part of the Android client contract; documented so the security boundary is legible.

@@ -108,6 +108,17 @@ Android/web UI, ever. Two API surfaces exist purely as an MCP backing store: an
 admin-token cross-household endpoint and a Sanctum household-scoped endpoint (any
 member) that only the MCP server calls. Spec:
 `docs/superpowers/specs/2026-07-24-household-activity-log-design.md`.
+**Notification feed unlocked 2026-07-26** (user decision, narrow carve-out from the
+same "no app-facing activity log" cut): `inventory_notifications` is a per-user,
+**coarse** feed (`member_joined`, `role_changed`, `activity`) — deliberately NOT a
+full audit trail; the MCP-only activity log above remains the sole app-invisible
+audit surface and is never exposed through this or any client-facing endpoint. Backend
+exposes `GET /api/v1/notifications?after=<id>` and `GET /api/v1/low-stock/count`
+(sibling of `missing-items/count`). LOCKED Android defaults set in this rollout:
+low-stock reminder on at 18:00, household events (member joined + role changes) on,
+household activity digest off, weekly summary off (Sunday 18:00 when enabled),
+app-update toggle on. Spec:
+`docs/superpowers/specs/2026-07-26-notification-feed-design.md`.
 **Phase 2 unlocked 2026-07-10** (user decision) and since shipped: the web
 account/household UI (thin Blade, session guard) and `low_stock_threshold`. The API
 stays headless and versioned; the web surface is additive on the same domain, never a

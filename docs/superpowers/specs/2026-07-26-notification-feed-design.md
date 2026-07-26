@@ -133,3 +133,29 @@ reminder's deep-link pattern).
 FCM push (feed schema is ready for it), per-household notification preferences,
 server-stored preferences, read-state UI/in-app notification center (`read_at` exists
 for future use only).
+
+## Amendments (v1 implementation)
+
+Recorded after shipping — decisions made during implementation that narrow or clarify
+the design above:
+
+1. **Activity digest excludes move batches.** The `activity` writer fires for deletion
+   batches and member departure only (`kind` ∈ `items_deleted` | `member_left` |
+   `member_removed`). Product moves are not distinguished from generic product updates
+   server-side, so they cannot be reliably identified as "a move batch" without new
+   tracking; move batches are not surfaced in the digest.
+2. **No deep links.** Low-stock and feed notifications (member joined, role changed,
+   activity digest) open the app at its default entry point — they do not deep-link
+   to a specific household, product, or counter view. Only the pre-existing
+   missing-items reminder deep-links; that behaviour was not extended to the new
+   notification types.
+3. **Weekly summary body.** The shipped copy is **"X missing, Y running low"** — the
+   product-count term from the original "Your week: X products, Y missing, Z running
+   low" wording was dropped as redundant noise; the summary now surfaces only the two
+   actionable counts.
+4. **Null name/role payloads are skipped client-side.** If a `member_joined` or
+   `role_changed` event arrives with a null `name` or `role` value, the Android client
+   skips posting a notification for that row but still advances its cursor past it
+   (forward-compatible with the existing "unknown type" skip rule). In practice the
+   server always populates these fields, so this is a defensive client-side guard
+   against malformed data, not an observed server behaviour.
