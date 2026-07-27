@@ -18,6 +18,8 @@ use Spdotdev\Inventory\Enums\StorageType;
  * @property StorageType $type
  * @property int $position
  * @property bool $is_system
+ * @property string|null $color
+ * @property string|null $icon
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
  * @property int|null $deleted_by The inventory_users.id that deleted this row
@@ -49,6 +51,8 @@ class StorageLocation extends Model
         'type',
         'position',
         'is_system',
+        'color',
+        'icon',
         'deletion_batch_id',
         'deleted_by',
     ];

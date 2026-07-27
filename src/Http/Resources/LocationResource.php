@@ -30,6 +30,10 @@ class LocationResource extends JsonResource
             'name' => $this->name,
             'type' => $this->type->value,
             'position' => $this->position,
+            // Phase-2 theme keys, mirroring ShelfResource/HouseholdResource
+            // exactly (null = client derives a default from the id).
+            'color' => $this->color,
+            'icon' => $this->icon,
             // The Android client needs this BEFORE it can even decide whether
             // to ask for a delete strategy: shelf_count > 0 is exactly
             // DeleteLocationRequest::locationHasContents()'s own rule — both

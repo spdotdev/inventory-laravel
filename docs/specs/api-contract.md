@@ -287,6 +287,13 @@ leaves it untouched, and an unknown palette key is a 422. Rejected with 422 on a
 **system** shelf, same reasoning as the rename/move guard above: the Unsorted shelf is a
 fixed, client-localised concept and never carries a user-chosen theme.
 
+`PATCH /locations/{location}` likewise accepts `color?`/`icon?` (Phase 2 theming,
+mirroring the shelf theming above exactly, same palette-key enums): `sometimes|nullable`
+— an explicit `null` clears the theme back to the client-derived default, an omitted key
+leaves it untouched, and an unknown palette key is a 422. Locations have no `is_system`
+concept exposed today, so — unlike the shelf theming — there is no themed-system-object
+guard here.
+
 ### Restoring a deletion batch
 
 ```
@@ -339,12 +346,18 @@ restored" or "nothing to restore," which the server never reveals.
                                 # shelf_count > 0 alone; that is exactly the
                                 # server's own rule, so a strategy-less delete
                                 # sent when shelf_count == 0 always succeeds
-  product_count }               # live product count across every shelf in the
+  product_count,               # live product count across every shelf in the
                                 # location (including the Unsorted one, if any).
                                 # index() eager-loads both via withCount() to
                                 # avoid an N+1 across many locations — the
                                 # delete-confirmation dialog needs them to show
                                 # "N shelves · N products" before the user picks
+  color, icon }                 # nullable theme KEYS (Phase 2, mirrors the shelf/
+                                # household theme exactly, same enums) — color: sky|
+                                # teal|indigo|pink|amber|green|violet|orange; icon:
+                                # home|kitchen|house|apartment|cottage|warehouse|
+                                # storefront|box. null = client derives a stable
+                                # default from the location id.
 ```
 
 **Shelf resource** (`ShelfResource`):

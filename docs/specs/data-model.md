@@ -44,7 +44,13 @@ inventory_storage_locations
   is_system (boolean, default false; added 2026-07-13 — unused today, reserved so a
     future household-level holding area doesn't need another migration against a live
     table; not yet exposed via the API),
+  color (nullable string — palette key, see HouseholdColor enum, reused as-is),
+  icon (nullable string — icon key, see HouseholdIcon enum, reused as-is),
   created_at, updated_at,
+  -- color/icon: Phase-2 user-chosen theme, mirroring inventory_shelves/
+  -- inventory_households exactly (added 2026-07-27); null = client derives
+  -- from id. Locations have no is_system-themed object to guard, unlike the
+  -- Unsorted shelf, since is_system above is unused/unreserved here.
   deleted_at (nullable — soft delete, added 2026-07-13),
   deletion_batch_id (nullable uuid, indexed — groups every row killed by one
     user gesture so Undo can restore it as a unit; minted client-side)
