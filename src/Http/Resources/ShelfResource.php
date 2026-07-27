@@ -33,6 +33,10 @@ class ShelfResource extends JsonResource
             'position' => $this->position,
             'location_id' => $this->location_id,
             'is_system' => $this->is_system,
+            // Phase-2 theme keys, mirroring HouseholdResource exactly (null =
+            // client derives a default from the id).
+            'color' => $this->color,
+            'icon' => $this->icon,
             // The client needs this BEFORE it can ask the delete question: the
             // strategy dialog says "3 shelves · 17 products", and without a count
             // it cannot tell the user what is at stake.

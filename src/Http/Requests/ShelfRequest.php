@@ -3,6 +3,9 @@
 namespace Spdotdev\Inventory\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Spdotdev\Inventory\Enums\HouseholdColor;
+use Spdotdev\Inventory\Enums\HouseholdIcon;
 
 class ShelfRequest extends FormRequest
 {
@@ -29,6 +32,14 @@ class ShelfRequest extends FormRequest
             // Household scoping is enforced in the controller — a Rule::exists
             // here cannot see the household.
             'location_id' => ['sometimes', 'integer'],
+            // Shelf theming (mirrors UpdateHouseholdRequest exactly, same
+            // palette-key enums): `sometimes|nullable` — an explicit null
+            // clears the theme back to the client-derived default, applied
+            // in ShelfController::update. Absent entirely, the key is
+            // untouched. Reuses the household enums rather than duplicating
+            // the palette so the two never drift.
+            'color' => ['sometimes', 'nullable', Rule::enum(HouseholdColor::class)],
+            'icon' => ['sometimes', 'nullable', Rule::enum(HouseholdIcon::class)],
         ];
     }
 }

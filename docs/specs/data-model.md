@@ -54,7 +54,12 @@ inventory_shelves
   is_system (boolean, default false; added 2026-07-13 — marks the per-location
     "Unsorted" shelf: lazily created on first use, unrenameable, unmovable, always
     sorted last; see `api-contract.md` § *Deleting a location or shelf*),
+  color (nullable string — palette key, see HouseholdColor enum, reused as-is),
+  icon (nullable string — icon key, see HouseholdIcon enum, reused as-is),
   created_at, updated_at,
+  -- color/icon: Phase-2 user-chosen theme, mirroring inventory_households exactly
+  -- (added 2026-07-27); null = client derives from id; the Unsorted (is_system)
+  -- shelf cannot be themed, same as it cannot be renamed/moved
   deleted_at (nullable — soft delete, added 2026-07-13),
   deletion_batch_id (nullable uuid, indexed — see inventory_storage_locations)
 

@@ -280,6 +280,13 @@ so this is enforced in the controller). Rejected with 422 on a **system** shelf
 `move_contents` never reparents it — moving it as-is into a location that already has its
 own would leave two live Unsorted shelves there.
 
+The same `PATCH` also accepts `color?`/`icon?` (Phase 2 theming, mirroring
+`PATCH /households/{household}` exactly, same palette-key enums): `sometimes|nullable`
+— an explicit `null` clears the theme back to the client-derived default, an omitted key
+leaves it untouched, and an unknown palette key is a 422. Rejected with 422 on a
+**system** shelf, same reasoning as the rename/move guard above: the Unsorted shelf is a
+fixed, client-localised concept and never carries a user-chosen theme.
+
 ### Restoring a deletion batch
 
 ```
@@ -353,6 +360,11 @@ restored" or "nothing to restore," which the server never reveals.
                                # *Deleting a location or shelf*): unrenameable, unmovable,
                                # excluded from reorder — the client localises its label
                                # off this flag, not off `name`
+  color, icon,                 # nullable theme KEYS (Phase 2, mirrors the household theme
+                               # exactly, same enums) — color: sky|teal|indigo|pink|amber|
+                               # green|violet|orange; icon: home|kitchen|house|apartment|
+                               # cottage|warehouse|storefront|box. null = client derives a
+                               # stable default from the shelf id.
   product_count }              # live product count; index() eager-loads it (withCount)
                                # to avoid an N+1 across many shelves — the delete-strategy
                                # dialog needs it to show "N products" before the user picks

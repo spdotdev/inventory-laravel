@@ -82,6 +82,17 @@ class ShelfController
             ]);
         }
 
+        // Same reasoning as the rename/reparent guards above: the Unsorted
+        // shelf is a fixed, client-localised concept, so it never carries a
+        // user-chosen theme either — mirrors the household theming rule
+        // (color/icon are palette keys, explicit null clears to default),
+        // just gated by is_system instead of a role check.
+        if ($shelf->is_system && (array_key_exists('color', $data) || array_key_exists('icon', $data))) {
+            throw ValidationException::withMessages([
+                'color' => ['The Unsorted shelf cannot be themed.'],
+            ]);
+        }
+
         // A Rule::exists in the request cannot see the household, so scope here:
         // without this a member could reparent a shelf into another household.
         if (array_key_exists('location_id', $data)) {

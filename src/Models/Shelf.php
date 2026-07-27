@@ -14,6 +14,8 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property int $position
  * @property bool $is_system
+ * @property string|null $color
+ * @property string|null $icon
  * @property Carbon|null $deleted_at
  * @property string|null $deletion_batch_id
  * @property int|null $deleted_by The inventory_users.id that deleted this row —
@@ -43,6 +45,8 @@ class Shelf extends Model
         'name',
         'position',
         'is_system',
+        'color',
+        'icon',
         'deletion_batch_id',
         'deleted_by',
         'restore_parent_id',
