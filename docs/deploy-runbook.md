@@ -46,6 +46,36 @@ script/CSS URLs 404 and the Alpine interactions silently don't load.
 
 ---
 
+## Android release procedure (app-release feed)
+
+The Android app has its own release flow, driven from `inventory-android` by
+`scripts/release.sh <version> <changelog-file>` (see that repo's README and
+`/release` skill). This backend's part of it is the **app-release feed**, which
+powers the in-app update dialog + push notification:
+
+```
+GET   /api/v1/app-version                    -> latest published release (public, unauthenticated)
+GET   /api/v1/admin/app-releases             -> full feed        (admin token)
+POST  /api/v1/admin/app-releases             -> create entry     (admin token)
+PATCH /api/v1/admin/app-releases/{id}        -> update / publish (admin token)
+```
+
+Operational notes:
+
+- `INVENTORY_ADMIN_TOKEN` lives **only** in `d051:/opt/sd-admin/.env` — release.sh
+  publishes by ssh'ing to d051 and reading it there; it never leaves the server.
+- `version_code` is unique across the feed. A stale unpublished draft holding the
+  code causes a 422 ("already been taken") — PATCH that entry with the new fields
+  and `"publish": true` instead of POSTing (release.sh does this automatically).
+- Changelog constraints: first line ≤ 100 chars (becomes the notification text);
+  avoid `&` — it is HTML-escaped into the update dialog.
+- Verify after publishing: `curl -s https://inventory.scuttle.dev/api/v1/app-version`
+  must show the approved version_code / version_name / changelog / download_url.
+- Feed entries can also be managed through the MCP admin tools
+  (`create_app_release` / `list_app_releases` / `update_app_release`).
+
+---
+
 ## 1. Host integration (in place)
 
 `sd-admin/composer.json` carries the VCS repository + requirement:

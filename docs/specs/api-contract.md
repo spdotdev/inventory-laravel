@@ -463,6 +463,9 @@ Not part of the Android client contract; documented so the security boundary is 
 
 ```
 GET    /api/v1/health                                         -> liveness + DB probe
+GET    /api/v1/app-version                                    -> latest published Android release
+                                                                 (UNAUTHENTICATED; the client polls it
+                                                                 for the in-app update prompt)
 POST   /api/v1/errors  { device_id, error_code,
                          message?, app_version? }             -> 201; UNAUTHENTICATED,
                                                                  throttled per device+IP (429),
@@ -480,7 +483,13 @@ orchestrator sees a real failure instead of a misleading 200.
 ```
 GET    /api/v1/admin/users            GET /api/v1/admin/users/search   GET/DELETE /api/v1/admin/users/{id}
 GET    /api/v1/admin/households                                        GET/DELETE /api/v1/admin/households/{id}
+GET    /api/v1/admin/app-releases     POST /api/v1/admin/app-releases   PATCH /api/v1/admin/app-releases/{id}
 ```
+
+`app-releases` is the feed behind `GET /app-version` (Android in-app updates);
+`version_code` is unique across the feed — publishing over a stale draft means
+PATCHing that entry, not POSTing a new one. Operational procedure:
+`docs/deploy-runbook.md` § "Android release procedure".
 
 An **MCP** server (`routes/mcp.php`) is also mounted when `laravel/mcp` is installed on the
 host — operator tooling, outside this client contract.

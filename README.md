@@ -26,7 +26,8 @@ app's own domain; see Configuration):
 | Web app | `/login`, `/register`, `/reset-password`, `/join/{code}`, `/app/*` | Session-guarded account/household/inventory UI (`auth:inventory`) |
 | API | `/api/v1/*` | Headless REST+JSON, Sanctum bearer tokens — the contract in [`docs/specs/api-contract.md`](docs/specs/api-contract.md) |
 | Live updates | `POST /api/v1/broadcasting/auth` | Pusher-protocol channel auth for the private `inventory.household.{id}` channel (Reverb on the host) |
-| Admin API | `/api/v1/admin/*` | Static-token operator surface (users + households) |
+| App-version feed | `GET /api/v1/app-version` | Latest published Android release (public) — drives the app's in-app update prompt |
+| Admin API | `/api/v1/admin/*` | Static-token operator surface (users, households, app-releases, activity log) |
 | Admin MCP | `/mcp` | HTTP MCP server (`src/Mcp/`), same tools as [`inventory-mcp`](https://github.com/spdotdev/inventory-mcp) |
 | Health | `GET /api/v1/health` | JSON liveness/version/database probe |
 
