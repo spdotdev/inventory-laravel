@@ -24,9 +24,19 @@ use Spdotdev\Inventory\Http\Controllers\Api\ShelfController;
 // Headless API for the Android client. Versioned from day one; host-based
 // routed on the configured inventory domain. Locations/shelves/products CRUD
 // land here in the next step per the API contract.
+//
+// withoutMiddleware('throttle:api'): the host app (sd-admin) attaches its
+// own global 'api' rate limiter (60/min per user, shared across every
+// product it hosts) to the 'api' middleware group via throttleApi(). Every
+// surface below either declares its own purpose-built throttle
+// (inventory-auth/-join/-errors/-admin/-api) or is intentionally
+// unthrottled (health, app-version); the global one only added a second,
+// much tighter ceiling on top that a single active Android session
+// (dashboard load + a few stepper taps) blew through in seconds.
 Route::domain(config('inventory.domain'))
     ->prefix('api/v1')
     ->middleware('api')
+    ->withoutMiddleware('throttle:api')
     ->group(function () {
         Route::get('/health', HealthController::class)->name('inventory.api.health');
         // Public app-version check — the Android client polls this, unauthenticated,
@@ -71,7 +81,12 @@ Route::domain(config('inventory.domain'))
                 ->name('inventory.api.auth.logout');
         });
 
-        Route::middleware('auth:sanctum')->group(function () {
+        // All authenticated inventory traffic gets its own generous per-user
+        // limit here, instead of falling back to the host app's global 'api'
+        // limiter (sd-admin: 60/min per user, shared across every product it
+        // hosts) — that budget is exhausted in seconds by a single active
+        // Android session (dashboard load + a few stepper taps).
+        Route::middleware(['auth:sanctum', 'throttle:inventory-api'])->group(function () {
             // Self-service account management for the caller — distinct from
             // the operator-only /admin surface above.
             Route::get('me', [ProfileController::class, 'show'])->name('inventory.api.me.show');

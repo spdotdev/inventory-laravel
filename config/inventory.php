@@ -83,6 +83,12 @@ return [
         // token has no per-identity concept, so this is the only layer possible;
         // it guards against brute-forcing a leaked/weak INVENTORY_ADMIN_TOKEN.
         'admin_per_ip' => (int) env('INVENTORY_RL_ADMIN_IP', 60),
+        // All other authenticated inventory endpoints (dashboard, households,
+        // locations, shelves, products, stock +/-, scans, notifications),
+        // keyed by user. Generous on purpose: one active Android session
+        // routinely fires several requests per second (dashboard load,
+        // press-and-hold stepper release, barcode scans).
+        'api_per_user' => (int) env('INVENTORY_RL_API_USER', 300),
     ],
 
     /*

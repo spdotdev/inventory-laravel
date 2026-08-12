@@ -314,5 +314,23 @@ class InventoryServiceProvider extends ServiceProvider
 
             return Limit::perMinute($perIp)->by('admin|'.(string) $request->ip());
         });
+
+        // Authenticated inventory traffic (dashboard, households, locations,
+        // shelves, products, stock +/- taps, barcode scans, notifications).
+        // Without this, these routes fall back to the host app's global 'api'
+        // limiter (sd-admin: 60/min per user, shared across every product it
+        // hosts) — one Android session opening the dashboard plus a few
+        // quantity taps exhausts that in seconds, surfacing as a 429 on
+        // screens that never should rate-limit a single active user.
+        RateLimiter::for('inventory-api', function (Request $request) {
+            $perUser = (int) $this->app['config']->get('inventory.rate_limits.api_per_user');
+            if ($perUser <= 0) {
+                return Limit::none();
+            }
+
+            $id = $request->user()?->getAuthIdentifier() ?? $request->ip();
+
+            return Limit::perMinute($perUser)->by('inventory-api|'.$id);
+        });
     }
 }

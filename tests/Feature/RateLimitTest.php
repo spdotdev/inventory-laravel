@@ -116,4 +116,62 @@ class RateLimitTest extends TestCase
 
         $this->getJson('http://inventory.test/api/v1/admin/users', $headers)->assertStatus(429);
     }
+
+    public function test_authenticated_inventory_api_throttles_per_user(): void
+    {
+        config()->set('inventory.rate_limits.api_per_user', 2);
+
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 2; $i++) {
+            $this->getJson('http://inventory.test/api/v1/households')->assertOk();
+        }
+
+        $this->getJson('http://inventory.test/api/v1/households')->assertStatus(429);
+    }
+
+    public function test_authenticated_inventory_api_throttle_is_per_user_not_global(): void
+    {
+        config()->set('inventory.rate_limits.api_per_user', 1);
+
+        $alice = User::create(['name' => 'Alice', 'email' => 'alice@example.test', 'password' => 'secret-password']);
+        $bob = User::create(['name' => 'Bob', 'email' => 'bob@example.test', 'password' => 'secret-password']);
+
+        Sanctum::actingAs($alice);
+        $this->getJson('http://inventory.test/api/v1/households')->assertOk();
+        $this->getJson('http://inventory.test/api/v1/households')->assertStatus(429);
+
+        // Bob has his own budget, unaffected by Alice exhausting hers.
+        Sanctum::actingAs($bob);
+        $this->getJson('http://inventory.test/api/v1/households')->assertOk();
+    }
+
+    /**
+     * Regression: the inventory routes previously inherited the host app's
+     * global 'api' rate limiter on top of their own — a much tighter ceiling
+     * (60/min, shared across every product the host serves) that a single
+     * active Android session exhausted in seconds. withoutMiddleware() on
+     * the domain route group must keep that global limiter from stacking.
+     */
+    public function test_authenticated_inventory_api_is_not_also_throttled_by_the_global_api_limiter(): void
+    {
+        // Simulate the host app (sd-admin): it attaches 'throttle:api' to the
+        // 'api' middleware group via Middleware::throttleApi() in
+        // bootstrap/app.php — testbench doesn't do this by default, so it's
+        // reproduced explicitly here. A tight limit stands in for sd-admin's
+        // real one (60/min); if withoutMiddleware('throttle:api') on the
+        // domain route group stopped working, this would 429 well before the
+        // generous inventory-specific budget below is reached.
+        $this->app->make('router')->pushMiddlewareToGroup('api', 'throttle:api');
+        \Illuminate\Support\Facades\RateLimiter::for('api', fn () => \Illuminate\Cache\RateLimiting\Limit::perMinute(1));
+        config()->set('inventory.rate_limits.api_per_user', 10);
+
+        $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
+        Sanctum::actingAs($user);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->getJson('http://inventory.test/api/v1/households')->assertOk();
+        }
+    }
 }
