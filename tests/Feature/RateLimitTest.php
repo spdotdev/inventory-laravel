@@ -2,7 +2,9 @@
 
 namespace Spdotdev\Inventory\Tests\Feature;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\Sanctum;
 use Spdotdev\Inventory\Models\Household;
 use Spdotdev\Inventory\Models\User;
@@ -164,7 +166,7 @@ class RateLimitTest extends TestCase
         // domain route group stopped working, this would 429 well before the
         // generous inventory-specific budget below is reached.
         $this->app->make('router')->pushMiddlewareToGroup('api', 'throttle:api');
-        \Illuminate\Support\Facades\RateLimiter::for('api', fn () => \Illuminate\Cache\RateLimiting\Limit::perMinute(1));
+        RateLimiter::for('api', fn () => Limit::perMinute(1));
         config()->set('inventory.rate_limits.api_per_user', 10);
 
         $user = User::create(['name' => 'Stan', 'email' => 'stan@example.test', 'password' => 'secret-password']);
