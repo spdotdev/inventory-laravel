@@ -64,3 +64,43 @@ jobs:
       - name: composer audit
         if: steps.guard.outputs.present == 'true'
         run: composer audit --no-interaction --abandoned=ignore --locked
+
+  # A scheduled workflow that fails sends no notification anywhere by default,
+  # so a new CVE surfacing on the daily run could stay red unnoticed (the
+  # android repo's nightly stayed red for a month exactly this way, 2026-07-24
+  # → 2026-08-28). Failure opens (or bumps) a labeled tracking issue; the next
+  # green scheduled run closes it. Push/PR failures are already visible on the
+  # PR, so this only fires for schedule/manual runs.
+  report:
+    runs-on: ubuntu-latest
+    needs: composer-audit
+    if: ${{ always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      AUDIT_RESULT: ${{ needs.composer-audit.result }}
+    steps:
+      - name: Open, bump, or close the scheduled-failure issue
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --label scheduled-failure --state open --json number --jq '.[0].number // empty')
+          if [ "$AUDIT_RESULT" = "failure" ]; then
+            if [ -z "$existing" ]; then
+              gh label create scheduled-failure --repo "$GITHUB_REPOSITORY" --color B60205 --description "Scheduled security audit is red" --force
+              {
+                echo "The scheduled security-audit run failed: $RUN_URL"
+                echo ""
+                echo "Likely a newly disclosed CVE in a locked dependency (no code change needed to break). This issue is the alarm; the next green scheduled run closes it automatically."
+              } > /tmp/issue-body.md
+              gh issue create --repo "$GITHUB_REPOSITORY" \
+                --title "Scheduled security audit is failing" \
+                --label scheduled-failure \
+                --body-file /tmp/issue-body.md
+            else
+              gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body "Still failing: $RUN_URL"
+            fi
+          elif [ "$AUDIT_RESULT" = "success" ] && [ -n "$existing" ]; then
+            gh issue close "$existing" --repo "$GITHUB_REPOSITORY" --comment "Green again: $RUN_URL"
+          fi
