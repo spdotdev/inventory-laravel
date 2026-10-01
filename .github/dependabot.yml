@@ -1,0 +1,30 @@
+# Dependabot keeps composer.lock moving forward. Together with Dependabot
+# alerts + security updates (enabled in repo Settings -> Security) it is what
+# stops the daily Security audit (audit.yml) from going red every time a new
+# advisory lands in a transitive package (commonmark 2026-09, laravel/framework
+# + flysystem 2026-09-30). audit.yml is a blocking gate but cannot move the
+# lockfile itself; without this file every new CVE needs a manual bump.
+# Mirrors the inventory-android setup.
+version: 2
+updates:
+  # PHP packages locked in composer.lock (the package's direct deps are few;
+  # almost everything the audit flags is transitive, so bump the whole tree).
+  - package-ecosystem: composer
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # Batch routine version bumps into one PR to keep the queue quiet;
+      # security updates still open on their own for visibility.
+      composer-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Pinned action versions in .github/workflows/*.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
