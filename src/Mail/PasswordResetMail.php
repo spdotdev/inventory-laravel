@@ -23,6 +23,13 @@ class PasswordResetMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'inventory::emails.password-reset');
+        // Larastan >= 3.12 checks `view-string` literals against the view
+        // finder, which cannot resolve this package's `inventory::` namespace
+        // during static analysis. The view lives at
+        // resources/views/emails/password-reset.blade.php.
+        /** @var view-string $view */
+        $view = 'inventory::emails.password-reset';
+
+        return new Content(view: $view);
     }
 }
